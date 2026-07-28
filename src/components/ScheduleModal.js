@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useMemo } from 'react';
-import { Modal, View, Text, TouchableOpacity, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Platform, InteractionManager, useWindowDimensions } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { OverlayAlert } from './common/OverlayAlert';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -25,8 +25,13 @@ import { useCurrentUid } from '../contexts/CurrentUidContext'; // 초대 멤버 
 
 export function ScheduleModal({ visible, onClose, onSave, initial }) {
   const insets = useSafeAreaInsets();
+  const { height: winH } = useWindowDimensions();
   const { userProfile } = useContext(UserContext);
   const currentUid = useCurrentUid();
+  // 시트 렉 완화 — 열릴 때 slide 애니메이션 + KeyboardProvider 초기화가 '폼 전체 마운트'와 경합하면
+  //   첫 탭이 씹히고 키보드가 늦게 떴다(사용자 2026-07-28: 예약자 입력 안 됨 = 이 순간 탭 유실).
+  //   폼 본체는 열림 상호작용이 끝난 뒤(runAfterInteractions) 마운트해 경합을 없앤다. 시트 껍데기·헤더·하단바는 즉시.
+  const [bodyReady, setBodyReady] = useState(false);
   // initial에 id가 있으면 기존 일정 수정, 없으면(날짜만 채워진 경우) 새 일정 추가
   const isEdit = !!(initial && initial.id);
   // 일정 전파(공유) 수정 잠금 — 구장·날짜는 여파가 커 '삭제 후 재생성'으로만(시간·인원·예약자·세부코스는 제자리 수정).
@@ -141,6 +146,13 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
       setEditingName(false);
     }
   }, [visible, initial]);
+
+  // 폼 본체 마운트 시점 — 열림 애니메이션·상호작용이 끝난 뒤로 미룬다(위 bodyReady 주석 참조).
+  useEffect(() => {
+    if (!visible) { setBodyReady(false); return; }
+    const task = InteractionManager.runAfterInteractions(() => setBodyReady(true));
+    return () => task.cancel();
+  }, [visible]);
 
   // 일정 등록 화면 열릴 때 — 최근 검색한 골프장 + 친구 목록(동반자 선택용) 로드
   useEffect(() => {
@@ -450,6 +462,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
           {/* flexShrink:1 — 시트 maxHeight(92%)에 맞춰 스크롤뷰가 줄어들어 스크롤 가능해짐 */}
           {/* KeyboardAwareScrollView — 포커스된 입력칸을 키보드 위로 자동 스크롤(iOS·안드 공통).
               안드는 기존 KeyboardAvoidingView(behavior undefined)가 무효라 동반자 입력칸이 가려졌었음. */}
+          {bodyReady ? (
           <KeyboardAwareScrollView
             style={{ flexShrink: 1 }}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 2, paddingBottom: 24 }}
@@ -825,6 +838,12 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
               <View style={{ height: 140 }} />
 
             </KeyboardAwareScrollView>
+          ) : (
+            // 열림 애니메이션이 끝날 때까지 폼 마운트를 미룸 — placeholder는 시트 높이를 미리 잡아 마운트 시 튐 최소화.
+            <View style={{ height: winH * 0.72, alignItems: 'center', justifyContent: 'center' }}>
+              <Spinner size={22} color={C.burgundy} />
+            </View>
+          )}
           {/* C. 고정 하단 바 — 항상 보이는 취소/저장(스크롤 끝까지 안 내려가도 닫기·저장 가능) */}
           <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 10, paddingBottom: insets.bottom + 8, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
             <TouchableOpacity onPress={() => { reset(); onClose(); }} activeOpacity={0.8}

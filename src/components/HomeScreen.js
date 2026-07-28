@@ -134,6 +134,7 @@ export function HomeScreen({ navigation, route }) {
   const [showTrafficFull, setShowTrafficFull] = useState(false);
   const [showWeatherPopup, setShowWeatherPopup] = useState(false);
   const [showScheduleScreen, setShowScheduleScreen] = useState(false); // 일정(캘린더) 풀스크린
+  const [scheduleJumpTo, setScheduleJumpTo] = useState(null); // 캘린더 열 때 점프할 날짜('YYYY.MM.DD') — '+N개 더' 카드용
   const [editScheduleTarget, setEditScheduleTarget] = useState(null);
   const [pendingScheduleChange, setPendingScheduleChange] = useState(null); // 전파 일정 변경 반영 대기 1건 { schedule, pc } — 홈 상단 맥동 배너
   const [groupSharedCounts, setGroupSharedCounts] = useState({});
@@ -1696,6 +1697,17 @@ export function HomeScreen({ navigation, route }) {
               );
             })}
 
+            {/* 예정 라운딩이 5개 초과면 '+N개 더' 카드 — 홈 캐러셀은 5개까지만 보여, 나머지가 '사라진 것처럼'
+                보이던 것 해소. 탭하면 일정(캘린더) 화면으로 열어 전체 목록에서 확인. (사용자 2026-07-28) */}
+            {upcomingSchedules.length > 5 && (
+              <TouchableOpacity
+                style={[homeS.subCard, { opacity: 0.5, alignItems: 'center', justifyContent: 'center' }]}
+                onPress={() => { setScheduleJumpTo(upcomingSchedules[5]?.date || null); setShowScheduleScreen(true); }} activeOpacity={0.85}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: 'rgba(245,230,168,0.9)' }}>+{upcomingSchedules.length - 5}</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(245,230,168,0.7)', marginTop: 5 }}>더 보기 →</Text>
+              </TouchableOpacity>
+            )}
+
           </ScrollView>
 
           {/* 배너 큐가 하나라도 떠 있으면(topBanner) 아래 구분선+한줄메모/코멘트 카드를 숨김 — 좁은 화면 겹침 방지(다 처리하면 복원). 사용자 지정 2026-06-18, 큐로 통합 2026-07-23. */}
@@ -2209,7 +2221,8 @@ export function HomeScreen({ navigation, route }) {
       <ScheduleScreen
         asModal
         visible={showScheduleScreen}
-        onClose={() => setShowScheduleScreen(false)}
+        jumpTo={scheduleJumpTo}
+        onClose={() => { setShowScheduleScreen(false); setScheduleJumpTo(null); }}
         navigation={navigation}
       />
     </View>

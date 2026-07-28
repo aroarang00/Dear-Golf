@@ -301,6 +301,10 @@ function App() {
         // USER_PROFILE_INIT에 새 필드를 추가하면 자동으로 옛 사용자에게도 적용됨.
         // 폐기된 필드(예: cancelImminentCount, cancelDayCount)는 spread에서 자연 유지되지만 신규 코드에서 사용 X.
         const migrated = { ...USER_PROFILE_INIT, ...loaded };
+        // ★alarmDefaults는 '전체 객체 교체'라, 옛 로컬값에 wake/depart 키가 없으면 그대로 사라진다(기상 토글이
+        //   저절로 꺼지는 원인, 사용자 2026-07-28). 완전한 기본 위에 로컬값을 얹어 '없는 키'는 기본(ON)으로 살리고
+        //   '명시적 false'만 존중한다. (아래 서버 병합·write-through도 동일 원칙)
+        migrated.alarmDefaults = { ...USER_PROFILE_INIT.alarmDefaults, ...(loaded.alarmDefaults || {}) };
         setUserProfile(migrated);
         // 새 필드가 추가됐으면 storage에 다시 저장해서 옛 데이터를 새 구조로 업그레이드
         if (JSON.stringify(migrated) !== JSON.stringify(loaded)) {
@@ -371,6 +375,14 @@ function App() {
         setUserProfile(prev => {
           const next = { ...prev };
           if (settings) Object.assign(next, settings);
+          // ★alarmDefaults만은 통째 교체 금지 — 서버값이 null이거나 wake/depart 키가 빠져 있으면 로컬 정상값이
+          //   통째로 날아가 기상 토글이 저절로 꺼졌다(사용자 2026-07-28). 완전한 기본 < 로컬 < 서버 순으로 얹어
+          //   '없는 키'는 ON 유지, '서버가 명시적으로 끈 것(false)'만 존중.
+          next.alarmDefaults = {
+            ...USER_PROFILE_INIT.alarmDefaults,
+            ...(prev.alarmDefaults || {}),
+            ...(settings?.alarmDefaults || {}),
+          };
           if (data.nickname) next.nickname = data.nickname;
           // 프로필 한마디(statusMessage) — Firestore 권위로 복원(재설치·새 기기서도 유지). '' 도 반영(서버에서 지운 상태).
           if (data.statusMessage != null) next.statusMessage = data.statusMessage;
@@ -452,7 +464,8 @@ function App() {
         const payload = {
           uid, // users 규칙(request.resource.data.uid == uid) 충족 — 없으면 문서 생성/수정이 권한 거부됨
           settings: {
-            alarmDefaults: userProfile.alarmDefaults || null,
+            // 항상 온전한 묶음으로 저장 — null·부분객체가 서버에 박히면 다음 실행에 로컬을 덮어 기상이 꺼진다.
+            alarmDefaults: { ...USER_PROFILE_INIT.alarmDefaults, ...(userProfile.alarmDefaults || {}) },
             alarmPromptDisabled: !!userProfile.alarmPromptDisabled,
             // 기상 알람 폰 알람 자동등록(안드) — 로컬에만 저장돼 재설치·기기변경 시 사라지고,
             //   시작 시 이 settings로 프로필을 덮으므로 서버에 없으면 되돌아갈 여지가 있었다(2026-07-22 제보).

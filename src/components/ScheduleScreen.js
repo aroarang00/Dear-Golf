@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Platform } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -12,7 +12,7 @@ import { AppAlertHost } from './AppAlert';
 
 // asModal={true} + visible/onClose 모드로도 사용 가능 (홈에서 풀스크린 모달로 띄울 때).
 // asModal=false면 기존 탭 화면처럼 동작 (navigation 필수).
-export function ScheduleScreen({ navigation, asModal = false, visible: modalVisible = false, onClose }) {
+export function ScheduleScreen({ navigation, asModal = false, visible: modalVisible = false, onClose, jumpTo = null }) {
   // ⚠️ DiariesContext 사용 — 이전엔 자체 useState + storage.load로 분리된 데이터였음.
   // DiaryScreen은 DiariesContext 사용하므로 diary.id 매칭 실패 → 다이어리 상세 안 열림 버그.
   // Context로 단일 소스화. (2026-05-26 데이터 불일치 fix)
@@ -45,6 +45,14 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
     setJumpDate({ y, m: m - 1, n: Date.now() });
   };
 
+  // 외부(홈 '+N개 더' 카드 등)에서 특정 라운딩의 달로 열도록 요청 — 화면이 열릴 때 그 달로 점프.
+  //   'YYYY.MM.DD' 문자열. 홈 캐러셀에 안 보이던 6번째 이후 라운딩을 바로 그 달에서 보여준다(사용자 2026-07-28).
+  useEffect(() => {
+    if (!modalVisible || !jumpTo) return;
+    const [y, m] = String(jumpTo).split('.').map(Number);
+    if (y && m) setJumpDate({ y, m: m - 1, n: Date.now() });
+  }, [modalVisible, jumpTo]);
+
   const content = (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={asModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
       <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 16, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -58,7 +66,14 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 14 }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={{ fontFamily: F.serifKR, fontSize: fs(Platform.OS === 'android' ? 24 : 28), color: C.navy }}>골프 일정</Text>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.navy, marginTop: 3 }}>›</Text>
+            {/* 목록 아이콘 + 개수 칩 — '›'만으론 목록이 있다는 신호가 약해, 채움 칩으로 명확히(사용자 2026-07-28). */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
+              backgroundColor: C.navy, borderRadius: 13, paddingHorizontal: 10, paddingVertical: 4 }}>
+              <Icon name="list" size={fs(13)} color={C.butter} strokeWidth={2} />
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.butter }}>
+                {upcomingSchedules.length > 0 ? `예정 ${upcomingSchedules.length}` : '일정 목록'}
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
         <TouchableOpacity
@@ -140,8 +155,7 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
                         onPress={() => handlePickUpcoming(s)}
                         style={{
                           flexDirection: 'row', alignItems: 'center', gap: 10,
-                          paddingVertical: 9, paddingHorizontal: 16,
-                          borderTopWidth: showMonth ? 0 : 0.5, borderColor: C.hairline,
+                          paddingVertical: 11, paddingHorizontal: 16,
                         }}>
                         <View style={{
                           minWidth: 46, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 7, alignItems: 'center',

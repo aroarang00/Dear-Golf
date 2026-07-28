@@ -24,8 +24,11 @@ export function RestaurantDetailSheet({ visible, place, badge, onClose, onDecide
   }, [visible, canGoBack, asOverlay, onClose]);
   if (!place) return null;
   if (asOverlay && !visible) return null;   // 오버레이는 Modal의 visible prop이 없어 직접 게이트
+  // place_url이 빈 식당(카카오 검색 결과 일부)도 kakaoId는 항상 있어, kakaoId로 place URL을 만들어 준다.
+  //   (함께 식사 리스트가 openDetail을 안 거치고 직접 열어 url 없는 식당이 '상세 불러올 수 없어요'로 뜨던 것 — 사용자 2026-07-28)
   // iOS ATS(에러 1022) — WKWebView가 http를 차단한다. 카카오 place_url이 http로 오는 경우가 있어 https로 승격(카카오도 https 지원).
-  const url = (place.url || '').replace(/^http:\/\//i, 'https://');
+  const rawUrl = place.url || (place.kakaoId ? `https://place.map.kakao.com/${place.kakaoId}` : '');
+  const url = rawUrl.replace(/^http:\/\//i, 'https://');
   const distTxt = place.distance ? (place.distance >= 1000 ? `${(place.distance / 1000).toFixed(1)}km` : `${place.distance}m`) : '';
   const body = (
       <View style={asOverlay

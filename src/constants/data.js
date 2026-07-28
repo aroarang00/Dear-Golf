@@ -142,7 +142,7 @@ export const USER_PROFILE_INIT = {
   departure: '',
   departureCoord: null, // { x, y } — 출발지 검색에서 선택 시 저장되는 정확 좌표
   phone: '',
-  alarmDefaults: { d3: true, d1: true, teeoff: true }, // 새 일정 추가 시 기본 알람 시점
+  alarmDefaults: { d3: true, d1: true, teeoff: true, wake: true, depart: true }, // 새 일정 추가 시 기본 알람 시점(기상·출발 포함 — 빠지면 동기화 통째교체로 저절로 꺼짐)
   alarmPromptDisabled: false, // true면 일정 추가 시 알람 팝업 없이 기본값 자동 적용
   avatarUri: null,   // 프로필 사진 URI — 본인 표시용 (직접 업로드 dgphoto: 또는 카카오 http)
   avatarUrl: null,   // 친구 공개용 https URL — Storage 업로드 결과(또는 카카오 http). App.js write-through가 users에 동기화

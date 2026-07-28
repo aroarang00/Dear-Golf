@@ -56,6 +56,13 @@ export function WebSheet({ visible, url, title, onClose, asOverlay = false }) {
             onClose && onClose();
             return false;
           }
+          // ★iOS ATS — 앱내 웹뷰는 http(비보안)를 못 연다(Error -1022, 베르힐CC 영종 등 옛 골프장 홈피).
+          //   외부 브라우저(Safari는 http 허용)로 넘기고 시트를 닫아 에러 화면을 안 보이게. 안드는 http도 웹뷰서 열림.
+          if (Platform.OS === 'ios' && /^http:\/\//i.test(u)) {
+            Linking.openURL(u).catch(() => {});
+            onClose && onClose();
+            return false;
+          }
           if (/^https?:\/\//i.test(u) || u === 'about:blank') return true;
           // intent://…#Intent;scheme=nmap;…;S.browser_fallback_url=…;end (안드 네이버 등)
           //   → scheme://로 변환해 앱 직접 실행. 앱 없으면 폴백 URL(웹/스토어)로.
@@ -74,6 +81,19 @@ export function WebSheet({ visible, url, title, onClose, asOverlay = false }) {
         renderLoading={() => (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgPrimary }}>
             <ActivityIndicator color={C.burgundy} />
+          </View>
+        )}
+        // 로드 실패(ATS·네트워크·차단 등) 시 raw 에러(NSURLErrorDomain -1022 등) 대신 친절한 안내 + 외부로 열기.
+        renderError={() => (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgPrimary, paddingHorizontal: 40 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 8, textAlign: 'center' }}>앱 안에서 열 수 없는 페이지예요</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginBottom: 20, textAlign: 'center', lineHeight: 20 }}>
+              보안 정책이나 사이트 설정 때문일 수 있어요.{'\n'}외부 브라우저에서 열어보세요.
+            </Text>
+            <TouchableOpacity onPress={() => { Linking.openURL(url).catch(() => {}); onClose && onClose(); }} activeOpacity={0.85}
+              style={{ backgroundColor: C.burgundy, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 30 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>외부 브라우저로 열기</Text>
+            </TouchableOpacity>
           </View>
         )}
       />

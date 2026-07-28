@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Linking, Platform, ActivityIndicator } from 'react-native';
+import Constants from 'expo-constants'; // 앱 실제 버전 조회 — 하드코딩 대신 app.config version(OTA/빌드 반영)
 import AppTextInput from './common/AppTextInput';
 import { OverlayAlert } from './common/OverlayAlert';
 import { C, F, fs } from '../constants/colors';
@@ -63,9 +64,23 @@ function AlarmBadge({ name, size = 17 }) {
   );
 }
 
+// 앱 버전 — app.config의 version(빌드/ OTA 매니페스트에 그대로 담김). 하드코딩('1.0.0') 대신 실제 값 표시.
+const APP_VERSION = Constants.expoConfig?.version || '';
+
 export function MyPageModal({ visible, onClose }) {
   const { userProfile, setUserProfile, onAccountDeleted, previewOnboarding } = React.useContext(UserContext);
   const { diaries, reloadDiaries } = React.useContext(DiariesContext);
+
+  // 앱 평가하기 — 스토어 리뷰 페이지 열기(앱 스킴 우선, 실패 시 웹 폴백). 예전엔 onPress가 없어 죽은 버튼이었음.
+  const openStoreReview = () => {
+    const appUrl = Platform.OS === 'ios'
+      ? 'itms-apps://itunes.apple.com/app/id6770383793?action=write-review'
+      : 'market://details?id=app.deargolf';
+    const webUrl = Platform.OS === 'ios'
+      ? 'https://apps.apple.com/app/id6770383793?action=write-review'
+      : 'https://play.google.com/store/apps/details?id=app.deargolf';
+    Linking.openURL(appUrl).catch(() => Linking.openURL(webUrl).catch(() => {}));
+  };
   const { schedules } = React.useContext(SchedulesContext);
   // 핸디 — 최근 20라운드 중 베스트 5개 평균(기록 5개 미만 시 입력 평균타 우선). DiaryScreen·DiaryCard와 동일 정책.
   const handicap = calcHandicap(diaries, userProfile.avgScore);
@@ -128,7 +143,7 @@ export function MyPageModal({ visible, onClose }) {
     storage.save(STORAGE_KEYS.profile, updated);
   };
   const toggleAlarmDefault = (key) => {
-    const defaults = userProfile.alarmDefaults || { d3: true, d1: true, teeoff: true };
+    const defaults = userProfile.alarmDefaults || { d3: true, d1: true, teeoff: true, wake: true, depart: true };
     persistAlarmCfg({ alarmDefaults: { ...defaults, [key]: !defaults[key] } });
   };
 
@@ -874,7 +889,7 @@ export function MyPageModal({ visible, onClose }) {
                         '어떤 화면에서, 어떤 동작을 했을 때 문제가 있었는지 적어주세요.\n\n\n'
                         + '――― 아래 정보는 문제 해결에 사용돼요 ―――\n'
                         + `기기: ${Platform.OS === 'android' ? '안드로이드' : 'iOS'} ${Platform.Version}\n`
-                        + '앱 버전: 1.0.0');
+                        + `앱 버전: ${APP_VERSION}`);
                       Linking.openURL(`mailto:deargolf.official@gmail.com?subject=${subject}&body=${body}`).catch(() =>
                         setAlertData({ title: '메일 앱을 열 수 없어요', message: 'deargolf.official@gmail.com 으로 보내주시면 확인할게요.' }));
                     } },
@@ -1037,13 +1052,18 @@ export function MyPageModal({ visible, onClose }) {
               <View style={myS.divider} />
               <View style={myS.section}>
                 <Text style={myS.sectionLabel}>정보</Text>
-                {[{ icon: '⭐', label: '앱 평가하기' }, { icon: '📋', label: 'v1.0.0' }].map((item, i) => (
-                  <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7}>
-                    <MenuIcon name={item.iconName} emoji={item.icon} />
-                    <Text style={myS.menuLabel}>{item.label}</Text>
-                    <Text style={myS.menuValue}>›</Text>
-                  </TouchableOpacity>
-                ))}
+                {/* 앱 평가하기 — 스토어 리뷰로 연결 */}
+                <TouchableOpacity style={myS.menuRow} activeOpacity={0.7} onPress={openStoreReview}>
+                  <MenuIcon emoji="⭐" />
+                  <Text style={myS.menuLabel}>앱 평가하기</Text>
+                  <Text style={myS.menuValue}>›</Text>
+                </TouchableOpacity>
+                {/* 버전 — 정보 표시(누르는 항목 아님) → › 없이 값만 */}
+                <View style={myS.menuRow}>
+                  <MenuIcon emoji="📋" />
+                  <Text style={myS.menuLabel}>버전</Text>
+                  <Text style={myS.menuValue}>{`v${APP_VERSION}`}</Text>
+                </View>
               </View>
               {__DEV__ && (
                 <>
@@ -1123,7 +1143,7 @@ export function MyPageModal({ visible, onClose }) {
                 </TouchableOpacity>
               </View>
               <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>Dear Golf v1.0.0</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{`Dear Golf v${APP_VERSION}`}</Text>
               </View>
             </ScrollView>
           </View>

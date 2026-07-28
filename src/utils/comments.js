@@ -15,8 +15,9 @@ import {
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 
-// 표시·작성 한도 — 최신 100개 단위 페이지(이전 댓글 보기), 모집당 총 300개까지 작성.
-export const COMMENT_PAGE_SIZE = 100;
+// 표시·작성 한도 — 최신 30개 단위 페이지(이전 댓글 보기), 모집당 총 300개까지 작성.
+//   (100개는 한 화면에 너무 길어 30으로 낮춤, 사용자 2026-07-27)
+export const COMMENT_PAGE_SIZE = 30;
 export const COMMENT_MAX_TOTAL = 300;
 import { containsProfanity } from './profanityFilter';
 

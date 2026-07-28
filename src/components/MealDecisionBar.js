@@ -612,7 +612,13 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
         </TouchableOpacity>
       )}
 
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => {
+        // ★안드 뒤로가기 — 식당 상세(오버레이)가 열려 있으면 시트 전체가 아니라 상세부터 닫아 리스트로 돌아간다.
+        //   (상세는 네이티브 Modal이 아니라 오버레이라, 백이 이 Modal onRequestClose로 새어 시트가 통째로 닫혀
+        //   일정시트로 튀던 것 방지 — 사용자 2026-07-28)
+        if (detailPlace) { setDetailPlace(null); return; }
+        setOpen(false);
+      }}>
         {/* KeyboardProvider — RN Modal은 별도 네이티브 윈도우라 모달 안 키보드 회피는 자체 Provider 필요(ScheduleModal과 동일) */}
         <KeyboardProvider>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>

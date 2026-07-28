@@ -248,9 +248,13 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const hasRecordForSched = React.useCallback((s) => {
     if (!s) return false;
     if (s.id && diaries.some(d => d.scheduleId === s.id)) return true;
-    // fallback은 일정에 연결 안 된(scheduleId 없는) 구·직접작성 다이어리만 — 같은 구장·날 36홀 비대칭 차단
-    return diaries.some(d => d.course === s.course && d.date === s.date && !d.scheduleId);
-  }, [diaries]);
+    // fallback — scheduleId가 '없는'(직접작성) 다이어리 + scheduleId가 '가리키던 일정이 사라진'(dangling) 다이어리를
+    //   구장+날짜로 이어준다. ★dangling까지 포함해야 'MY엔 기록인데 일정 캘린더엔 미기록'인 비대칭이 안 생긴다
+    //   (DiaryScreen 목록 매칭과 동일 기준. 사용자 2026-07-28: '리스트에서 골라 기록'했는데 캘린더만 미기록).
+    //   같은 날 N건 비대칭은 여전히 scheduleId 직접연결(위)이 우선이라 차단됨. ([[home-multi-schedule-same-day]])
+    const liveIds = new Set(schedules.map(x => x.id));
+    return diaries.some(d => d.course === s.course && d.date === s.date && (!d.scheduleId || !liveIds.has(d.scheduleId)));
+  }, [diaries, schedules]);
 
   // 일정 → 매칭되는 다이어리 객체 (탭 시 상세 열기에 사용)
   const findDiaryForSched = React.useCallback((s) => {
@@ -259,13 +263,17 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
       const byId = diaries.find(d => d.scheduleId === s.id);
       if (byId) return byId;
     }
-    return diaries.find(d => d.course === s.course && d.date === s.date && !d.scheduleId) || null;
-  }, [diaries]);
+    // hasRecordForSched와 동일 기준 — 직접작성 + dangling(끊긴 링크) 기록도 구장+날짜로 연결.
+    const liveIds = new Set(schedules.map(x => x.id));
+    return diaries.find(d => d.course === s.course && d.date === s.date && (!d.scheduleId || !liveIds.has(d.scheduleId))) || null;
+  }, [diaries, schedules]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const today = new Date();
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  // 오늘 날짜 'YYYY.MM.DD' — 일정 date와 문자열로 직접 비교(타임존 파싱 흔들림 없이 'D-0' 판정). ([[schedule-status-labeling]])
+  const todayStr = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, '0')}.${String(today.getDate()).padStart(2, '0')}`;
   // 표시 중인 달이 과거 달인지 — 지난달엔 '첫 라운드 등록' 안내를 띄우지 않음
   const isPastMonth = year < today.getFullYear() || (year === today.getFullYear() && month < today.getMonth());
   const firstDay = new Date(year, month, 1).getDay();
@@ -561,6 +569,14 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   // 일정 삭제 — 상황별 확인. 시트의 삭제 버튼 + 목록 카드 길게누르기 양쪽에서 사용
   const deleteSchedule = (s) => {
     if (!s) return;
+    // ★가상 카드(일정 없이 기록만 있는 날 — id 'diary-xxx', virtual:true)는 지울 실제 일정이 없다.
+    //   removeSchedule을 부르면 존재하지 않는 일정 문서를 지우려다 조용히 실패하고, 다이어리는 그대로라
+    //   다음 렌더에 카드가 재생성돼 '삭제가 안 되는' 것처럼 보였다(사용자 2026-07-28 설레인).
+    //   → 기록 자체는 MY 탭에서 삭제. (매칭 계산과 무관하게 방어)
+    if (s.virtual) {
+      showAppAlert('삭제 안내', '이 라운딩은 기록이 있어요.\nMY 탭에서 삭제해주세요.', [{ text: '확인' }]);
+      return;
+    }
     const isPast = new Date((s.date || '').replace(/\./g, '-')).getTime() < todayMid;
     const hasRec = hasRecordForSched(s);
     const roundOver = roundEnded(s); // 티오프+5h 경과 — 모집연동 D-0 일정도 캘린더 직접 삭제 허용(갇힘 방지)
@@ -887,9 +903,14 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
               // 빈 time(자동 등록 등)은 정렬 시 끝으로 — 시간 정보 있는 일정 우선
               .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '~').localeCompare(b.time || '~'))
               .map(s => {
-                // '완료'(미기록·기록추가 노출) 판정 = 날짜 지남 OR 같은 날이라도 티오프+5h 경과(라운딩 끝남).
-                //   기존엔 날짜 기준이라 D-0엔 라운딩이 끝나도 다음날까지 '예정'으로 남아 기록 버튼이 안 떴음(사용자 2026-06-20).
-                const past = new Date(String(s.date || '').replace(/\./g, '-')).getTime() < todayMid || roundEnded(s);
+                // 카드 상태 판정. ★'미기록'(회색·점선·기록유도)은 '지난 날' 라운딩에만 붙인다.
+                //   오늘(D-0) 라운딩이 티오프+4h로 '끝남' 판정돼도 '미기록'으로 떨구면, 방금 등록한 당일 라운딩이
+                //   '등록 실패'처럼 보였다(사용자 2026-07-28: 당일 등록했는데 '미기록·기록하기'로 뜸).
+                //   → 오늘 라운딩은 끝났어도 '오늘 라운딩'(버건디) 유지 + 기록 버튼만 함께 노출. ([[schedule-status-labeling]])
+                const schedMid = new Date(String(s.date || '').replace(/\./g, '-')).getTime();
+                const isToday = s.date === todayStr;
+                const pastDay = !isToday && schedMid < todayMid;   // 오늘보다 이전 '날'
+                const ended = roundEnded(s);                        // 티오프+4h 경과(라운딩 끝남)
                 const rec = hasRecordForSched(s);
                 let status, sideColor, badgeBg, badgeFg, badgeTxt;
                 if (rec) {
@@ -897,21 +918,26 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                   status = 'completed-record';
                   sideColor = C.butter;
                   badgeBg = '#FBF7EE'; badgeFg = '#A88A2E'; badgeTxt = '기록완료';
-                } else if (past) {
+                } else if (isToday && ended) {
+                  // 오늘 끝난 라운딩 — '미기록' 대신 '오늘 라운딩'. 기록 버튼은 아래에서 함께 노출.
+                  status = 'today-norecord';
+                  sideColor = C.burgundy;
+                  badgeBg = '#F5EAEC'; badgeFg = C.burgundy; badgeTxt = '오늘 라운딩';
+                } else if (pastDay) {
                   status = 'completed-norecord';
                   sideColor = C.warmGray;
                   badgeBg = '#F0EDE6'; badgeFg = C.warmGray; badgeTxt = '미기록';
                 } else {
                   status = 'upcoming';
                   sideColor = C.burgundy;
-                  badgeBg = '#F5EAEC'; badgeFg = C.burgundy; badgeTxt = '예정';
+                  badgeBg = '#F5EAEC'; badgeFg = C.burgundy; badgeTxt = isToday ? '오늘 라운딩' : '예정';
                 }
 
                 const cardBorder = status === 'completed-norecord'
                   ? { borderWidth: 1, borderColor: C.warmGray, borderStyle: 'dashed' }
                   : { borderWidth: 0.5, borderColor: C.hairline };
-                // 완료된 카드 흐리게 (기록 유무 무관)
-                const cardOpacity = (past || rec) ? 0.55 : 1;
+                // 지난 날 라운딩·기록완료 카드만 흐리게. 오늘 라운딩(미기록 포함)은 선명하게 — 방금 등록·오늘 액션.
+                const cardOpacity = (pastDay || rec) ? 0.55 : 1;
 
                 return (
                   <TouchableOpacity key={s.id}
@@ -935,12 +961,14 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                         if (diary && onRequestOpenDiary) onRequestOpenDiary(diary);
                         return;
                       }
-                      if (past) {
-                        // 과거 + 미기록 → 카드 전체 = '기록 추가하기' 액션 (편의)
+                      if (pastDay) {
+                        // 지난 날 + 미기록 → 카드 전체 = '기록 추가하기' 액션 (편의)
                         onRequestAddDiary && onRequestAddDiary(s);
                         return;
                       }
-                      // 미래 예정(미기록) → 시트
+                      // 예정 / 오늘 라운딩(끝났어도) → 시트(수정·삭제·날씨·교통).
+                      //   ★오늘 라운딩을 바로 기록추가로 보내면 잘못 넣은 티오프 시간을 못 고쳐 갇힘 → 시트에서 수정 가능하게.
+                      //   기록은 카드 우측 '기록 추가하기' 버튼으로 별도 진입.
                       setSheet({ visible: true, schedule: { ...s, hasRec: rec } });
                     }}
                     activeOpacity={0.85}
@@ -983,7 +1011,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                       <View style={{ backgroundColor: badgeBg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
                         <Text style={{ fontFamily: F.sysSb, fontSize: fs(10), color: badgeFg }}>{badgeTxt}</Text>
                       </View>
-                      {status === 'completed-norecord' && (
+                      {(status === 'completed-norecord' || status === 'today-norecord') && (
                         <TouchableOpacity
                           onPress={(e) => { e.stopPropagation?.(); onRequestAddDiary && onRequestAddDiary(s); }}
                           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
