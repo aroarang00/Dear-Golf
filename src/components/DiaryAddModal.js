@@ -1265,7 +1265,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
                   </TouchableOpacity>
                 )}
               </View>
-              <SpinnerPicker visible={showTimePicker} mode="time" is24Hour
+              <SpinnerPicker visible={showTimePicker} mode="time" is24Hour title="티오프 시간"
                 value={(() => { const [h, m] = (teeTime || '07:00').split(':').map(Number); const d = new Date(); d.setHours(Number.isFinite(h) ? h : 7, Number.isFinite(m) ? m : 0, 0, 0); return d; })()}
                 onPick={(d) => setTeeTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)}
                 onClose={() => setShowTimePicker(false)} />

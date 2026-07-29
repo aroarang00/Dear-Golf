@@ -784,7 +784,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
                 <TouchableOpacity style={mS.input} onPress={() => setShowTime(true)}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.textPrimary }}>{fmtTime(date)}</Text>
                 </TouchableOpacity>
-                <SpinnerPicker visible={showTime} value={date} mode="time" is24Hour
+                <SpinnerPicker visible={showTime} value={date} mode="time" is24Hour title="티오프 시간"
                   minimumDate={isSameDay(date, new Date()) ? new Date() : undefined}
                   onClose={() => setShowTime(false)}
                   // 오늘 모집인데 과거 시각을 고르면 현재 이후로 클램프(안드 minimumDate 불안정 대비)

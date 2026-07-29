@@ -468,7 +468,7 @@ export function AlarmSetupModal({ visible, schedule, onClose, existing = null })
               {!!mealErr && (
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.burgundy, marginTop: 6 }}>⚠ {mealErr}</Text>
               )}
-              <SpinnerPicker visible={showTimePicker} value={pickerValue} mode="time" is24Hour
+              <SpinnerPicker visible={showTimePicker} value={pickerValue} mode="time" is24Hour title="라운드 전 식사·모임"
                 onPick={onPickTime} onClose={() => setShowTimePicker(false)} />
 
               {/* 역산 타임라인 + 조정 */}
@@ -764,7 +764,7 @@ export function QuickMealPrompt({ visible, schedule, onDone }) {
             </View>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: mealTime ? C.burgundy : C.warmGray }}>{mealTime ? '변경' : '›'}</Text>
           </TouchableOpacity>
-          <SpinnerPicker visible={showPicker} value={pickerValue} mode="time" is24Hour
+          <SpinnerPicker visible={showPicker} value={pickerValue} mode="time" is24Hour title="미리 만나는 시각"
             onPick={onPick} onClose={() => setShowPicker(false)} />
           {!!mealErr && (
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 9 }}>

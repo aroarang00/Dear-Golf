@@ -727,7 +727,7 @@ export function ScheduleModal({ visible, onClose, onSave, initial }) {
                   </TouchableOpacity>
                 </View>
               )}
-              <SpinnerPicker visible={showTimePicker} mode="time" is24Hour
+              <SpinnerPicker visible={showTimePicker} mode="time" is24Hour title="티오프 시간"
                 value={(() => { const d = new Date(); d.setHours(clampNum(hourText, 23), clampNum(minText, 59), 0, 0); return d; })()}
                 onClose={() => setShowTimePicker(false)}
                 onPick={(t) => { setHourText(pad2(t.getHours())); setMinText(pad2(t.getMinutes())); }} />
