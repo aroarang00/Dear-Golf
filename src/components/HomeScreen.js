@@ -53,7 +53,7 @@ import { formatDriveMin } from '../utils/directions'; // 교통 소요 '시간 �
 import { loadRoundup, updateRoundupNotice } from '../utils/roundup';            // 고아 정리 — 모집 상태 직접 조회 / 라운지 일정 공지(teamNotice) 저장
 import { loadMyNotifications, visibleNotifications, markScheduleMentionsRead } from '../utils/roundupNotifications'; // 홈 종 뱃지 — 라운지 알림함과 같은 필터
 import { ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
-import { deleteMeal, leaveMealAudience } from '../utils/mealSuggestions';     // 고아 정리 + 일정 이탈 시 식사 audience 이탈
+import { deleteMeal, leaveMealAudience, mealKeyOf } from '../utils/mealSuggestions';     // 고아 정리 + 일정 이탈 시 식사 audience 이탈 + 식사 공유 키
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 import { RoundupInviteInbox } from './RoundupInviteInbox';
@@ -415,13 +415,13 @@ export function HomeScreen({ navigation, route }) {
     if (!pendingMeal || !hydrated) return;            // 일정 로드 전엔 대기 → hydrated/schedules 바뀌면 재실행
     const om = pendingMeal;
     setPendingMeal(null);
-    // 푸시가 mealId(meal_{key}[_2])를 실어 대상 식사를 특정한다. key=groupId|roundupId|schedule.id.
+    // 푸시가 mealId(meal_{key}[_2])를 실어 대상 식사를 특정한다. key는 mealKeyOf 기준(저장 때와 동일해야 매칭됨).
     //   ★홈 '다음 라운드'가 아닌 다른 일정의 식사면 그 일정의 식사 시트를 직접 연다 —
     //     예전엔 mealId를 버리고 항상 next의 홈 식사바만 열어 엉뚱한 라운드 식사가 열렸음(2026-07 푸시라우팅 감사).
     let targetSched = null;
     if (typeof om === 'string') {
       const key = om.replace(/^meal_/, '').replace(/_2$/, '');
-      targetSched = (schedules || []).find(s => (s.groupId || s.roundupId || s.id) === key) || null;
+      targetSched = (schedules || []).find(s => mealKeyOf(s) === key) || null;
     }
     if (targetSched && targetSched.id !== next?.id) {
       setSheetMealSchedule(targetSched);   // triggerless 식사 시트(임의 일정용) 재사용
@@ -2038,7 +2038,7 @@ export function HomeScreen({ navigation, route }) {
           //   탈퇴(memberUids 제거)는 유지 → 변경 푸시 중단. 식사 audienceUids도 이탈 → 식사 푸시·카드 중단. ([[schedule-propagation-spec]])
           if (s.groupId && currentUid) {
             leaveScheduleGroup(s.groupId, currentUid).catch(e => { if (__DEV__) console.warn('[home] leave group', e?.message); });
-            leaveMealAudience(s.groupId, currentUid);
+            leaveMealAudience(mealKeyOf(s), currentUid);   // ★식사 문서 키는 groupId가 아니라 mealKeyOf — 모집 일정이면 roundupId로 잡힘
           }
         }}
       />

@@ -14,7 +14,7 @@ import { findUserCourseById, ensureCourseCoord } from '../utils/userCourses';
 import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
 import { findCourseByName } from '../utils/courseNameKey';   // 일정 구장명 → 우리 DB 구장명(서랍 키 일치)
 import {
-  proposeMeal, updateMealNote, deleteMeal,
+  proposeMeal, updateMealNote, deleteMeal, mealKeyOf,
   subscribeMealForSchedule, subscribeIncomingMeals,
 } from '../utils/mealSuggestions';
 import { getScheduleGroup } from '../utils/scheduleShares';
@@ -110,8 +110,8 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   const [hostUid, setHostUid] = useState(null); // 단체모집 주최자 uid — 변경 권한 확장(정한 사람 + 주최자)
   const [roundupMembers, setRoundupMembers] = useState([]); // 라운지 모집 참여자(participantUids) — audience 소스
   const [members, setMembers] = useState([]); // 전파 일정 그룹의 라운딩 인원(수락자+초대받은 전원) — audience 소스(companions보다 신뢰)
-  // ★공유 키 — 전파 일정은 groupId로 모든 참여자가 같은 meal 문서에 수렴(사용자별 schedule.id 발산 방지).
-  const mealKey = schedule?.groupId || schedule?.roundupId || schedule?.id;
+  // ★공유 키 — mealKeyOf 한 곳에서 계산(모집/전파 일정은 참여자 전원이 같은 meal 문서에 수렴).
+  const mealKey = mealKeyOf(schedule);
   useEffect(() => {
     if (!active || !mealKey) { setMine1(null); return; }
     return subscribeMealForSchedule(mealKey, setMine1, 1);
@@ -168,16 +168,23 @@ export function MealDecisionBar({ schedule, uid, nickname, active, autoOpen, onA
   // 변경 권한 = 정한 사람(author) 또는 단체모집 주최자(doc.hostUid). 규칙(firestore.rules)과 동일 기준.
   const canEditMeal = (m) => !!m && (m.authorUid === uid || (!!m.hostUid && m.hostUid === uid));
 
-  // audience = 전파 일정이면 그룹 멤버(나 제외), 아니면 일정의 친구 동반자(friendUid). 그룹 멤버가 신뢰도 높음.
+  // audience = 알림·공유 대상. 소스 우선순위는 mealKeyOf와 같은 순서로 맞춘다(키와 대상이 어긋나면
+  //   엉뚱한 사람에게 가거나 아무에게도 안 감).  모집 참여자 > 전파 그룹 멤버 > 일정의 친구 동반자.
+  // ★비면 다음 소스로 폴백 — 소스가 '나 혼자'라 자기 제외 후 빈 배열이 되면 푸시 0건 + array-contains
+  //   쿼리에도 안 잡혀 아무도 식사를 발견 못 한다. (2026-07-29 실사고: 멤버가 나 혼자인 죽은 전파 그룹이
+  //   소스로 잡혀 audienceUids=[]로 저장됨.)
   const audienceUids = useMemo(() => {
-    if (schedule?.groupId && members.length) {
-      return [...new Set(members.filter(u => u && u !== uid))];
-    }
+    const pick = (arr) => [...new Set((arr || []).filter(u => u && u !== uid))];
     // 라운지 모집 — 참여자 전원(주최자 포함)이 audience. 친구 동반자가 아니어도 식사 공유·길찾기 받게.
-    if (schedule?.roundupId && roundupMembers.length) {
-      return [...new Set(roundupMembers.filter(u => u && u !== uid))];
+    if (schedule?.roundupId) {
+      const fromRoundup = pick(roundupMembers);
+      if (fromRoundup.length) return fromRoundup;
     }
-    return [...new Set((schedule?.companions || []).map(c => c?.friendUid).filter(Boolean))];
+    if (schedule?.groupId) {
+      const fromGroup = pick(members);
+      if (fromGroup.length) return fromGroup;
+    }
+    return pick((schedule?.companions || []).map(c => c?.friendUid));
   }, [schedule, members, roundupMembers, uid]);
 
   const loadNearby = async () => {

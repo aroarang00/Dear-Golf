@@ -41,6 +41,17 @@ export function mealSuggestionId(scheduleId, slot = 1) {
   return slot === 2 ? `meal_${scheduleId}_2` : `meal_${scheduleId}`;
 }
 
+// ★식사 공유 키 — 같은 라운딩 참여자 전원이 '한 문서'로 수렴하는 유일한 기준. 계산은 여기 한 곳에서만.
+//   우선순위: roundupId(라운지 모집) > groupId(일정 전파) > schedule.id(개인 일정).
+//   ★roundupId가 먼저인 이유 — 모집 참여자 전원이 공유하는 키는 roundupId뿐이다. groupId는 그중
+//     일부(심하면 1명)만의 전파 그룹일 수 있어, 모집 일정에 groupId가 덧붙은 사람만 다른 문서를 보게 된다.
+//     (2026-07-29 실사고: 모집 참여자 4명 중 1명 일정에만 죽은 전파 groupId가 붙어 그 사람이 이틀 전
+//      정한 식사가 아무에게도 안 보였고, 나머지가 따로 또 정함. groupId 우선이던 순서가 원인.)
+//   프로젝트 다른 판정도 이미 'roundupId 있으면 라운지 일정'(groupId && !roundupId) 기준이라 이게 일관.
+export function mealKeyOf(schedule) {
+  return schedule?.roundupId || schedule?.groupId || schedule?.id || null;
+}
+
 // 제안(생성) / 장소 교체 — 총대가 식당 골라 제안. 결정적 ID setDoc(전체 덮어쓰기) = 멱등 +
 //   '다른 곳'으로 바꾸면 agreedUids 리셋(이전 동의는 다른 장소에 대한 것이라 초기화). place={name,x,y,kakaoId,loc}.
 //   audienceUids = 그 라운딩 친구 동반자(friendUid) — 호출부서 schedule.companions에서 추출해 전달.
@@ -52,9 +63,9 @@ export function mealSuggestionId(scheduleId, slot = 1) {
 export async function proposeMeal({ authorUid, authorName, schedule, place, note, audienceUids, slot = 1, hostUid = null }) {
   if (!authorUid || !schedule?.id || !place?.name) return null;
   const aud = [...new Set((audienceUids || []).filter(u => u && u !== authorUid))];
-  // ★공유 키 — 전파 일정=groupId / 라운지 모집=roundupId(참여자 전원 같은 키로 수렴) / 그 외=schedule.id.
+  // ★공유 키 — mealKeyOf 한 곳에서 계산(라운지 모집=roundupId / 전파=groupId / 그 외=schedule.id).
   //   roundup은 사람마다 schedule.id가 달라 id로 키 잡으면 참여자끼리 문서가 갈라짐(호스트 오버라이드·단체 식사 불가).
-  const key = schedule.groupId || schedule.roundupId || schedule.id;
+  const key = mealKeyOf(schedule);
   const id = mealSuggestionId(key, slot);
   const ref = doc(db, COLLECTION, id);
   const placeData = {

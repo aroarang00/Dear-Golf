@@ -36,7 +36,7 @@ import { loadMyFriendsEnriched } from '../utils/friends';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, memoChangePreview, propagateMemoEdit } from '../utils/scheduleShares';
 import { updateRoundupNotice } from '../utils/roundup';   // 라운지 일정 공지(teamNotice) 저장
 import { buildCompanionNames } from '../utils/scheduleCompanions';
-import { leaveMealAudience } from '../utils/mealSuggestions'; // 일정 이탈 시 식사 audience 이탈(식사 푸시·카드 중단)
+import { leaveMealAudience, mealKeyOf } from '../utils/mealSuggestions'; // 일정 이탈 시 식사 audience 이탈(식사 푸시·카드 중단) + 식사 공유 키
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { FriendSelectModal } from './FriendSelectModal';
 import { MealDecisionBar } from './MealDecisionBar';
@@ -563,7 +563,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const cleanupGroupOnDelete = async (s) => {
     if (!s?.groupId || !currentUid) return;
     leaveScheduleGroup(s.groupId, currentUid).catch(e => { if (__DEV__) console.warn('[mySchedule] leave group', e?.message); });
-    leaveMealAudience(s.groupId, currentUid);
+    leaveMealAudience(mealKeyOf(s), currentUid);   // ★식사 문서 키는 groupId가 아니라 mealKeyOf — 모집 일정이면 roundupId로 잡힘
   };
 
   // 일정 삭제 — 상황별 확인. 시트의 삭제 버튼 + 목록 카드 길게누르기 양쪽에서 사용
