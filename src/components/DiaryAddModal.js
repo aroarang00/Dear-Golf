@@ -505,11 +505,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
   };
 
   // 검토 모달 확정 — 18홀 저장 + 총타를 스코어 입력란에 자동 채움
-  const handleScorecardConfirm = ({ holeScores: hs, total }) => {
+  const handleScorecardConfirm = ({ holeScores: hs, total, holePars: fixedPars }) => {
     setHoleScores(hs);
     if (Number.isFinite(total) && total > 0) setScore(String(total));
+    // 검토 화면에서 파를 고쳤으면 그 값을 쓴다(잘못 읽은 파로 버디를 세지 않게)
+    const parsNow = Array.isArray(fixedPars) ? fixedPars : holePars;
+    if (Array.isArray(fixedPars)) setHolePars(fixedPars);
     // par(스텁 mock)가 있으면 버디 자동 집계 → 버디 카운터 자동 입력 (이후 수동 수정 가능)
-    const bd = scoreBreakdown(hs, holePars);
+    const bd = scoreBreakdown(hs, parsNow);
     if (bd) setBirdieCount(bd.birdie);
     setScReview(false);
   };

@@ -15,6 +15,9 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
   const [holes, setHoles] = useState([]); // 편집용 문자열 배열
+  // 파는 화면에서 고칠 수 있다 — 파대비 카드에서 전원이 똑같이 어긋나는 원인이 '파 한 칸 오독'이라,
+  //   그 한 칸만 바로잡으면 끝난다. 프롭을 복사해 로컬로 들고 있는다(원본은 안 건드림).
+  const [pars, setPars] = useState([]);
 
   // 행 로드 — 공유·수신과 같은 재조정 함수(단일 소스). par 있으면 파대비→실타수 환산.
   //   par를 못 읽어 환산 불가한 파대비 카드는 holes=null로 와서 셀을 비운다(파대비 숫자를 실타수인 척 보이면 99→27 오해).
@@ -28,11 +31,28 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
   // 열릴 때마다 초기화 — 1행이면 바로 표, 여러 행이면 행 선택부터.
   useEffect(() => {
     if (!visible) return;
+    setPars(Array.from({ length: 18 }, (_, i) => (Number.isFinite(holePars?.[i]) ? holePars[i] : null)));
     if (multi) { setRowIdx(null); setHoles([]); }
     else { setRowIdx(0); loadRow(0); }
-  }, [visible, rows]);
+  }, [visible, rows, holePars]);
 
   const pickRow = (i) => { setRowIdx(i); loadRow(i); };
+
+  // 파 탭 → 3→4→5→3 순환. 파가 1 올라가면 그 홀 타수도 1 올린다(파대비 카드는 타수=파+파대비라
+  //   파를 잘못 읽으면 타수가 딱 그만큼 어긋나 있다). 사용자가 산수를 하지 않아도 총타가 저절로 맞는다.
+  const bumpPar = (i) => {
+    const cur = Number.isFinite(pars[i]) ? pars[i] : null;
+    const next = cur === 3 ? 4 : cur === 4 ? 5 : 3;   // 못 읽은 칸(null)은 3부터 시작
+    const delta = cur == null ? 0 : next - cur;
+    setPars(prev => { const n = [...prev]; n[i] = next; return n; });
+    if (delta === 0) return;
+    setHoles(prev => {
+      const n = [...prev];
+      const s = parseInt(n[i], 10);
+      if (Number.isFinite(s)) n[i] = String(Math.max(1, s + delta));
+      return n;
+    });
+  };
 
   const setHole = (i, v) => {
     const clean = v.replace(/[^0-9]/g, '').slice(0, 2);
@@ -62,7 +82,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
     lowReasons.includes('order') ? '전반·후반 순서를 확정하지 못했어요. 앞 9홀이 맞는지 확인해주세요.'
     : lowReasons.includes('half') ? '카드 한 장만 읽었어요. 나머지 9홀은 직접 입력해주세요.'
     : gap !== 0
-      ? `카드에는 ${cardTotal}타인데 홀별 합은 ${holesSum}타예요 — ${Math.abs(gap)}타 ${gap > 0 ? '모자라요' : '많아요'}.\n한 홀이 잘못 읽혔어요. 카드와 대조해 그 홀만 고쳐주세요.`
+      ? `카드는 ${cardTotal}타, 홀별 합은 ${holesSum}타 — ${Math.abs(gap)}타 ${gap > 0 ? '모자라요' : '많아요'}.\n아래 '파' 줄을 카드의 PAR과 맞춰보세요. 보통 파 한 칸을 잘못 읽은 거예요.`
     : lowReasons.includes('total') ? '홀별 합이 카드에 인쇄된 합계와 달라요. 숫자를 확인해주세요.'
     : '빈 칸이 있어요. 못 읽은 홀을 직접 채워주세요. 또렷한 스크린샷이면 더 정확해요.';
 
@@ -80,19 +100,34 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
   const confirm = () => {
     Keyboard.dismiss();
     // total은 홀 합>0이면 홀 합, 아니면 인쇄 총계 폴백(위 정의) — 홀별을 못 읽어도 총타는 잃지 않는다.
-    onConfirm && onConfirm({ holeScores: holeNums, total });
+    //   화면에서 고친 파도 함께 돌려준다 — 버디 자동집계가 틀린 파로 세지 않게.
+    onConfirm && onConfirm({ holeScores: holeNums, total, holePars: pars.some(p => Number.isFinite(p)) ? pars : null });
   };
 
   // 9홀 한 줄 렌더 (start: 0=전반, 9=후반)
-  const renderNine = (start, title) => (
+  //  ★PAR 줄을 같이 보여준다 — 파대비 카드에서 전원이 똑같이 어긋나는 원인은 PAR 한 칸 오독인데,
+  //    PAR이 화면에 없으면 사용자가 '사진 전체와 스코어 18개'를 대조해야 했다(사용자 제보 2026-07-31).
+  //    PAR이 보이면 카드의 PAR 줄(대개 4가 반복되는 한 줄)만 훑으면 되고, 고칠 홀도 바로 지목된다.
+  const renderNine = (start, title) => {
+    const parSum = pars.slice(start, start + 9).reduce((s, p) => s + (Number.isFinite(p) ? p : 0), 0);
+    return (
     <View style={{ marginBottom: 12 }}>
-      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray, marginBottom: 6 }}>{title}</Text>
+      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray, marginBottom: 6 }}>
+        {title}{parSum > 0 ? `  ·  파 ${parSum}` : ''}
+      </Text>
       <View style={{ flexDirection: 'row', gap: 4 }}>
         {Array.from({ length: 9 }, (_, k) => {
           const i = start + k;
+          const par = Number.isFinite(pars[i]) ? pars[i] : null;
           return (
             <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(9), color: C.warmGray, marginBottom: 2 }}>{i + 1}</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(9), color: C.warmGray }}>{i + 1}</Text>
+              {/* 파 — 탭하면 3→4→5로 바뀌고 그 홀 타수도 같이 움직인다(사용자가 산수를 안 해도 되게) */}
+              <TouchableOpacity onPress={() => bumpPar(i)} hitSlop={{ top: 6, bottom: 2, left: 4, right: 4 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(9), color: par ? C.burgundy : C.warmGrayLight, marginBottom: 2 }}>
+                  {par ? `파${par}` : '파·'}
+                </Text>
+              </TouchableOpacity>
               <AppTextInput
                 value={holes[i] ?? ''}
                 onChangeText={(v) => setHole(i, v)}
@@ -109,7 +144,8 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
         })}
       </View>
     </View>
-  );
+    );
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleRequestClose}>
@@ -147,10 +183,14 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
 
             {/* 저신뢰 안내 — 서버 산술 검산이 확정에 실패한 사유별로 '무엇을 확인할지'를 알려준다.
                 사유 없이 "정확하지 않을 수 있어요"만 띄우면 뭘 봐야 할지 몰라 그냥 확정해버린다(2026-07-31). */}
+            {/* ★옅은 노랑 배경 + 회색 작은 글씨라 "잘 안 보인다"는 제보(2026-07-31).
+                고칠 게 있는 경우(gap≠0)는 붉은 톤 + 진한 본문으로 확실히 눈에 걸리게 한다. */}
             {!failed && lowConfidence && !inSelect && (
-              <View style={{ marginBottom: 12, padding: 10, borderRadius: 10,
-                backgroundColor: C.butter + '33' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>{lowMessage}</Text>
+              <View style={{ marginBottom: 12, padding: 12, borderRadius: 10,
+                backgroundColor: gap !== 0 ? '#F6E7E4' : (C.butter + '33'),
+                borderLeftWidth: 3, borderLeftColor: gap !== 0 ? '#8B2A2A' : C.butter }}>
+                <Text style={{ fontFamily: gap !== 0 ? F.sysSb : F.sys, fontSize: fs(12),
+                  color: gap !== 0 ? '#8B2A2A' : C.warmGray, lineHeight: 18 }}>{lowMessage}</Text>
               </View>
             )}
 
