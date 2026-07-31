@@ -18,7 +18,8 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
   const uid = useCurrentUid();
   const insets = useSafeAreaInsets();   // 모달 하단 버튼이 안드 네비게이션바에 가리지 않게
   const [shares, setShares] = useState([]);
-  const [active, setActive] = useState(null);   // 응답 중인 공유
+  const [modalOpen, setModalOpen] = useState(false); // 시트 열림(목록·행선택을 같은 모달 안에서 전환)
+  const [active, setActive] = useState(null);   // 응답 중인 공유(null이면 '누가 보냈나' 목록 화면)
   const [selIdx, setSelIdx] = useState(null);    // 선택한 행 idx
   const [busy, setBusy] = useState(false);
   const glow = useRef(new Animated.Value(0)).current;       // 테두리 밝기 맥동(색이라 JS 드라이버)
@@ -50,8 +51,43 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
   useEffect(() => { onActiveChange && onActiveChange(shares.length > 0); }, [shares.length]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { onActiveChange && onActiveChange(false); }, []);   // 언마운트(홈 이탈) 시 복원
 
+  // 배너 탭 — 1건이면 바로 행 선택으로, 2건 이상이면 '누가 보냈는지' 목록부터.
+  //   ★같은 Modal 안에서 화면만 바꾼다. 모달을 하나 더 띄우면 iOS에서 중첩돼 터치가 죽는다([[ios-modal-stacking]]).
+  const openInbox = () => {
+    setSelIdx(null);
+    setActive(shares.length === 1 ? shares[0] : null);
+    setModalOpen(true);
+  };
   const open = (s) => { setActive(s); setSelIdx(null); };
-  const close = () => { if (!busy) { setActive(null); setSelIdx(null); } };
+  // ★busy여도 닫을 수 있어야 한다 — 예전엔 `if (!busy)` 가드 때문에 처리 중이면 바깥 탭도,
+  //   안드 뒤로가기(onRequestClose)도 전부 막혔다. Firestore 쓰기는 오프라인이면 서버 응답이
+  //   올 때까지 resolve되지 않아 busy가 영영 안 풀린다 → 모달이 잠겨 앱이 먹통처럼 보인다.
+  //   진행 중인 쓰기는 setDoc(결정적 ID)이라 멱등이므로 닫아도 안전하다.
+  const close = () => { setModalOpen(false); setActive(null); setSelIdx(null); };
+
+  // 안전망 — 목록 화면인데 남은 공유가 0건이면 빈 시트가 뜬다(다른 기기에서 처리한 경우 등). 그냥 닫는다.
+  useEffect(() => {
+    if (modalOpen && !active && shares.length === 0) close();
+  }, [modalOpen, active, shares.length]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 처리 중 상태가 영영 안 풀리는 것 방지 — 응답이 안 오면 15초 뒤 풀고 안내한다(무한 '추가 중…' 차단).
+  useEffect(() => {
+    if (!busy) return;
+    const t = setTimeout(() => {
+      setBusy(false);
+      setActive(null); setSelIdx(null);
+      showAppAlert('응답이 지연되고 있어요', '네트워크 상태를 확인해 주세요.\n이미 처리됐다면 잠시 후 목록에서 사라져요.');
+    }, 15000);
+    return () => clearTimeout(t);
+  }, [busy]);
+
+  // 한 건 처리 후 — 남은 게 있으면 목록으로 되돌리고, 없으면 시트를 닫는다.
+  //   (구독 갱신을 기다리지 않고 방금 처리한 id를 빼서 판단 — 스냅샷은 몇백 ms 늦게 온다)
+  const doneWith = (id) => {
+    const rest = shares.filter(s => s.id !== id);
+    setSelIdx(null);
+    if (rest.length) setActive(null); else close();
+  };
 
   const accept = async () => {
     if (selIdx == null || !active || busy || !uid) return;
@@ -60,7 +96,7 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
       const row = active.rows.find(r => r.idx === selIdx) || active.rows[selIdx];
       const derived = buildDerivedRound(active, row, { uid, nickname });
       await acceptScoreShare(active, uid, derived);
-      setActive(null); setSelIdx(null);
+      doneWith(active.id);        // 남은 게 있으면 목록으로, 없으면 시트 닫기
       onDerived && onDerived();   // 내 기록 새로고침(파생 round 반영)
     } catch (e) {
       if (__DEV__) console.warn('[scoreShare] accept fail', e?.message);
@@ -73,7 +109,7 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
   const decline = async () => {
     if (!active || busy || !uid) return;
     setBusy(true);
-    try { await declineScoreShare(active.id, uid); setActive(null); setSelIdx(null); }
+    try { const id = active.id; await declineScoreShare(id, uid); doneWith(id); }
     catch (e) {
       if (__DEV__) console.warn('[scoreShare] decline fail', e?.message);
       setActive(null); setSelIdx(null);
@@ -82,7 +118,11 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
     finally { setBusy(false); }
   };
 
-  if (!uid || (!shares.length && !active)) return null;
+  // ★예전엔 (!shares.length && !active)이면 통째로 return null 했는데, 응답 직후 이 조건이 참이 되면
+  //   '닫히는 중'인 RN Modal이 강제로 언마운트된다. 그러면 네이티브 오버레이가 화면에 남아 터치를
+  //   전부 삼켜 앱이 먹통이 된다(사용자 제보 2026-07-31). Modal은 항상 마운트해 두고 visible로만 여닫는다.
+  //   ([[ios-modal-stacking]]와 같은 계열의 문제 — 모달은 스스로 닫히게 두고 부모가 걷어내지 않는다.)
+  if (!uid) return null;
   const first = shares[0];
 
   return (
@@ -100,16 +140,23 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
             // 테두리 밝기 맥동 — 그림자가 아니라 테두리 선 자체 밝기라 '빛번짐(후광)' 없음. iOS·안드 공통.
             borderColor: glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(245,230,168,0.78)', 'rgba(245,230,168,1)'] }),
           }}>
-            <TouchableOpacity onPress={() => open(first)} activeOpacity={0.85}
+            {/* ★2건 이상이면 '외 N건'을 곁들이지 않고 건수를 제목으로 올린다 — 하나를 처리하면 다음 카드가
+                예고 없이 또 뜨는 게 "왜 자꾸 뜨지?"로 느껴졌다(사용자 제보 2026-07-31).
+                몇 건이 밀려 있는지 먼저 보이고, 탭하면 누가 보냈는지 목록에서 골라 처리한다. */}
+            <TouchableOpacity onPress={openInbox} activeOpacity={0.85}
               style={{ backgroundColor: onHome ? 'rgba(255,255,255,0.12)' : C.navy, borderRadius: 13.5, padding: 14,
                 flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Icon name="clipboard" size={fs(22)} color={C.butter} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>
-                  {first.authorName || '동반자'}님이 스코어를 공유했어요
+                  {shares.length > 1
+                    ? `스코어 공유 ${shares.length}건이 왔어요`
+                    : `${first.authorName || '동반자'}님이 스코어를 공유했어요`}
                 </Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: 'rgba(255,255,255,0.75)', marginTop: 2 }} numberOfLines={1}>
-                  {first.course}{first.date ? ` · ${first.date}` : ''} · 내 점수 추가하기{shares.length > 1 ? ` 외 ${shares.length - 1}건` : ''}
+                  {shares.length > 1
+                    ? `${shares.map(s => s.authorName || '동반자').join(' · ')} · 눌러서 하나씩 처리`
+                    : `${first.course}${first.date ? ` · ${first.date}` : ''} · 내 점수 추가하기`}
                 </Text>
               </View>
               <Text style={{ fontSize: fs(18), color: C.butter }}>›</Text>
@@ -119,10 +166,37 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
       )}
 
       {/* 본인 행 선택 모달 */}
-      <Modal visible={!!active} transparent animationType="slide" onRequestClose={close}>
+      <Modal visible={modalOpen} transparent animationType="slide" onRequestClose={close}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={close} />
           <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: Math.max(28, insets.bottom + 14) }}>
+            {/* ── 여러 건이면 먼저 '누가 보냈나' 목록 ── */}
+            {!active && (
+              <View style={{ padding: 18 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>스코어 공유 {shares.length}건</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, marginTop: 5 }}>
+                  하나씩 골라 내 점수를 추가하세요.
+                </Text>
+                <ScrollView style={{ marginTop: 12, maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                  {shares.map((s) => (
+                    <TouchableOpacity key={s.id} onPress={() => open(s)} activeOpacity={0.8}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 12,
+                        marginBottom: 8, backgroundColor: C.bgSecondary }}>
+                      <Icon name="clipboard" size={fs(20)} color={C.burgundy} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }} numberOfLines={1}>
+                          {s.authorName || '동반자'}님
+                        </Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 2 }} numberOfLines={1}>
+                          {s.course}{s.date ? ` · ${s.date}` : ''}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: fs(18), color: C.warmGray }}>›</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
             {active && (
               <>
                 <View style={{ padding: 18, paddingBottom: 10 }}>
@@ -153,6 +227,13 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
                   })}
                 </ScrollView>
                 <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 18, paddingTop: 12 }}>
+                  {/* 여러 건이면 목록으로 돌아갈 길을 남긴다(잘못 눌렀을 때 갇히지 않게) */}
+                  {shares.length > 1 && (
+                    <TouchableOpacity onPress={() => { setActive(null); setSelIdx(null); }} disabled={busy} activeOpacity={0.85}
+                      style={{ paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: C.hairline, alignItems: 'center', opacity: busy ? 0.5 : 1 }}>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>목록</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity onPress={decline} disabled={busy} activeOpacity={0.85}
                     style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: C.hairline, alignItems: 'center', opacity: busy ? 0.5 : 1 }}>
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>받지 않기</Text>
