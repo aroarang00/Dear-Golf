@@ -422,7 +422,11 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
       setScRows(res.rows);
       // ★공유용은 정규화 — AI가 오버파(예:19)를 total로 오독해도 홀 합(실타수)으로 총타를 맞춘다.
       //   리뷰 모달이 보여주는 총타와 동반자에게 전달되는 총타를 일치시킴([[project_scorecard_ai]]).
-      setShareRows(res.rows.map(r => normalizeScoreRow(r, res.holePars || null)));
+      const normRows = res.rows.map(r => normalizeScoreRow(r, res.holePars || null));
+      setShareRows(normRows);
+      // ★동반자를 먼저 넣고 사진을 나중에 읽는 순서에서도 자동으로 켜지게 — 친구가 이미 들어 있고
+      //   여러 명이 인식됐다면 공유가 기본이다(고르는 순서에 따라 결과가 달라지면 안 된다).
+      if (normRows.length >= 2 && companions.some(c => c.friendUid)) setShareScores(true);
       setHolePars(res.holePars || null);       // par(있으면) — 버디 자동집계
       setScFailed(false); setScFailReason('');
       // ★CF 산술 검산 결과 반영 — 전/후반 순서를 소계로 못 가렸거나 홀 누락·합계 불일치면 저신뢰.
@@ -527,11 +531,20 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
     const pickedNames = new Set(fromFriends.map(c => c.name));
     const freeText = companions.filter(c => !c.friendUid && !pickedNames.has(c.name));
     setCompanions([...fromFriends, ...freeText].slice(0, 3));
+    // ★친구를 고르면 스코어 공유도 자동으로 켠다 — '친구 선택'과 '공유 체크'를 따로 하는 건 이중 작업이고,
+    //   친구만 고르고 체크를 안 해서 아무것도 안 보내진 채 끝나는 일이 실제로 있었다(사용자 제보 2026-07-31).
+    //   여러 명이 인식된 카드가 있을 때만 의미가 있으므로 그때만. 켠 뒤 사용자가 다시 끄는 건 그대로 존중된다.
+    if (fromFriends.length && Array.isArray(shareRows) && shareRows.length >= 2) setShareScores(true);
   };
 
   // 단체 참여자 목록에서 본인 조 동반자 선택(토글) — friendUid 있으면 그걸로, 없으면 이름으로 동일판정. 최대 3명.
   const sameComp = (a, b) => (a.friendUid && b.friendUid) ? a.friendUid === b.friendUid : a.name === b.name;
   const toggleRosterComp = (p) => {
+    // 친구를 '새로 넣는' 순간이면 스코어 공유도 자동으로 켠다(onPickCompanionFriends와 같은 이유).
+    const already = companions.some(c => sameComp(c, p));
+    if (!already && p.friendUid && companions.length < 3 && Array.isArray(shareRows) && shareRows.length >= 2) {
+      setShareScores(true);
+    }
     setCompanions(prev => {
       const i = prev.findIndex(c => sameComp(c, p));
       if (i >= 0) return prev.filter((_, idx) => idx !== i);   // 이미 선택 → 빼기
