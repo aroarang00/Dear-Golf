@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Keyboard, useWindowDimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Keyboard, Platform, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import AppTextInput from './common/AppTextInput';
@@ -21,6 +21,25 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
   //   그 한 칸만 바로잡으면 끝난다. 프롭을 복사해 로컬로 들고 있는다(원본은 안 건드림).
   const [pars, setPars] = useState([]);
   const [photoBig, setPhotoBig] = useState(false);   // 카드 사진 확대(가로 스크롤로 훑어보기)
+  const [kbUp, setKbUp] = useState(false);           // 키보드 떠 있음 — 아래 안전영역 이중 여백 제거용
+  const scrollRef = useRef(null);
+  const nineY = useRef([0, 0]);                      // 전반/후반 줄의 스크롤 내 y — 포커스 시 그 줄을 위로 올린다
+
+  // 키보드가 뜨면 SafeAreaView 아래 여백을 뺀다 — KeyboardAvoidingView가 이미 키보드 높이만큼
+  //   밀어 올리는데 홈 인디케이터/내비바 여백까지 남아 있으면 시트와 키보드 사이에 빈 칸이 생긴다
+  //   (사용자 제보 2026-07-31 "다시선택·이대로입력이랑 키보드 사이에 공간이 생긴다").
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbUp(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbUp(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  // 홀 칸을 누르면 그 줄(전반/후반)을 스크롤 맨 위로 — 키보드에 가려지지 않게.
+  //   입력칸 하나하나를 재는 대신 '9홀 줄' 단위로 올린다(줄 안에서는 다 보이므로 이걸로 충분).
+  const focusNine = (i) => {
+    const y = nineY.current[i < 9 ? 0 : 1] || 0;
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true }));
+  };
 
   // 행 로드 — 공유·수신과 같은 재조정 함수(단일 소스). par 있으면 파대비→실타수 환산.
   //   par를 못 읽어 환산 불가한 파대비 카드는 holes=null로 와서 셀을 비운다(파대비 숫자를 실타수인 척 보이면 99→27 오해).
@@ -127,7 +146,8 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
     //   어느 쪽이 깨졌는지 여기서 바로 짚어주면 사용자가 18홀이 아니라 9홀만 보면 된다.
     const parOdd = parSum > 0 && (parSum < 34 || parSum > 37);
     return (
-    <View style={{ marginBottom: 12 }}>
+    <View style={{ marginBottom: 12 }}
+      onLayout={e => { nineY.current[start === 0 ? 0 : 1] = e.nativeEvent.layout.y; }}>
       <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: parOdd ? '#8B2A2A' : C.warmGray, marginBottom: 6 }}>
         {title}{parSum > 0 ? `  ·  파 ${parSum}` : ''}{parOdd ? '  ← 이 9홀 파가 이상해요' : ''}
       </Text>
@@ -147,6 +167,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
               <AppTextInput
                 value={holes[i] ?? ''}
                 onChangeText={(v) => setHole(i, v)}
+                onFocus={() => focusNine(i)}
                 keyboardType="numeric"
                 maxLength={2}
                 style={{
@@ -170,7 +191,9 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
           edge-to-edge라 안드 adjustResize가 무효 → 후반(IN) 홀 입력칸이 키보드에 가려졌음. */}
       <KeyboardProvider>
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} edges={['bottom']}>
+        {/* ★edges — 키보드가 떠 있으면 아래 여백을 뺀다. KeyboardAvoidingView가 이미 키보드 높이만큼
+            올려주는데 안전영역(홈 인디케이터·내비바) 여백이 그대로 남으면 시트와 키보드 사이가 벌어진다. */}
+        <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} edges={kbUp ? [] : ['bottom']}>
           <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20,
             paddingTop: 10, paddingHorizontal: 20, paddingBottom: 20, maxHeight: '90%' }}>
             <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginBottom: 12 }} />
@@ -224,7 +247,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
               </View>
             )}
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {inSelect ? (
                 // ── 본인 행 선택 (동반자 포함 표) ──
                 <View>

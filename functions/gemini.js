@@ -26,11 +26,14 @@ const MODEL = 'gemini-2.5-flash';
 //   '보이는 숫자를 그대로 옮겨 적기'뿐이라 추론이 필요한 근거가 사라졌다.
 //   ※너나픽 실측: 전사(轉寫) 작업에서 생각 토큰은 정확도에 도움이 안 됐고 오히려 '없는 내용을 채우는'
 //     압력으로 작용했다(LOW로 내리자 원문 충실도가 올라감). [[project-nunapick-gemini-cost]]
-//   ★2026-07-31 실측: input=1454 answer=844 thinking=1664 billedOutput=2508 → 청구 출력의 66%가 생각.
-//     입력은 사진 2장인데도 1,454뿐이라 해상도를 낮춰봐야 의미 없다. 돈은 전부 출력에서 나간다.
-//     → 0으로 내림(청구 출력 2508→844 예상, 약 66% 절감 + 응답도 빨라짐).
-//     되돌리려면 이 값만 2048로. 정확도가 떨어지면 notes/low(parSumTarget·parNine 검산)가 바로 잡아낸다.
-const SCORECARD_THINKING = 0;
+//   ★★2026-07-31 A/B 실측 — 같은 카드(input 1454 동일)로 대조했고, 0으로 내리는 시도는 '실패'했다:
+//       2048 → billedOutput 2508 | parSum 72, parNine 36/36, low:false  ✓ 정확
+//          0 → billedOutput  673 | parSum 68, parNine 32/36, low:true   ✗ 전반 파 오독
+//     요금은 73% 싸지지만 파 행 인식이 무너진다. 너나픽의 '캡션 전사'에선 생각을 줄이자 오히려
+//     정확해졌는데([[project-nunapick-gemini-cost]]), 작고 빽빽한 표에서 숫자를 뽑는 건 성격이 다르다.
+//     → 2048 유지. **0으로 내리는 재시도 금지**(이미 실측으로 반증됨).
+//     비용을 더 줄이려면 추론을 깎는 게 아니라 '구장별 파 기억'으로 파 읽기 자체를 건너뛰는 쪽이 맞다.
+const SCORECARD_THINKING = 2048;
 // ★Vertex AI express 엔드포인트 사용 — AI Studio가 발급하는 새 API 키('AQ.' 형식, 서비스계정 연결형)는
 //   org 정책(iam.managed.disableServiceAccountApiKeyCreation)상 apiTargets가 aiplatform으로만 제한됨.
 //   그래서 generativelanguage.googleapis.com(구 Gemini Developer API)로는 막히고, aiplatform으로만 호출 가능.
