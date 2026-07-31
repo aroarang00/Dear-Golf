@@ -68,7 +68,13 @@ export async function extractScorecardAI(uris) {
     const hasPar = Array.isArray(d.pars) && d.pars.some(v => v >= 3 && v <= 5);
     const holePars = hasPar ? d.pars.slice(0, 18).map(v => (v >= 3 && v <= 5) ? v : null) : null;
     // lowConfidence — CF가 산술 검산에 실패한 경우(전/후반 순서 미확정·홀 누락·합계 불일치). 검토 모달이 확인을 강조.
-    return { rows, holePars, lowConfidence: !!d.lowConfidence, notes: Array.isArray(d.notes) ? d.notes : [] };
+    //   parSumTarget = 카드에서 역산한 '맞는 파 합'(파 행을 안 읽고 나옴). 읽은 파 합과 다르면 파 행이 틀린 것.
+    return {
+      rows, holePars,
+      lowConfidence: !!d.lowConfidence,
+      notes: Array.isArray(d.notes) ? d.notes : [],
+      parSumTarget: Number(d.parSumTarget) || 0,
+    };
   } catch (e) {
     if (__DEV__) console.warn('[scorecardAI]', e?.code || '', e?.message);
     return { error: e?.message || '인식에 실패했어요. 다시 시도해주세요.', code: e?.code };

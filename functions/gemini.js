@@ -220,8 +220,10 @@ const SCORECARD_SCHEMA = {
           },
           pars: {
             type: 'ARRAY',
-            description: 'PAR(파) 행의 값을 holeNumbers와 같은 순서·같은 개수로. "4/7"처럼 par/HDCP가 붙어 있으면 앞의 par만. PAR 행이 없으면 빈 배열 [].',
-            items: { type: 'INTEGER' },
+            description: 'PAR 행 칸에 적힌 글자를 "그대로" 문자열로, holeNumbers와 같은 순서·같은 개수로. '
+              + '★한 칸에 "Par/HDCP"가 같이 적혀 있으면 자르지 말고 "4/7"처럼 슬래시째로 담아라(어느 쪽이 파인지는 내가 고른다). '
+              + '파만 적힌 칸이면 "4"처럼. PAR 행이 없으면 빈 배열 [].',
+            items: { type: 'STRING' },
           },
           players: {
             type: 'ARRAY',
@@ -268,7 +270,17 @@ function normalizeCard(c, index) {
     if (!Number.isFinite(n) || n === CELL_MISSING || n < -9 || n > 20) return null;
     return n;
   };
-  const par = (v) => { const n = Number(v); return (n >= 3 && n <= 5) ? n : null; };
+  // ★파 칸 파싱은 코드가 한다 — "4/7"(Par/HDCP)에서 앞 숫자가 파다. 이걸 AI에게 시켰더니
+  //   뒤의 HDCP를 파로 집어와 파4가 파3이 되는 일이 있었다(선샤인 전반 파합 33, 사용자 제보 2026-07-31).
+  //   슬래시가 있으면 무조건 앞쪽, 없으면 첫 숫자. 3~5 밖이면 못 읽은 칸으로 둔다.
+  const par = (v) => {
+    const s = String(v ?? '').trim();
+    if (!s) return null;
+    const head = s.split('/')[0];
+    const m = head.match(/\d+/);
+    const n = m ? parseInt(m[0], 10) : NaN;
+    return (n >= 3 && n <= 5) ? n : null;
+  };
   const holeNumbers = (Array.isArray(c?.holeNumbers) ? c.holeNumbers : [])
     .map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= HOLES);
   const players = (Array.isArray(c?.players) ? c.players : []).map(p => ({
@@ -340,10 +352,14 @@ function decideMode(cells, pars, printedTotal, subTotal) {
   };
   const byTotal = countFinite(cells) === HOLES ? check(printedTotal) : null;   // 18홀 다 읽었을 때만 총계와 대조
   if (byTotal) return { mode: byTotal, sure: true };
+  // ★0이나 음수 칸이 있으면 파대비가 확정 — 실제 타수엔 0타·마이너스 타가 없다.
+  //   이 판정을 소계(subTotal) 대조보다 '먼저' 해야 한다. 파대비 카드는 홀 칸 합이 곧 전반+후반 소계라
+  //   check(subTotal)이 늘 'actual'을 돌려주기 때문(같은 단위끼리 비교하니 당연히 맞는다).
+  //   파 행이 크게 깨져 byTotal이 실패하면 그 'actual'이 채택돼, 파대비 숫자가 타수로 박히고
+  //   홀별이 통째로 망가졌다(황지현 108 → 홀합 36). 테스트로 잡음(2026-07-31).
+  if (cells.some(c => Number.isFinite(c) && c <= 0)) return { mode: 'relative', sure: true };
   const bySub = check(subTotal);
   if (bySub) return { mode: bySub, sure: true };
-  // 산술로 못 가릴 때 — 0이나 음수 칸이 있으면 파대비가 확정적(실제 타수엔 0타·마이너스 타가 없다)
-  if (cells.some(c => Number.isFinite(c) && c <= 0)) return { mode: 'relative', sure: true };
   return { mode: 'actual', sure: false };                                      // 전부 양수 → 실타수로 보되 저신뢰
 }
 
@@ -400,13 +416,27 @@ function assembleScorecard(rawCards) {
   for (const bl of blocks) bl.pars.forEach((p, i) => { if (pars18[i] == null && Number.isFinite(p)) pars18[i] = p; });
   if (countFinite(pars18) < HOLES) { notes.push('par'); }
 
+  // ★한 나인의 파 합은 골프장 구조상 34~37을 벗어나지 않는다(보통 36). 33 같은 값이 나오면
+  //   그 아홉 홀의 파 행을 잘못 읽은 것이다 — 사용자가 직접 눈으로 알아채기 전에 앱이 먼저 알아야 한다
+  //   (선샤인 전반 파합 33, 사용자 제보 2026-07-31).
+  const nineSum = (a, b) => pars18.slice(a, b).reduce((s, p) => s + (Number.isFinite(p) ? p : 0), 0);
+  const parNine = [nineSum(0, 9), nineSum(9, 18)];
+  if (countFinite(pars18) === HOLES && parNine.some(v => v < 34 || v > 37)) { notes.push('par9'); low = true; }
+
   const players = [];
+  const parTargets = [];   // 카드에서 산술로 역산한 '진짜 파 합' — 파 행을 안 믿고 검산하는 기준
   for (const bl of blocks) {
     for (const e of bl.entries) {
       const pars = bl.pars.map((p, i) => (Number.isFinite(p) ? p : pars18[i]));
       const subTotal = e.subTotal || ((e.subs?.front && e.subs?.back) ? e.subs.front + e.subs.back : 0);
       const { mode, sure } = decideMode(e.cells, pars, e.printedTotal, subTotal);
       if (!sure) low = true;
+      // 파대비 카드는 printedTotal = 파대비합 + 파합 → 파 행을 한 글자도 안 읽고 '파 합'을 역산할 수 있다.
+      //   파 행이 통째로 깨져도 이 값은 멀쩡하다(합계·홀 칸은 크게 인쇄돼 잘 읽히므로).
+      if (mode === 'relative' && e.printedTotal > 0 && countFinite(e.cells) === HOLES) {
+        const t = e.printedTotal - sumFinite(e.cells);
+        if (t >= 60 && t <= 80) parTargets.push(t);
+      }
       const scores = e.cells.map((c, i) => {
         if (!Number.isFinite(c)) return 0;                       // 못 읽은 홀 = 0(클라 검토표에서 직접 입력)
         const v = mode === 'actual' ? c : (Number.isFinite(pars[i]) ? pars[i] + c : null);
@@ -430,7 +460,27 @@ function assembleScorecard(rawCards) {
     }
   }
 
-  return { pars: pars18.map(p => (Number.isFinite(p) ? p : 0)), players, lowConfidence: low, notes: [...new Set(notes)] };
+  // 역산한 파 합 — 여러 사람에게서 나온 값 중 최빈값(한 사람 오독에 흔들리지 않게)
+  let parSumTarget = 0;
+  if (parTargets.length) {
+    const cnt = new Map();
+    for (const t of parTargets) cnt.set(t, (cnt.get(t) || 0) + 1);
+    parSumTarget = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  }
+  const parSumRead = sumFinite(pars18);
+  // 읽은 파 합이 역산값과 다르면 파 행이 틀린 것 — 총타는 이미 카드 합계를 쓰므로 홀별만의 문제다.
+  if (parSumTarget && countFinite(pars18) === HOLES && parSumRead !== parSumTarget) {
+    if (!notes.includes('par9')) notes.push('parsum');
+    low = true;
+  }
+
+  return {
+    pars: pars18.map(p => (Number.isFinite(p) ? p : 0)),
+    players, lowConfidence: low, notes: [...new Set(notes)],
+    parSum: parSumRead,          // 카드에서 읽어낸 파 합
+    parSumTarget,                // 산술로 역산한 '맞는' 파 합(0=역산 불가)
+    parNine,                     // [전반, 후반] 파 합 — 어느 아홉 홀이 깨졌는지 짚어주기 위해
+  };
 }
 
 // 테스트 훅 — 실제 카드 숫자로 조립 산술을 검증할 때 쓴다(배포되는 함수 아님, onCall이 아니라 순수 함수).
@@ -490,13 +540,14 @@ exports.extractScorecard = onCall(
     const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SCORECARD_SCHEMA, thinkingBudget: 2048 });
 
     // ★조립 — 여기서 전/후반 순서와 파대비/실타수를 '산술'로 결정한다(위 assembleScorecard 주석 참고).
-    const { pars, players, lowConfidence, notes } = assembleScorecard(out?.cards);
+    const { pars, players, lowConfidence, notes, parSum, parSumTarget, parNine } = assembleScorecard(out?.cards);
 
     logger.info('[gemini] scorecard ok', {
       uid, found: !!out?.found, cards: (out?.cards || []).length,
       players: players.length, low: lowConfidence, notes: notes.join(','),
+      parSum, parSumTarget, parNine: (parNine || []).join('/'),
     });
-    return { ok: true, found: !!out?.found, pars, players, lowConfidence, notes };
+    return { ok: true, found: !!out?.found, pars, players, lowConfidence, notes, parSum, parSumTarget, parNine };
   }
 );
 

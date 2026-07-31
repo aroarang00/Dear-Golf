@@ -12,7 +12,7 @@ import { sumHoles, reconcileScoreRow } from '../utils/scorecardOcr';
 //  onConfirm({ holeScores:number[18], total })
 //
 // 자동 확정 X — 추출값을 사용자가 반드시 확인·수정 후 확정 ([[project_scorecard_ocr]]).
-export function ScorecardReviewModal({ visible, rows = [], holePars = null, photos = [], failed = false, failedReason = '', lowConfidence = false, lowReasons = [], rotating = false, onRotate = null, onConfirm, onClose }) {
+export function ScorecardReviewModal({ visible, rows = [], holePars = null, photos = [], parSumTarget = 0, failed = false, failedReason = '', lowConfidence = false, lowReasons = [], rotating = false, onRotate = null, onConfirm, onClose }) {
   const { width: winW } = useWindowDimensions();
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
@@ -82,9 +82,15 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
   // 저신뢰 사유(CF notes) → 확인할 것 한 줄. 급한 것부터 우선.
   //   ★'total'은 차이를 숫자로 — 파대비 카드에서 PAR 한 칸을 잘못 읽으면 그 par를 쓰는 전원이
   //     똑같이 어긋난다. "숫자를 확인하세요"만으론 어디를 볼지 알 수 없어 그냥 확정하게 된다.
+  const parSumNow = pars.reduce((s, p) => s + (Number.isFinite(p) ? p : 0), 0);
+  const parOff = (parSumTarget > 0 && parSumNow > 0) ? parSumTarget - parSumNow : 0;
+
   const lowMessage =
     lowReasons.includes('order') ? '전반·후반 순서를 확정하지 못했어요. 앞 9홀이 맞는지 확인해주세요.'
     : lowReasons.includes('half') ? '카드 한 장만 읽었어요. 나머지 9홀은 직접 입력해주세요.'
+    // 파 합이 역산값과 다르면 '파 행을 잘못 읽은 것'이 확정이다 — 스코어를 의심하게 두지 않는다.
+    : parOff !== 0
+      ? `총타는 카드에 적힌 ${cardTotal || total}타로 기록돼요 — 그건 걱정 안 하셔도 돼요.\n파 행을 잘못 읽었어요(파 합이 ${parSumNow}, 실제는 ${parSumTarget}). 홀별까지 남기려면 '파 ○○'이 빨갛게 표시된 9홀에서 사진과 다른 파를 탭해 고쳐주세요.`
     : gap !== 0
       ? `총타는 카드에 적힌 ${cardTotal}타로 기록돼요 — 그건 걱정 안 하셔도 돼요.\n다만 홀별 합이 ${holesSum}타라 ${Math.abs(gap)}타 안 맞아요. 홀별까지 남기려면 위 사진의 PAR과 아래 '파' 줄을 맞춰주세요(파를 탭하면 바뀝니다).`
     : lowReasons.includes('total') ? '홀별 합이 카드에 인쇄된 합계와 달라요. 숫자를 확인해주세요.'
@@ -117,10 +123,13 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
   //    PAR이 보이면 카드의 PAR 줄(대개 4가 반복되는 한 줄)만 훑으면 되고, 고칠 홀도 바로 지목된다.
   const renderNine = (start, title) => {
     const parSum = pars.slice(start, start + 9).reduce((s, p) => s + (Number.isFinite(p) ? p : 0), 0);
+    // 한 나인의 파 합은 34~37을 벗어나지 않는다 — 33 같은 값이면 그 아홉 홀의 파를 잘못 읽은 것.
+    //   어느 쪽이 깨졌는지 여기서 바로 짚어주면 사용자가 18홀이 아니라 9홀만 보면 된다.
+    const parOdd = parSum > 0 && (parSum < 34 || parSum > 37);
     return (
     <View style={{ marginBottom: 12 }}>
-      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray, marginBottom: 6 }}>
-        {title}{parSum > 0 ? `  ·  파 ${parSum}` : ''}
+      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: parOdd ? '#8B2A2A' : C.warmGray, marginBottom: 6 }}>
+        {title}{parSum > 0 ? `  ·  파 ${parSum}` : ''}{parOdd ? '  ← 이 9홀 파가 이상해요' : ''}
       </Text>
       <View style={{ flexDirection: 'row', gap: 4 }}>
         {Array.from({ length: 9 }, (_, k) => {
@@ -194,10 +203,10 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
                 고칠 게 있는 경우(gap≠0)는 붉은 톤 + 진한 본문으로 확실히 눈에 걸리게 한다. */}
             {!failed && lowConfidence && !inSelect && (
               <View style={{ marginBottom: 12, padding: 12, borderRadius: 10,
-                backgroundColor: gap !== 0 ? '#F6E7E4' : (C.butter + '33'),
-                borderLeftWidth: 3, borderLeftColor: gap !== 0 ? '#8B2A2A' : C.butter }}>
-                <Text style={{ fontFamily: gap !== 0 ? F.sysSb : F.sys, fontSize: fs(12),
-                  color: gap !== 0 ? '#8B2A2A' : C.warmGray, lineHeight: 18 }}>{lowMessage}</Text>
+                backgroundColor: (gap !== 0 || parOff !== 0) ? '#F6E7E4' : (C.butter + '33'),
+                borderLeftWidth: 3, borderLeftColor: (gap !== 0 || parOff !== 0) ? '#8B2A2A' : C.butter }}>
+                <Text style={{ fontFamily: (gap !== 0 || parOff !== 0) ? F.sysSb : F.sys, fontSize: fs(12),
+                  color: (gap !== 0 || parOff !== 0) ? '#8B2A2A' : C.warmGray, lineHeight: 18 }}>{lowMessage}</Text>
               </View>
             )}
 
