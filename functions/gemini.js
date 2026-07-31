@@ -19,6 +19,15 @@ const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 
 // 구조화 추출용 — 저렴하고 빠름. 스크린샷 텍스트 추출엔 충분(정확도 부족 시 상위 모델로 올림).
 const MODEL = 'gemini-2.5-flash';
+
+// ★스코어카드 추론 예산 — 요금 노브. 생각 토큰도 '출력'으로 청구되므로 여기가 스코어카드 원가의 대부분이다.
+//   2026-07-26에 2048로 올렸던 이유는 "PAR 행 읽기 + 파대비→실타수 계산 + 합=총타 자체검증"이었는데,
+//   2026-07-31 개편으로 그 계산·검증이 전부 코드(assembleScorecard)로 옮겨갔다. 지금 AI가 하는 일은
+//   '보이는 숫자를 그대로 옮겨 적기'뿐이라 추론이 필요한 근거가 사라졌다.
+//   ※너나픽 실측: 전사(轉寫) 작업에서 생각 토큰은 정확도에 도움이 안 됐고 오히려 '없는 내용을 채우는'
+//     압력으로 작용했다(LOW로 내리자 원문 충실도가 올라감). [[project-nunapick-gemini-cost]]
+//   → 0으로 내리는 게 유력하나, 방금 정확도를 되찾은 직후라 로그(billedOutput)로 실측한 뒤 바꾼다.
+const SCORECARD_THINKING = 2048;
 // ★Vertex AI express 엔드포인트 사용 — AI Studio가 발급하는 새 API 키('AQ.' 형식, 서비스계정 연결형)는
 //   org 정책(iam.managed.disableServiceAccountApiKeyCreation)상 apiTargets가 aiplatform으로만 제한됨.
 //   그래서 generativelanguage.googleapis.com(구 Gemini Developer API)로는 막히고, aiplatform으로만 호출 가능.
@@ -54,7 +63,22 @@ async function checkRateLimit(uid, limit) {
 // Gemini generateContent 호출 — parts(텍스트/이미지 혼합) + responseSchema로 JSON 강제.
 //   parts: [{ text }] | [{ inlineData: { mimeType, data(base64) } }] ... 순서대로 전달.
 //   반환: 파싱된 객체(모델이 responseSchema에 맞춰 JSON 문자열을 냄).
-async function callGemini({ key, parts, schema, temperature = 0, thinkingBudget = 0 }) {
+// ★요금은 '출력 토큰'이 대부분이고, 모델의 생각(thinking) 토큰도 출력으로 청구된다.
+//   그런데 candidatesTokenCount는 답변 텍스트만 세서 생각 토큰이 안 잡힌다 — 너나픽에선 이걸 몰라
+//   실제의 1/4로 추산해 "이 정도면 요금 안 나온다"는 잘못된 결론까지 갔다([[project-nunapick-gemini-cost]]).
+//   그래서 청구 기준인 billedOutput(= 답변 + 생각)을 함수별로 남긴다. 로그만 남기므로 비용·성능 영향 없음.
+function logUsage(label, json) {
+  try {
+    const u = json?.usageMetadata || {};
+    const input = u.promptTokenCount || 0;
+    const answer = u.candidatesTokenCount || 0;
+    // thoughtsTokenCount는 SDK 타입엔 없어도 API는 실제로 내려준다. 없으면 total에서 역산.
+    const thinking = u.thoughtsTokenCount ?? Math.max(0, (u.totalTokenCount || 0) - input - answer);
+    logger.info('[gemini] usage', { fn: label, input, answer, thinking, billedOutput: answer + thinking });
+  } catch (e) { /* 로깅 실패가 기능을 막지 않는다 */ }
+}
+
+async function callGemini({ key, parts, schema, temperature = 0, thinkingBudget = 0, label = '' }) {
   const body = {
     contents: [{ role: 'user', parts }],
     generationConfig: {
@@ -85,6 +109,7 @@ async function callGemini({ key, parts, schema, temperature = 0, thinkingBudget 
       res.status === 429 ? 'AI 사용량이 잠시 많아요. 잠시 후 다시 시도해주세요.' : 'AI 처리에 실패했어요. 잠시 후 다시 시도해주세요.');
   }
   const json = await res.json().catch(() => null);
+  logUsage(label, json);   // 실패(빈 응답)해도 토큰은 청구되므로 파싱보다 먼저 남긴다
   const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!raw) {
     logger.warn('[gemini] empty candidate', JSON.stringify(json?.promptFeedback || {}).slice(0, 300));
@@ -168,7 +193,7 @@ exports.extractReservation = onCall(
 
     logger.info('[gemini] reservation req', { uid, img: !!hasImage, txt: !!hasText });
     // .trim() — Secret 등록 시 붙었을 수 있는 공백/개행 제거(query param에 들어가면 인증 깨짐 방지)
-    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: RESERVATION_SCHEMA });
+    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: RESERVATION_SCHEMA, label: 'reservation' });
 
     logger.info('[gemini] reservation ok', { uid, found: !!out?.found });
     return {
@@ -537,7 +562,7 @@ exports.extractScorecard = onCall(
     logger.info('[gemini] scorecard req', { uid, imgs: valid.length });
     // 스코어카드는 추론을 켠다(thinkingBudget>0) — PAR 행 읽기 + 파대비→실타수 계산 + '합=총타' 자체검증에 필요.
     //   추출은 예약/지출보다 정확도가 중요해 속도(수 초)보다 정확도 우선. 느리면 값 하향(정확도 트레이드오프).
-    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SCORECARD_SCHEMA, thinkingBudget: 2048 });
+    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SCORECARD_SCHEMA, thinkingBudget: SCORECARD_THINKING, label: 'scorecard' });
 
     // ★조립 — 여기서 전/후반 순서와 파대비/실타수를 '산술'로 결정한다(위 assembleScorecard 주석 참고).
     const { pars, players, lowConfidence, notes, parSum, parSumTarget, parNine } = assembleScorecard(out?.cards);
@@ -609,7 +634,7 @@ exports.extractExpense = onCall(
     if (hasImage) parts.push({ inlineData: { mimeType: format === 'png' ? 'image/png' : 'image/jpeg', data: imageBase64 } });
 
     logger.info('[gemini] expense req', { uid, img: !!hasImage, txt: !!hasText });
-    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: EXPENSE_SCHEMA });
+    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: EXPENSE_SCHEMA, label: 'expense' });
 
     const CATS = ['membership', 'equipment', 'etc'];
     logger.info('[gemini] expense ok', { uid, found: !!out?.found });
@@ -767,7 +792,7 @@ exports.extractSettlement = onCall(
     }
 
     logger.info('[gemini] settlement req', { uid, imgs: imgList.length, txt: !!hasText, instr: !!hasInstr, n: list.length });
-    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SETTLEMENT_SCHEMA });
+    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SETTLEMENT_SCHEMA, label: 'settlement' });
 
     const members = Array.isArray(out?.members)
       ? out.members
