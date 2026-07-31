@@ -26,8 +26,11 @@ const MODEL = 'gemini-2.5-flash';
 //   '보이는 숫자를 그대로 옮겨 적기'뿐이라 추론이 필요한 근거가 사라졌다.
 //   ※너나픽 실측: 전사(轉寫) 작업에서 생각 토큰은 정확도에 도움이 안 됐고 오히려 '없는 내용을 채우는'
 //     압력으로 작용했다(LOW로 내리자 원문 충실도가 올라감). [[project-nunapick-gemini-cost]]
-//   → 0으로 내리는 게 유력하나, 방금 정확도를 되찾은 직후라 로그(billedOutput)로 실측한 뒤 바꾼다.
-const SCORECARD_THINKING = 2048;
+//   ★2026-07-31 실측: input=1454 answer=844 thinking=1664 billedOutput=2508 → 청구 출력의 66%가 생각.
+//     입력은 사진 2장인데도 1,454뿐이라 해상도를 낮춰봐야 의미 없다. 돈은 전부 출력에서 나간다.
+//     → 0으로 내림(청구 출력 2508→844 예상, 약 66% 절감 + 응답도 빨라짐).
+//     되돌리려면 이 값만 2048로. 정확도가 떨어지면 notes/low(parSumTarget·parNine 검산)가 바로 잡아낸다.
+const SCORECARD_THINKING = 0;
 // ★Vertex AI express 엔드포인트 사용 — AI Studio가 발급하는 새 API 키('AQ.' 형식, 서비스계정 연결형)는
 //   org 정책(iam.managed.disableServiceAccountApiKeyCreation)상 apiTargets가 aiplatform으로만 제한됨.
 //   그래서 generativelanguage.googleapis.com(구 Gemini Developer API)로는 막히고, aiplatform으로만 호출 가능.
