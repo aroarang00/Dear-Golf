@@ -11,7 +11,7 @@ import { sumHoles, reconcileScoreRow } from '../utils/scorecardOcr';
 //  onConfirm({ holeScores:number[18], total })
 //
 // 자동 확정 X — 추출값을 사용자가 반드시 확인·수정 후 확정 ([[project_scorecard_ocr]]).
-export function ScorecardReviewModal({ visible, rows = [], holePars = null, failed = false, failedReason = '', lowConfidence = false, rotating = false, onRotate = null, onConfirm, onClose }) {
+export function ScorecardReviewModal({ visible, rows = [], holePars = null, failed = false, failedReason = '', lowConfidence = false, lowReasons = [], rotating = false, onRotate = null, onConfirm, onClose }) {
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
   const [holes, setHoles] = useState([]); // 편집용 문자열 배열
@@ -50,6 +50,13 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
   const holesMissing = filled === 0 && printedTotal > 0; // 홀별 미인식 — 총타만 반영
 
   const inSelect = multi && rowIdx === null;
+
+  // 저신뢰 사유(CF notes) → 확인할 것 한 줄. 급한 것부터 우선.
+  const lowMessage =
+    lowReasons.includes('order') ? '전반·후반 순서를 확정하지 못했어요. 앞 9홀이 맞는지 확인해주세요.'
+    : lowReasons.includes('half') ? '카드 한 장만 읽었어요. 나머지 9홀은 직접 입력해주세요.'
+    : lowReasons.includes('total') ? '홀별 합이 카드에 인쇄된 합계와 달라요. 숫자를 확인해주세요.'
+    : '빈 칸이 있어요. 못 읽은 홀을 직접 채워주세요. 또렷한 스크린샷이면 더 정확해요.';
 
   // ★닫기·확정 첫 줄 Keyboard.dismiss() — 숫자 키보드가 뜬 채 이 중첩 Modal(+KeyboardProvider)이 unmount되면
   //   iOS에서 포커스(first responder)가 사라진 창에 남아 터치 전체가 죽음(Build 71 ✕ 멈춤 재현).
@@ -130,13 +137,12 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
               </TouchableOpacity>
             )}
 
-            {/* 저신뢰 안내 — 인쇄된 합계와 안 맞음(잘못 읽었을 수 있음). 확인·수정 강조. failed면 그쪽 안내가 우선. */}
+            {/* 저신뢰 안내 — 서버 산술 검산이 확정에 실패한 사유별로 '무엇을 확인할지'를 알려준다.
+                사유 없이 "정확하지 않을 수 있어요"만 띄우면 뭘 봐야 할지 몰라 그냥 확정해버린다(2026-07-31). */}
             {!failed && lowConfidence && !inSelect && (
               <View style={{ marginBottom: 12, padding: 10, borderRadius: 10,
                 backgroundColor: C.butter + '33' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>
-                  ⚠️ 숫자가 정확하지 않을 수 있어요 — 홀별로 확인·수정해주세요.{'\n'}또렷한 스크린샷(앱 디지털 카드)이면 더 정확해요.
-                </Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, lineHeight: 17 }}>{lowMessage}</Text>
               </View>
             )}
 

@@ -188,33 +188,245 @@ exports.extractReservation = onCall(
 // ── 스코어카드 추출 ─────────────────────────────────────────────
 // 입력: { images: [{ data(base64), format? }] } — 스코어카드/스마트스코어 태블릿 사진 1~2장(전반/후반).
 //   CLOVA OCR(PAR 표 필수·태블릿 전후반 분리 못 읽음)을 Gemini 비전으로 대체 — PAR 없어도, 태블릿 두 장도 병합.
-// 출력: { ok, found, pars:number[18], players:[{ name, holes:number[18], total }] }
+// 출력: { ok, found, pars:number[18], players:[{ name, scores:number[18], total }], lowConfidence, notes[] }
 //   ★동반자 함께 나온 표는 플레이어(행) 전부 반환 → 클라 검토 모달에서 본인 행 선택.
+//
+// ★★설계 전면 개편(2026-07-31) — AI는 '보이는 대로 읽기'만, 병합·환산·검증은 코드가 산술로 한다.
+//   기존엔 AI에게 ①전/후반 조각 병합 ②파대비→실타수 환산 ③합계 자체검증을 전부 시켰는데,
+//   스마트스코어 태블릿 카드는 한 줄 안에 단위가 섞여 있어(홀칸=파대비, 전반/후반칸=파대비 합, 합계칸=실타수)
+//   AI가 반복해서 틀렸다. 특히 조각 2장은 둘 다 홀 번호가 '1~9'라 어느 쪽이 전반인지 이미지만으론 알 수 없어,
+//   순서가 뒤집히면 총타(108)만 맞고 홀별 18개가 통째로 어긋났다(사용자 제보 2026-07-31, 선샤인/네스트 카드).
+//   → 순서도 단위도 전부 '산술'로 결정된다. 실제 카드로 검증한 식:
+//       조각의 홀 합 == 그 줄의 '전반' 칸  →  그 조각이 전반   (후반도 같은 방식)
+//       18홀 합 + par 합 == '합계' 칸       →  파대비 표기      (18홀 합 == 합계 칸이면 실타수)
+//     [[project_scorecard_ai]]의 교훈("판별은 AI가 아니라 인쇄 총계와의 산술 교차검증으로")을 병합·순서까지 확장.
+//   ※과거 폐기된 접근 ①(서버 parRelative 플래그)이 실패한 이유는 '파 홀 0'과 '못 읽은 홀 0'을 구분 못 해서였다.
+//     지금은 못 읽은 칸을 0이 아니라 99(CELL_MISSING)로 받으므로 0 = 진짜 파. 그 근본 결함이 사라졌다.
 const SCORECARD_SCHEMA = {
   type: 'OBJECT',
   properties: {
     found: { type: 'BOOLEAN', description: '골프 스코어카드나 스코어 화면(스마트스코어 태블릿 등)으로 보이면 true' },
-    pars: {
+    cards: {
       type: 'ARRAY',
-      description: '1홀~18홀 파를 순서대로 18개(모든 플레이어 공통). PAR 행이 없으면 빈 배열 [].',
-      items: { type: 'INTEGER' },
-    },
-    players: {
-      type: 'ARRAY',
-      description: '점수 행(플레이어)마다 하나. 동반자가 함께 나온 표면 모든 행을 담음(대표 1명만 고르지 말 것). 한 명이면 1개.',
+      description: '이미지 1장당 표 1개. 준 이미지 순서 그대로.',
       items: {
         type: 'OBJECT',
         properties: {
-          name: { type: 'STRING', description: '플레이어 이름/구분(표에 있으면). 없으면 빈 문자열' },
-          scores: { type: 'ARRAY', description: '1홀~18홀 타수를 순서대로 18개. 없는 홀은 0.', items: { type: 'INTEGER' } },
-          total: { type: 'INTEGER', description: '그 플레이어 총타. 없으면 0' },
+          label: { type: 'STRING', description: '표 왼쪽 위 코스명/제목(예: 선샤인, 네스트, OUT, IN). 없으면 빈 문자열' },
+          holeNumbers: {
+            type: 'ARRAY',
+            description: '점수 칸이 있는 홀의 번호를 왼쪽부터 그대로. 보통 [1,2,…,9] 또는 [1,2,…,18], 후반 화면이면 [10,…,18].',
+            items: { type: 'INTEGER' },
+          },
+          pars: {
+            type: 'ARRAY',
+            description: 'PAR(파) 행의 값을 holeNumbers와 같은 순서·같은 개수로. "4/7"처럼 par/HDCP가 붙어 있으면 앞의 par만. PAR 행이 없으면 빈 배열 [].',
+            items: { type: 'INTEGER' },
+          },
+          players: {
+            type: 'ARRAY',
+            description: '점수 행(사람)마다 하나. 표에 4명이면 4개 전부(대표 1명만 고르지 말 것).',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                name: { type: 'STRING', description: '그 행의 이름(표에 있으면). 없으면 빈 문자열' },
+                cells: {
+                  type: 'ARRAY',
+                  description: '홀 칸에 적힌 숫자를 계산하지 말고 그대로. 파 대비 표기면 0·-1·2를 그대로 담아라. 빈칸이거나 가려서 못 읽은 칸은 99.',
+                  items: { type: 'INTEGER' },
+                },
+                frontSub: { type: 'INTEGER', description: "'전반'(OUT) 칸에 적힌 값 그대로. 없으면 0" },
+                backSub: { type: 'INTEGER', description: "'후반'(IN) 칸에 적힌 값 그대로. 없으면 0" },
+                total: { type: 'INTEGER', description: "'합계'(TOTAL/총타) 칸에 적힌 값 그대로. 없으면 0" },
+              },
+              required: ['name', 'cells', 'frontSub', 'backSub', 'total'],
+            },
+          },
         },
-        required: ['name', 'scores', 'total'],
+        required: ['label', 'holeNumbers', 'pars', 'players'],
       },
     },
   },
-  required: ['found', 'pars', 'players'],
+  required: ['found', 'cards'],
 };
+
+// ── 스코어카드 조립(산술) ───────────────────────────────────────
+// AI가 '보이는 대로' 읽어온 카드들을 18홀 실타수로 조립한다. 여기엔 추측이 없다 — 전부 검산이다.
+const HOLES = 18;
+const CELL_MISSING = 99;                       // AI가 '못 읽은 칸'에 넣는 값(0=파와 구분하기 위함)
+const SUB_TOL = 1;                             // 소계/총계 대조 허용 오차(칸 하나 오독 여유)
+
+const sumFinite = (arr) => (arr || []).reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
+const countFinite = (arr) => (arr || []).filter(n => Number.isFinite(n)).length;
+const padTo = (arr, n) => { const o = new Array(n).fill(null); (arr || []).forEach((v, i) => { if (i < n) o[i] = v; }); return o; };
+const normName = (s) => (s || '').toString().replace(/\s+/g, '').toLowerCase();
+
+// AI 원본 → 정규화된 카드. 값 범위 밖·99는 null(못 읽음)로.
+function normalizeCard(c, index) {
+  const cell = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n === CELL_MISSING || n < -9 || n > 20) return null;
+    return n;
+  };
+  const par = (v) => { const n = Number(v); return (n >= 3 && n <= 5) ? n : null; };
+  const holeNumbers = (Array.isArray(c?.holeNumbers) ? c.holeNumbers : [])
+    .map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= HOLES);
+  const players = (Array.isArray(c?.players) ? c.players : []).map(p => ({
+    name: (p?.name || '').toString().trim(),
+    cells: (Array.isArray(p?.cells) ? p.cells : []).map(cell),
+    frontSub: Number(p?.frontSub) || 0,
+    backSub: Number(p?.backSub) || 0,
+    total: Number(p?.total) || 0,
+  })).filter(p => countFinite(p.cells) > 0);          // 숫자 하나도 못 읽은 유령 행 제거
+  const pars = (Array.isArray(c?.pars) ? c.pars : []).map(par);
+  // 이 표가 담은 홀 수 — 홀번호·par·점수칸 중 가장 긴 것(9=조각, 18=완결 카드)
+  const size = Math.min(HOLES, Math.max(
+    holeNumbers.length, pars.length, ...players.map(p => p.cells.length), 0));
+  return { index, label: (c?.label || '').toString().trim(), holeNumbers, pars, players, size };
+}
+
+// ★조각 2장의 전/후반 순서 결정 — 이미지만 봐선 알 수 없다(둘 다 홀번호가 1~9). 산술로 정한다.
+//   근거: 태블릿은 각 줄에 '전반'·'후반' 소계를 같이 찍어준다. 그 조각의 홀 합과 일치하는 쪽이 그 조각의 정체.
+//   반환: { front, back, sure } — sure=false면 이미지 순서로 가정(클라에 저신뢰 표시).
+function orderFragments(a, b) {
+  const votes = (card) => {
+    let f = 0, k = 0;
+    for (const p of card.players) {
+      const s = sumFinite(p.cells);
+      if (countFinite(p.cells) < card.size) continue;           // 다 못 읽은 줄은 투표 제외
+      if (p.frontSub && Math.abs(s - p.frontSub) <= SUB_TOL) f++;
+      if (p.backSub && Math.abs(s - p.backSub) <= SUB_TOL) k++;
+    }
+    return { f, k };
+  };
+  const va = votes(a), vb = votes(b);
+  if (va.f > va.k && vb.k >= vb.f) return { front: a, back: b, sure: true };
+  if (va.k > va.f && vb.f >= vb.k) return { front: b, back: a, sure: true };
+  // 소계로 못 가리면 홀 번호(10~18이 찍힌 화면이면 후반)
+  const maxHole = (c) => (c.holeNumbers.length ? Math.max(...c.holeNumbers) : 0);
+  const ma = maxHole(a), mb = maxHole(b);
+  if (ma > 9 && mb > 0 && mb <= 9) return { front: b, back: a, sure: true };
+  if (mb > 9 && ma > 0 && ma <= 9) return { front: a, back: b, sure: true };
+  return { front: a, back: b, sure: false };                    // 최후: 사용자가 고른 순서를 믿되 저신뢰
+}
+
+// 전·후반 조각의 같은 사람 짝짓기 — 이름 우선, 이름이 없거나 안 맞으면 줄 순서.
+function pairPlayers(front, back) {
+  const pairs = [];
+  const used = new Set();
+  front.players.forEach((fp, i) => {
+    let bi = -1;
+    if (normName(fp.name)) {
+      bi = back.players.findIndex((bp, k) => !used.has(k) && normName(bp.name) === normName(fp.name));
+    }
+    if (bi < 0 && back.players[i] && !used.has(i)) bi = i;      // 이름 매칭 실패 → 같은 줄 순서
+    if (bi >= 0) used.add(bi);
+    pairs.push({ name: fp.name || (bi >= 0 ? back.players[bi].name : ''), f: fp, b: bi >= 0 ? back.players[bi] : null });
+  });
+  back.players.forEach((bp, k) => { if (!used.has(k)) pairs.push({ name: bp.name, f: null, b: bp }); });
+  return pairs;
+}
+
+// ★파대비 표기냐 실제 타수냐 — 인쇄된 합계/소계와의 산술 교차검증으로만 판정한다(생김새 추측 금지).
+//   실타수 카드는 par 합(~72)을 더해야 합계가 맞는 일이 산술적으로 불가능해서 오판되지 않는다.
+function decideMode(cells, pars, printedTotal, subTotal) {
+  const cSum = sumFinite(cells);
+  const pSum = sumFinite(cells.map((c, i) => (Number.isFinite(c) ? pars[i] : null)));  // 읽힌 홀의 par만
+  const check = (target) => {
+    if (!target) return null;
+    if (Math.abs(cSum - target) <= SUB_TOL) return 'actual';
+    if (pSum && Math.abs(cSum + pSum - target) <= SUB_TOL) return 'relative';
+    return null;
+  };
+  const byTotal = countFinite(cells) === HOLES ? check(printedTotal) : null;   // 18홀 다 읽었을 때만 총계와 대조
+  if (byTotal) return { mode: byTotal, sure: true };
+  const bySub = check(subTotal);
+  if (bySub) return { mode: bySub, sure: true };
+  // 산술로 못 가릴 때 — 0이나 음수 칸이 있으면 파대비가 확정적(실제 타수엔 0타·마이너스 타가 없다)
+  if (cells.some(c => Number.isFinite(c) && c <= 0)) return { mode: 'relative', sure: true };
+  return { mode: 'actual', sure: false };                                      // 전부 양수 → 실타수로 보되 저신뢰
+}
+
+// 정규화된 카드들 → { pars18, players[], lowConfidence, notes[] }
+function assembleScorecard(rawCards) {
+  const cards = (Array.isArray(rawCards) ? rawCards : []).map(normalizeCard).filter(c => c.players.length && c.size > 0);
+  const notes = [];
+  let low = false;
+  if (!cards.length) return { pars: new Array(HOLES).fill(0), players: [], lowConfidence: true, notes };
+
+  // 18홀 완결 카드는 그 자체로 한 덩어리, 9홀 조각은 둘씩 짝지어 병합
+  const complete = cards.filter(c => c.size >= 16);
+  const frags = cards.filter(c => c.size < 16);
+  const blocks = [];                     // { pars:[18], entries:[{name, cells:[18], printedTotal, subTotal}] }
+
+  for (const c of complete) {
+    blocks.push({
+      pars: padTo(c.pars, HOLES),
+      entries: c.players.map(p => ({
+        name: p.name, cells: padTo(p.cells, HOLES), printedTotal: p.total,
+        subTotal: (p.frontSub && p.backSub) ? p.frontSub + p.backSub : 0,
+      })),
+    });
+  }
+  for (let i = 0; i < frags.length; i += 2) {
+    const a = frags[i], b = frags[i + 1];
+    if (!b) {                            // 한 장만(전반만 찍은 경우) — 읽은 9홀만 앞에 채움
+      notes.push('half');
+      low = true;
+      blocks.push({
+        pars: padTo(a.pars, HOLES),
+        entries: a.players.map(p => ({
+          name: p.name, cells: padTo(p.cells, HOLES), printedTotal: p.total, subTotal: p.frontSub || p.backSub || 0,
+        })),
+      });
+      continue;
+    }
+    const { front, back, sure } = orderFragments(a, b);
+    if (!sure) { notes.push('order'); low = true; }
+    const pars18 = [...padTo(front.pars, 9), ...padTo(back.pars, 9)];
+    const entries = pairPlayers(front, back).map(pr => ({
+      name: pr.name,
+      cells: [...padTo(pr.f?.cells, 9), ...padTo(pr.b?.cells, 9)],
+      // 합계 칸은 두 화면 모두 같은 '한 라운드 총타'를 찍어준다 — 있는 쪽을 쓴다.
+      printedTotal: pr.f?.total || pr.b?.total || 0,
+      subTotal: 0,
+      subs: { front: pr.f?.frontSub || pr.b?.frontSub || 0, back: pr.f?.backSub || pr.b?.backSub || 0 },
+    }));
+    blocks.push({ pars: pars18, entries });
+  }
+
+  // par는 카드 공통 — 홀별로 가장 먼저 읽힌 값 사용
+  const pars18 = new Array(HOLES).fill(null);
+  for (const bl of blocks) bl.pars.forEach((p, i) => { if (pars18[i] == null && Number.isFinite(p)) pars18[i] = p; });
+  if (countFinite(pars18) < HOLES) { notes.push('par'); }
+
+  const players = [];
+  for (const bl of blocks) {
+    for (const e of bl.entries) {
+      const pars = bl.pars.map((p, i) => (Number.isFinite(p) ? p : pars18[i]));
+      const subTotal = e.subTotal || ((e.subs?.front && e.subs?.back) ? e.subs.front + e.subs.back : 0);
+      const { mode, sure } = decideMode(e.cells, pars, e.printedTotal, subTotal);
+      if (!sure) low = true;
+      const scores = e.cells.map((c, i) => {
+        if (!Number.isFinite(c)) return 0;                       // 못 읽은 홀 = 0(클라 검토표에서 직접 입력)
+        const v = mode === 'actual' ? c : (Number.isFinite(pars[i]) ? pars[i] + c : null);
+        return (Number.isFinite(v) && v >= 1 && v <= 20) ? v : 0; // par 없어 환산 못 하면 0
+      });
+      const scoreSum = sumFinite(scores);
+      const full = countFinite(scores.map(v => (v > 0 ? v : null))) === HOLES;
+      // 총타 — 18홀을 다 환산했으면 홀 합(리뷰·공유가 같은 값을 쓰도록), 아니면 인쇄 합계를 신뢰
+      const total = full ? scoreSum : (e.printedTotal > 0 ? e.printedTotal : scoreSum);
+      if (full && e.printedTotal > 0 && scoreSum !== e.printedTotal) { low = true; notes.push('total'); }
+      if (!full) low = true;
+      players.push({ name: e.name, scores, total });
+    }
+  }
+
+  return { pars: pars18.map(p => (Number.isFinite(p) ? p : 0)), players, lowConfidence: low, notes: [...new Set(notes)] };
+}
+
+// 테스트 훅 — 실제 카드 숫자로 조립 산술을 검증할 때 쓴다(배포되는 함수 아님, onCall이 아니라 순수 함수).
+exports._assembleScorecard = assembleScorecard;
 
 exports.extractScorecard = onCall(
   {
@@ -239,22 +451,24 @@ exports.extractScorecard = onCall(
       throw new HttpsError('resource-exhausted', '자동인식을 너무 많이 요청했어요. 잠시 후 다시 시도해주세요.');
     }
 
+    // ★프롬프트 원칙 — '읽기'만 시키고 '계산'은 절대 시키지 않는다.
+    //   병합·파대비 환산·합계 검증은 CF 코드(assembleScorecard)가 산술로 한다. AI에게 계산을 맡겼을 때
+    //   반복해서 틀렸던 이력이 있다([[project_scorecard_ai]] 폐기된 접근 ①②).
     const prompt =
-      `너는 골프 스코어카드/스코어 화면 이미지에서 홀별 점수를 뽑는 도우미야. 이미지가 1~4장 올 수 있어.\n` +
-      `각 이미지를 보고 유형을 스스로 판별해서, 나온 모든 사람의 1~18홀 점수를 뽑아 JSON으로만 답해.\n` +
-      `[이미지 유형 판별]\n` +
-      `- 한 이미지에 1~9홀만(또는 10~18홀만) 점수가 있으면 = 한 라운드의 '조각'(스마트스코어 태블릿 전반/후반). 같은 사람들의 전반+후반을 짝지어 1~18홀로 합쳐.\n` +
-      `- 한 이미지에 18홀이 다 있으면 = '완결 카드'. 그 카드의 모든 플레이어를 각각 뽑아. 서로 다른 완결 카드는 보통 다른 팀이니, 사람을 겹치지 말고 전부 나열해(예: 4장이면 최대 16명).\n` +
-      `[PAR(파) 행 — 최우선]\n` +
-      `- pars: 1홀~18홀 파(3~5) 18개를 반드시 담아라. 카드·태블릿 대부분에 PAR(파) 행이 있으니 먼저 찾아 정확히 읽어라. 정말 없을 때만 빈 배열 [].\n` +
-      `[홀별 점수 = '실제 타수']\n` +
-      `- scores: 각 홀에서 실제로 친 타수(예: 3,4,5,6)를 18개 순서대로. 안 친 홀은 0.\n` +
-      `- ★스마트스코어 태블릿 등은 홀 칸이 '파 대비'(파=0, 언더 −1/−2, 오버 +1/+2)로 표시된다. 그럴 땐 실제 타수 = (그 홀의 파) + (파대비) 로 계산해서 담아라. 예: 파4 홀에 −1이면 3, +2면 6. 이미 실제 타수(4,5,6…)로 적힌 카드는 그대로 담아라.\n` +
-      `- ★검증(중요): 각 플레이어의 18홀 scores 합은 그 사람의 total(총타)과 같아야 한다. 합이 total과 다르면 파대비/실타수 판단이나 홀 읽기를 다시 해서 반드시 맞춰라.\n` +
-      `[players]\n` +
-      `- 사람마다 하나씩: { name(이름/구분, 없으면 ''), scores(18개), total(총타, 없으면 0) }.\n` +
-      `  ★한 표에 여러 명(4명 등)이면 전원을 players에 담아 — 대표 한 명만 고르지 마. 사용자가 나중에 본인 행을 고른다.\n` +
-      `스코어 표가 전혀 아니면 found=false, players=[].`;
+      `너는 골프 스코어카드/스코어 화면 이미지를 '보이는 그대로' 옮겨 적는 도우미야. 이미지가 1~4장 올 수 있어.\n` +
+      `★가장 중요한 규칙: 절대 계산하지 마라. 더하지도, 빼지도, 파를 더해 환산하지도 마라. 화면에 인쇄된 숫자를 그 칸 그대로 옮겨 적기만 해라. 계산은 내가 따로 한다.\n` +
+      `이미지 1장당 cards 항목 1개를, 준 순서 그대로 만들어 JSON으로만 답해.\n` +
+      `[각 카드에서 읽을 것]\n` +
+      `- label: 표 왼쪽 위 코스명/제목(예: 선샤인, 네스트, OUT, IN). 없으면 ''.\n` +
+      `- holeNumbers: 점수 칸 위에 적힌 홀 번호를 왼쪽부터 그대로(예: 1~9만 있으면 [1,…,9]). 화면에 1~9로 적혀 있으면 그게 후반 같아 보여도 [1,…,9]로 적어라 — 순서는 내가 정한다.\n` +
+      `- pars: PAR(파) 행을 holeNumbers와 같은 개수로. "4/7"처럼 par/HDCP가 붙어 있으면 앞의 par만(4). PAR 행은 대부분 있으니 꼭 찾아라. 정말 없으면 [].\n` +
+      `[각 사람(점수 행)에서 읽을 것]\n` +
+      `- cells: 홀 칸의 숫자를 계산 없이 그대로. 파 대비 표기(파=0, 언더 −1, 오버 +2)면 0·-1·2를 그대로 담아라. ★절대 파를 더하지 마라.\n` +
+      `- 빈칸이거나 손·그림자·반사에 가려 확신할 수 없는 칸은 추측하지 말고 99를 넣어라(99 = 못 읽음).\n` +
+      `- frontSub/backSub/total: '전반'·'후반'·'합계' 칸에 적힌 값을 각각 그대로. 그 칸이 없으면 0.\n` +
+      `  ※이 세 칸은 단위가 서로 다를 수 있다(전반·후반은 파대비 합, 합계는 실제 총타 등). 맞추려 하지 말고 보이는 대로만 적어라.\n` +
+      `- ★한 표에 여러 명(4명 등)이면 전원을 players에 담아 — 대표 한 명만 고르지 마. 사용자가 나중에 본인 행을 고른다.\n` +
+      `스코어 표가 전혀 아니면 found=false, cards=[].`;
 
     const parts = [{ text: prompt }];
     valid.forEach((im, i) => {
@@ -267,28 +481,14 @@ exports.extractScorecard = onCall(
     //   추출은 예약/지출보다 정확도가 중요해 속도(수 초)보다 정확도 우선. 느리면 값 하향(정확도 트레이드오프).
     const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SCORECARD_SCHEMA, thinkingBudget: 2048 });
 
-    // 18칸 정규화 — 순서대로 채우고 범위 밖(par 3~5·score 1~20 아님)은 0.
-    const to18 = (arr, min, max) => {
-      const o = Array(18).fill(0);
-      (Array.isArray(arr) ? arr : []).forEach((n, i) => {
-        const v = Number(n);
-        if (i < 18 && Number.isFinite(v) && v >= min && v <= max) o[i] = v;
-      });
-      return o;
-    };
-    const pars = to18(out?.pars, 3, 5);
-    const players = (Array.isArray(out?.players) ? out.players : []).map(p => {
-      const scores = to18(p?.scores, 1, 20);
-      const sum = scores.reduce((s, n) => s + n, 0);
-      return {
-        name: (p?.name || '').toString().trim(),
-        scores,
-        total: (Number.isFinite(p?.total) && p.total > 0) ? p.total : sum,
-      };
-    }).filter(p => p.scores.some(n => n > 0));   // 점수 하나도 없는 유령 행 제거
+    // ★조립 — 여기서 전/후반 순서와 파대비/실타수를 '산술'로 결정한다(위 assembleScorecard 주석 참고).
+    const { pars, players, lowConfidence, notes } = assembleScorecard(out?.cards);
 
-    logger.info('[gemini] scorecard ok', { uid, found: !!out?.found, players: players.length });
-    return { ok: true, found: !!out?.found, pars, players };
+    logger.info('[gemini] scorecard ok', {
+      uid, found: !!out?.found, cards: (out?.cards || []).length,
+      players: players.length, low: lowConfidence, notes: notes.join(','),
+    });
+    return { ok: true, found: !!out?.found, pars, players, lowConfidence, notes };
   }
 );
 

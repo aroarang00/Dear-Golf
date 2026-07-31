@@ -125,6 +125,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
   //   전부 '사진을 못 읽었다'로만 보였다. 사진 문제가 아니라 잠시 후 되는 상황이면 그걸 알려야 한다.
   const [scFailReason, setScFailReason] = useState('');
   const [scLowConf, setScLowConf] = useState(false); // OCR 저신뢰(인쇄 합계와 안 맞음) → 확인·수정 강조
+  const [scNotes, setScNotes] = useState([]);        // 저신뢰 사유(order=전/후반 순서 미확정, par/total/half) — 안내 문구 분기
   const [scReview, setScReview] = useState(false);
   const [scBusy, setScBusy] = useState(false);
   const [scPreviewUris, setScPreviewUris] = useState(null); // 읽기 전 방향 확인 대상 사진(있으면 미리보기 모달)
@@ -398,7 +399,10 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
       setShareRows(res.rows.map(r => normalizeScoreRow(r, res.holePars || null)));
       setHolePars(res.holePars || null);       // par(있으면) — 버디 자동집계
       setScFailed(false); setScFailReason('');
-      setScLowConf(false);
+      // ★CF 산술 검산 결과 반영 — 전/후반 순서를 소계로 못 가렸거나 홀 누락·합계 불일치면 저신뢰.
+      //   전에는 무조건 false라 '틀렸는데 맞은 척' 보였다(2026-07-31).
+      setScLowConf(!!res.lowConfidence);
+      setScNotes(res.notes || []);
       setScReview(true);
     } catch (e) {
       if (__DEV__) console.warn('[DiaryAdd] scorecard AI fail', e?.message);
@@ -1069,22 +1073,28 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
                       backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
                         <Icon name="flag" size={fs(16)} color={C.burgundy} strokeWidth={1.8} />
-                        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>
-                          홀별 스코어 입력됨 · 총 {holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0)}타
+                        {/* ★flexShrink:1 필수 — RN은 flexShrink 기본값이 0(웹은 1)이라 이게 없으면 긴 글씨가
+                            줄지도 줄바꿈되지도 않고 그대로 넘쳐 오른쪽 '수정·지우기' 위에 겹쳐 그려진다.
+                            안드는 BODY_BUMP(+3pt)로 글씨가 더 커서 먼저 터짐(사용자 제보 2026-07-31). */}
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, flexShrink: 1 }}>
+                          홀별 입력됨 · 총 {holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0)}타
                         </Text>
                       </View>
-                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        onPress={() => {
-                          const t = holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
-                          setScRows([{ label: '입력값', holes: holeScores, total: t }]);
-                          setScFailed(false); setScLowConf(false); setScReview(true);
-                        }}>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>수정</Text>
-                      </TouchableOpacity>
-                      <Text style={{ color: C.warmGray, marginHorizontal: 8 }}>·</Text>
-                      <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => { setHoleScores(null); setHolePars(null); setShareRows([]); setShareScores(false); }}>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>지우기</Text>
-                      </TouchableOpacity>
+                      {/* 우측 액션은 안 줄어들게(flexShrink:0) — 줄어들 쪽은 왼쪽 설명 글씨다 */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0, marginLeft: 8 }}>
+                        <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          onPress={() => {
+                            const t = holeScores.reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
+                            setScRows([{ label: '입력값', holes: holeScores, total: t }]);
+                            setScFailed(false); setScLowConf(false); setScReview(true);
+                          }}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>수정</Text>
+                        </TouchableOpacity>
+                        <Text style={{ color: C.warmGray, marginHorizontal: 8 }}>·</Text>
+                        <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => { setHoleScores(null); setHolePars(null); setShareRows([]); setShareScores(false); }}>
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>지우기</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   )}
                   {/* 사진으로 다시 읽기 — 이미 홀별이 있어도(수정모드에서 총타만 있던 기록에 홀별 추가 등) 사진 AI 재인식 진입.
@@ -1759,6 +1769,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
           failed={scFailed}
           failedReason={scFailReason}
           lowConfidence={scLowConf}
+          lowReasons={scNotes}
           rotating={scRotating}
           onRotate={scOrigUrisRef.current.length ? handleRotateScorecard : null}
           onConfirm={handleScorecardConfirm}

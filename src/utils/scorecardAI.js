@@ -36,8 +36,10 @@ async function toBase64(uri) {
   return img.base64;
 }
 
-// 사진 1~2장(uri) → { rows:[{ label, holes:number[18], total }], holePars:number[18]|null } | { error }
+// 사진 1~2장(uri) → { rows:[{ label, holes:(number|null)[18], total }], holePars, lowConfidence, notes } | { error }
 //   rows = 플레이어(행)별(여러 카드/여러 팀이면 전원). 여러 명이면 검토 모달이 '본인 행 선택' UI를 띄움.
+//   ★holes는 '실제 타수'로 이미 조립돼 온다 — 전/후반 순서 결정과 파대비 환산은 CF가 산술로 끝냈다(2026-07-31 개편).
+//     못 읽은 홀만 null. 아래 reconcile 계열은 이제 옛 공유 데이터용 안전망 역할만 한다.
 export async function extractScorecardAI(uris) {
   try {
     const list = (Array.isArray(uris) ? uris : [uris]).filter(Boolean).slice(0, 2);
@@ -55,14 +57,17 @@ export async function extractScorecardAI(uris) {
     }
 
     const rows = d.players.map((p, i) => {
-      const holes = (Array.isArray(p.scores) ? p.scores.slice(0, 18) : []).map(n => n || 0);
-      while (holes.length < 18) holes.push(0);
-      const total = p.total > 0 ? p.total : holes.reduce((s, n) => s + n, 0);
+      // CF는 못 읽은 홀을 0으로 준다 → null로 바꿔 검토표에서 '빈 칸'으로 보이게(0타로 오해·합산 오염 방지).
+      const holes = (Array.isArray(p.scores) ? p.scores.slice(0, 18) : []).map(n => (n > 0 ? n : null));
+      while (holes.length < 18) holes.push(null);
+      const sum = holes.reduce((s, n) => s + (n || 0), 0);
+      const total = p.total > 0 ? p.total : sum;
       return { label: (p.name || '').trim() || `${i + 1}번`, holes, total };
     });
     const hasPar = Array.isArray(d.pars) && d.pars.some(v => v >= 3 && v <= 5);
     const holePars = hasPar ? d.pars.slice(0, 18).map(v => (v >= 3 && v <= 5) ? v : null) : null;
-    return { rows, holePars };
+    // lowConfidence — CF가 산술 검산에 실패한 경우(전/후반 순서 미확정·홀 누락·합계 불일치). 검토 모달이 확인을 강조.
+    return { rows, holePars, lowConfidence: !!d.lowConfidence, notes: Array.isArray(d.notes) ? d.notes : [] };
   } catch (e) {
     if (__DEV__) console.warn('[scorecardAI]', e?.code || '', e?.message);
     return { error: e?.message || '인식에 실패했어요. 다시 시도해주세요.', code: e?.code };
