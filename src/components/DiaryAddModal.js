@@ -35,6 +35,7 @@ import { createScoreShare } from '../utils/roundScoreShares';   // 동반자 스
 import { normalizeScoreRow } from '../utils/scorecardOcr';   // 공유 전 총타 정규화(오버파 오독 방지)
 import { getUid } from '../utils/firebase';
 import { sameCourseName } from '../utils/courseNameKey';   // 구장명 비교 — 앱 전체가 쓰는 같은 기준(길이 추측 금지)
+import { showAppAlert } from './AppAlert';   // 모달이 닫힌 뒤 알림용(스코어 공유 실패 등)
 import { uploadRoundMedia, deleteRoundMediaFiles } from '../utils/roundMedia';   // 사진 미리 업로드(저장 즉시화)
 import * as ImageManipulator from 'expo-image-manipulator';   // 스코어카드 사진 회전(옆으로 누운 카드 재인식)
 import * as MediaLibrary from 'expo-media-library';   // 촬영한 스코어카드 원본을 갤러리에 보관
@@ -942,29 +943,44 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
     const finishSave = async () => {
       preUpRef.current.clear(); // 저장된 파일 참조는 버림(삭제 아님) — 취소 정리가 저장분을 지우지 않게
       // 동반자에게 스코어 공유 — OCR 전체 행(scRows)을 친구 동반자에게. 수신자가 자기 행 골라 본인 기록에 파생.
-      //   best-effort(fire-and-forget) — 라운딩 저장 자체는 위에서 끝났으므로 공유 실패가 저장을 막지 않음. ([[companion-design]] §11)
+      //   ★2026-07-31: 예전엔 fire-and-forget + __DEV__ 로그뿐이라, 안 보내졌는데도 앱이 아무 말을 안 했다.
+      //     '공유를 눌렀는데 친구에게 안 간다'는 제보가 왔을 때 사용자도 개발자도 원인을 알 수 없었다(서버엔 문서 0건).
+      //     → 결과를 기다렸다가 못 보냈으면 반드시 알린다. 단 저장 자체는 이미 끝났으므로 공유 실패가 기록을 되돌리진 않는다.
+      let shareWarn = null;
       if (shareScores && Array.isArray(shareRows) && shareRows.length >= 2) {
         const audienceUids = companions.filter(c => c.friendUid).map(c => c.friendUid);
-        if (audienceUids.length) {
-          (async () => {
-            try {
-              const uid = await getUid();
-              await createScoreShare({
-                authorUid: uid,
-                authorName: userProfile.nickname || userProfile.realName || '',
-                round: {
-                  course: finalCourse, date: formatDate(date), day: formatDay(date),
-                  courseId: payload.courseId, courseLoc: payload.courseLoc, holePars,
-                  ...((pickedScheduleId || initial?.scheduleId) ? { scheduleId: pickedScheduleId || initial?.scheduleId } : {}),
-                },
-                rows: shareRows,
-                audienceUids,
-              });
-            } catch (e) { if (__DEV__) console.warn('[scoreShare] create fail', e?.message); }
-          })();
+        if (!audienceUids.length) {
+          // 이름을 직접 적은 동반자는 앱 친구가 아니라 '받을 사람'을 특정할 수 없다 → 보낼 곳이 없음.
+          shareWarn = {
+            title: '스코어는 보내지 못했어요',
+            message: '동반자를 친구 목록에서 고른 경우에만 보낼 수 있어요.\n직접 적은 이름은 앱 친구가 아니라 받을 사람을 알 수 없어요.\n\n기록은 저장됐어요 — 수정에서 친구를 넣고 다시 시도해주세요.',
+          };
+        } else {
+          try {
+            const uid = await getUid();
+            const shareId = await createScoreShare({
+              authorUid: uid,
+              authorName: userProfile.nickname || userProfile.realName || '',
+              round: {
+                course: finalCourse, date: formatDate(date), day: formatDay(date),
+                courseId: payload.courseId, courseLoc: payload.courseLoc, holePars,
+                ...((pickedScheduleId || initial?.scheduleId) ? { scheduleId: pickedScheduleId || initial?.scheduleId } : {}),
+              },
+              rows: shareRows,
+              audienceUids,
+            });
+            if (!shareId) {
+              shareWarn = { title: '스코어는 보내지 못했어요', message: '받을 친구를 확인하지 못했어요.\n기록은 저장됐어요 — 수정에서 동반자를 다시 넣고 시도해주세요.' };
+            }
+          } catch (e) {
+            if (__DEV__) console.warn('[scoreShare] create fail', e?.message);
+            shareWarn = { title: '스코어는 보내지 못했어요', message: '네트워크 상태를 확인해주세요.\n기록은 저장됐어요 — 수정에서 다시 시도할 수 있어요.' };
+          }
         }
       }
       reset(); onClose();
+      // 모달이 닫힌 뒤에 띄운다 — 글로벌 알럿은 RN Modal 위에서 터치가 안 먹어 닫힘 애니메이션 후로 미룬다.
+      if (shareWarn) setTimeout(() => showAppAlert(shareWarn.title, shareWarn.message), 350);
     };
 
     // 저장 실행부 — 신규 저장과 '기존 기록 덮어쓰기'가 뒷정리·공유까지 똑같이 흐르도록 하나로 묶는다.
