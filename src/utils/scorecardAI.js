@@ -62,7 +62,8 @@ export async function extractScorecardAI(uris) {
       while (holes.length < 18) holes.push(null);
       const sum = holes.reduce((s, n) => s + (n || 0), 0);
       const total = p.total > 0 ? p.total : sum;
-      return { label: (p.name || '').trim() || `${i + 1}번`, holes, total };
+      // printedTotal = 카드에 인쇄된 총타. 홀 합과 어긋나면 검토 화면이 그 차이를 숫자로 짚어준다.
+      return { label: (p.name || '').trim() || `${i + 1}번`, holes, total, printedTotal: p.printedTotal > 0 ? p.printedTotal : 0 };
     });
     const hasPar = Array.isArray(d.pars) && d.pars.some(v => v >= 3 && v <= 5);
     const holePars = hasPar ? d.pars.slice(0, 18).map(v => (v >= 3 && v <= 5) ? v : null) : null;

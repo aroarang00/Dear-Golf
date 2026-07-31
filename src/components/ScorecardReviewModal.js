@@ -51,10 +51,18 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
 
   const inSelect = multi && rowIdx === null;
 
+  // 카드에 인쇄된 총타 — 홀 합과 어긋나면 몇 타 차이인지 숫자로 짚어준다.
+  const cardTotal = Number(rows[rowIdx]?.printedTotal) || 0;
+  const gap = (cardTotal > 0 && filled === 18) ? cardTotal - holesSum : 0;
+
   // 저신뢰 사유(CF notes) → 확인할 것 한 줄. 급한 것부터 우선.
+  //   ★'total'은 차이를 숫자로 — 파대비 카드에서 PAR 한 칸을 잘못 읽으면 그 par를 쓰는 전원이
+  //     똑같이 어긋난다. "숫자를 확인하세요"만으론 어디를 볼지 알 수 없어 그냥 확정하게 된다.
   const lowMessage =
     lowReasons.includes('order') ? '전반·후반 순서를 확정하지 못했어요. 앞 9홀이 맞는지 확인해주세요.'
     : lowReasons.includes('half') ? '카드 한 장만 읽었어요. 나머지 9홀은 직접 입력해주세요.'
+    : gap !== 0
+      ? `카드에는 ${cardTotal}타인데 홀별 합은 ${holesSum}타예요 — ${Math.abs(gap)}타 ${gap > 0 ? '모자라요' : '많아요'}.\n한 홀이 잘못 읽혔어요. 카드와 대조해 그 홀만 고쳐주세요.`
     : lowReasons.includes('total') ? '홀별 합이 카드에 인쇄된 합계와 달라요. 숫자를 확인해주세요.'
     : '빈 칸이 있어요. 못 읽은 홀을 직접 채워주세요. 또렷한 스크린샷이면 더 정확해요.';
 
@@ -192,14 +200,22 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
                       홀별 숫자를 정확히 읽지 못해 총타(총 {printedTotal}타)만 반영했어요.{'\n'}홀별이 필요하면 위 칸에 직접 입력해주세요.
                     </Text>
                   )}
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4,
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 4,
                     paddingTop: 12, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
-                    <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray }}>
+                    <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray, flexShrink: 1 }}>
                       전반 {front} · 후반 {back}
                     </Text>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
-                      총 {total}타 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>({filled}/18)</Text>
-                    </Text>
+                    <View style={{ alignItems: 'flex-end', flexShrink: 0, marginLeft: 8 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: gap !== 0 ? '#8B2A2A' : C.charcoal }}>
+                        총 {total}타 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>({filled}/18)</Text>
+                      </Text>
+                      {/* 카드 표기와 다르면 그 자리에서 바로 보이게 — 고친 홀이 맞았는지 즉시 확인된다 */}
+                      {gap !== 0 && (
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#8B2A2A', marginTop: 2 }}>
+                          카드 표기 {cardTotal}타
+                        </Text>
+                      )}
+                    </View>
                   </View>
                 </View>
               )}

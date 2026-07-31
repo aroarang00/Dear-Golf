@@ -418,7 +418,11 @@ function assembleScorecard(rawCards) {
       const total = full ? scoreSum : (e.printedTotal > 0 ? e.printedTotal : scoreSum);
       if (full && e.printedTotal > 0 && scoreSum !== e.printedTotal) { low = true; notes.push('total'); }
       if (!full) low = true;
-      players.push({ name: e.name, scores, total });
+      // ★printedTotal(카드에 인쇄된 총타)을 함께 내려보낸다 — 홀 합과 어긋날 때 검토 화면이
+      //   "카드엔 100타인데 홀 합은 99타"라고 숫자로 짚어주기 위함.
+      //   파대비 카드에서 PAR 한 칸을 1 잘못 읽으면 그 par를 쓰는 전원이 똑같이 1타씩 어긋나는데,
+      //   예전엔 이 값이 없어 사용자에게 그냥 99타로 보였다(사용자 제보 2026-07-31, 힐마루 안드).
+      players.push({ name: e.name, scores, total, printedTotal: e.printedTotal > 0 ? e.printedTotal : 0 });
     }
   }
 
