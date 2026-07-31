@@ -1089,8 +1089,12 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
               <Text style={[mS.bigLabel, { marginTop: 20 }]}>사진으로 자동입력 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, letterSpacing: 0 }}>(선택 · 홀별·버디까지)</Text></Text>
               <View style={{ marginBottom: 10 }}>
                   {/* 사진으로 등록 — 갤러리(권장)/촬영. 인식 결과는 검토 모달에서 확인·수정 후 확정 */}
-                  {/* 추출 중 — 공용 Spinner(JS타이머 회전, 안드 애니메이션 꺼짐에도 돎). 버튼/안내는 숨김. */}
-                  {!holeScores && scBusy && (
+                  {/* 추출 중 — 공용 Spinner(JS타이머 회전, 안드 애니메이션 꺼짐에도 돎). 버튼/안내는 숨김.
+                      ★holeScores 유무와 무관하게 띄운다 — 예전엔 `!holeScores &&` 조건이 붙어 있어서,
+                        이미 홀별이 있는 기록에서 '사진으로 다시 읽기'를 누르면 그 버튼은 사라지고(holeScores && !scBusy)
+                        스피너는 안 떠서, 10~25초 동안 화면에 아무 반응이 없었다. 누른 사람은 '안 눌렸나' 싶다
+                        (사용자 제보 2026-07-31 — 잘못된 기록을 고치려고 재인식할 때가 바로 이 경로다). */}
+                  {scBusy && (
                     <View style={{ paddingVertical: 30, alignItems: 'center', backgroundColor: C.bgSecondary,
                       borderRadius: 12, borderWidth: 0.5, borderColor: C.hairline }}>
                       <Spinner size={30} color={C.burgundy} />
