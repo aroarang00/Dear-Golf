@@ -414,8 +414,12 @@ function assembleScorecard(rawCards) {
       });
       const scoreSum = sumFinite(scores);
       const full = countFinite(scores.map(v => (v > 0 ? v : null))) === HOLES;
-      // 총타 — 18홀을 다 환산했으면 홀 합(리뷰·공유가 같은 값을 쓰도록), 아니면 인쇄 합계를 신뢰
-      const total = full ? scoreSum : (e.printedTotal > 0 ? e.printedTotal : scoreSum);
+      // ★총타는 '카드에 인쇄된 합계'를 최우선으로 믿는다 — 파 행에 기대지 않는다.
+      //   카드에서 합계는 가장 크고 선명한 숫자고, PAR 행은 상단 어두운 띠의 작은 글씨라 가장 안 읽힌다.
+      //   예전엔 total을 홀 합으로 계산해서, 파 한 칸을 잘못 읽으면 그 파를 쓰는 전원의 총타가
+      //   똑같이 어긋났다(사용자 제보 2026-07-31). 가장 못 믿을 값에 가장 중요한 결과를 매달고 있던 셈.
+      //   홀별은 여전히 파가 필요하지만, 그건 홀별만의 문제로 격리된다.
+      const total = e.printedTotal > 0 ? e.printedTotal : scoreSum;
       if (full && e.printedTotal > 0 && scoreSum !== e.printedTotal) { low = true; notes.push('total'); }
       if (!full) low = true;
       // ★printedTotal(카드에 인쇄된 총타)을 함께 내려보낸다 — 홀 합과 어긋날 때 검토 화면이

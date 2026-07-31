@@ -86,7 +86,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
     lowReasons.includes('order') ? '전반·후반 순서를 확정하지 못했어요. 앞 9홀이 맞는지 확인해주세요.'
     : lowReasons.includes('half') ? '카드 한 장만 읽었어요. 나머지 9홀은 직접 입력해주세요.'
     : gap !== 0
-      ? `카드는 ${cardTotal}타, 홀별 합은 ${holesSum}타 — ${Math.abs(gap)}타 ${gap > 0 ? '모자라요' : '많아요'}.\n아래 '파' 줄을 카드의 PAR과 맞춰보세요. 보통 파 한 칸을 잘못 읽은 거예요.`
+      ? `총타는 카드에 적힌 ${cardTotal}타로 기록돼요 — 그건 걱정 안 하셔도 돼요.\n다만 홀별 합이 ${holesSum}타라 ${Math.abs(gap)}타 안 맞아요. 홀별까지 남기려면 위 사진의 PAR과 아래 '파' 줄을 맞춰주세요(파를 탭하면 바뀝니다).`
     : lowReasons.includes('total') ? '홀별 합이 카드에 인쇄된 합계와 달라요. 숫자를 확인해주세요.'
     : '빈 칸이 있어요. 못 읽은 홀을 직접 채워주세요. 또렷한 스크린샷이면 더 정확해요.';
 
@@ -103,9 +103,12 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
 
   const confirm = () => {
     Keyboard.dismiss();
-    // total은 홀 합>0이면 홀 합, 아니면 인쇄 총계 폴백(위 정의) — 홀별을 못 읽어도 총타는 잃지 않는다.
-    //   화면에서 고친 파도 함께 돌려준다 — 버디 자동집계가 틀린 파로 세지 않게.
-    onConfirm && onConfirm({ holeScores: holeNums, total, holePars: pars.some(p => Number.isFinite(p)) ? pars : null });
+    // ★홀 합과 카드 표기가 끝내 다르면 '카드 표기'를 총타로 기록한다 — 카드의 합계는 크고 선명해
+    //   거의 안 틀리는 반면, 어긋남의 원인은 대개 작게 인쇄된 파 한 칸이다. 총타만은 잃지 않게.
+    //   (이때 홀 합이 총타와 안 맞아 홀별은 저장에서 빠진다. 파를 고쳐 맞추면 홀별까지 함께 남는다.)
+    const finalTotal = (cardTotal > 0 && filled === 18 && cardTotal !== holesSum) ? cardTotal : total;
+    // 화면에서 고친 파도 함께 돌려준다 — 버디 자동집계가 틀린 파로 세지 않게.
+    onConfirm && onConfirm({ holeScores: holeNums, total: finalTotal, holePars: pars.some(p => Number.isFinite(p)) ? pars : null });
   };
 
   // 9홀 한 줄 렌더 (start: 0=전반, 9=후반)
