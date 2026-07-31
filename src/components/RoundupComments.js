@@ -132,7 +132,7 @@ function CommentActionSheet({ comment, isHost, isMine, onClose, onPin, onDelete,
   );
 }
 
-export function RoundupComments({ post, comments, total = 0, joined, myUid, nameMap = {}, friendMeta = {}, inputRef, onInputFocus, onAdd, onDelete, onPin, onLoadOlder, onOpenLink }) {
+export function RoundupComments({ post, comments, total = 0, joined, myUid, nameMap = {}, friendMeta = {}, inputRef, onInputFocus, onInputGrow, onAdd, onDelete, onPin, onLoadOlder, onOpenLink }) {
   const { userProfile } = useContext(UserContext);
   const [body, setBody] = useState('');
   const [error, setError] = useState(null);
@@ -299,6 +299,8 @@ export function RoundupComments({ post, comments, total = 0, joined, myUid, name
                     value={body}
                     onChangeText={(t) => { setBody(t.slice(0, COMMENT_MAX)); if (error) setError(null); }}
                     multiline
+                    // 댓글이 길어져 입력칸이 자라면 부모가 다시 키보드 위로 올려준다(안드 전용, [[RoundupDetail]]).
+                    onContentSizeChange={onInputGrow}
                   />
                   {error && (
                     <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#8B2A2A', marginTop: 6 }}>{error}</Text>

@@ -223,28 +223,37 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
   }, [post?.id]);
   // 안드(엣지투엣지): 키보드가 창을 리사이즈하지 않고 콘텐츠 위로 떠서 댓글 입력칸이 가려짐.
   // 포커스된 입력칸을 키보드 위로 직접 스크롤. (iOS는 automaticallyAdjustKeyboardInsets가 처리)
-  const scrollCommentIntoView = () => {
-    if (Platform.OS !== 'android') return;
-    setTimeout(() => {
+  //   ★포커스 때 한 번만으론 부족하다 — multiline 입력칸은 댓글이 길어질수록 아래로 자라서
+  //     처음 맞춰둔 위치가 다시 키보드에 잠긴다(사용자 제보 2026-07-31). 입력칸 높이가 바뀔 때마다
+  //     (onContentSizeChange) 다시 재서 침범한 만큼만 올린다. overlap>0일 때만 움직여 손스크롤과 안 싸운다.
+  const scrollAdjustTimer = useRef(null);
+  const scrollCommentIntoView = (delay = 160) => {
+    if (scrollAdjustTimer.current) clearTimeout(scrollAdjustTimer.current);   // 타이핑마다 쌓이지 않게
+    scrollAdjustTimer.current = setTimeout(() => {
       const node = commentInputNode.current;
       const scroll = scrollRef.current;
       const kb = kbHeightRef.current;
       if (!node?.measureInWindow || !scroll || !kb) return;
       node.measureInWindow((x, y, w, h) => {
-        const kbTop = winH - kb - insets.bottom;     // 키보드 상단 Y (내비바 보정)
+        // 키보드 상단 Y — 안드는 엣지투엣지라 내비바(insets.bottom)를 빼야 하고,
+        //   iOS는 endCoordinates.height에 홈 인디케이터 영역이 이미 포함돼 있어 빼면 안 된다(이중 보정).
+        const kbTop = winH - kb - (Platform.OS === 'android' ? insets.bottom : 0);
         const overlap = (y + h + 48) - kbTop;        // 입력칸 하단이 키보드를 침범한 양 (+여유 48)
         if (overlap > 0) scroll.scrollTo({ y: scrollY.current + overlap, animated: true });
       });
-    }, 160);
+    }, delay);
   };
+  useEffect(() => () => { if (scrollAdjustTimer.current) clearTimeout(scrollAdjustTimer.current); }, []);
+  // iOS도 같이 듣는다 — automaticallyAdjustKeyboardInsets는 '여백'만 넓혀주고 입력칸을 따라 올려주진 않아서,
+  //   댓글이 길어지면 오히려 iOS가 더 심하게 가려졌다(사용자 제보 2026-07-31). iOS는 will* 이벤트가 더 빠르다.
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const show = Keyboard.addListener('keyboardDidShow', e => {
+    const _ios = Platform.OS === 'ios';
+    const show = Keyboard.addListener(_ios ? 'keyboardWillShow' : 'keyboardDidShow', e => {
       kbHeightRef.current = e.endCoordinates?.height || 0;
       setKbHeight(kbHeightRef.current);
       scrollCommentIntoView();
     });
-    const hide = Keyboard.addListener('keyboardDidHide', () => { kbHeightRef.current = 0; setKbHeight(0); });
+    const hide = Keyboard.addListener(_ios ? 'keyboardWillHide' : 'keyboardDidHide', () => { kbHeightRef.current = 0; setKbHeight(0); });
     return () => { show.remove(); hide.remove(); };
   }, []);
 
@@ -809,8 +818,10 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
           </View>
 
           {bodyReady ? (
+          // 바닥 여백에 키보드 높이를 더하는 건 안드 전용 — iOS는 automaticallyAdjustKeyboardInsets가
+          //   이미 같은 크기의 inset을 넣어줘서, 여기서 또 더하면 빈 공간이 두 배로 벌어진다.
           <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 36 + (kbHeight ? kbHeight + 80 : 0) }}
+            contentContainerStyle={{ paddingBottom: 36 + (_and && kbHeight ? kbHeight + 80 : 0) }}
             scrollEventThrottle={16}
             onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
             keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
@@ -1111,7 +1122,9 @@ export function RoundupDetail({ post, myUid, friendGroups, friendMeta = {}, part
               nameMap={participantNames}
               friendMeta={friendMeta}
               inputRef={commentInputNode}
-              onInputFocus={scrollCommentIntoView}
+              onInputFocus={() => scrollCommentIntoView()}
+              // 입력칸이 자라면(댓글이 길어지면) 다시 키보드 위로 올린다 — 자란 직후라 지연을 짧게.
+              onInputGrow={() => scrollCommentIntoView(40)}
               onAdd={onAddComment}
               onDelete={onDeleteComment}
               onPin={onPinComment}

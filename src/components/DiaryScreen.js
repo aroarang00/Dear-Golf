@@ -1073,7 +1073,9 @@ export function DiaryScreen({ route, navigation }) {
       </TouchableOpacity>
 
       <DiaryAddModal visible={showModal} onClose={handleAddModalClose} onSave={handleSave} initial={addSeed}
-        loadableRounds={unrecordedRounds} />
+        loadableRounds={unrecordedRounds}
+        // 같은 날·같은 구장 기록이 이미 있는지 확인용(중복 저장 방지 확인창). 내 기록 전체를 넘긴다.
+        existingRounds={diaries} />
 
       {/* 미기록 라운딩 선택 시트 — 기록 추가 시 골라서 일정에 정확히 연결(중복·오연결 방지) */}
       <Modal visible={showPickSheet} transparent animationType="fade" onRequestClose={() => setShowPickSheet(false)}>

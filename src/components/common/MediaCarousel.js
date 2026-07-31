@@ -73,7 +73,12 @@ export function MediaCarousel({ photos, onTap, onFirstRatio }) {
         const { width, height } = e.nativeEvent.layout;
         if (width !== dim.w || height !== dim.h) setDim({ w: width, h: height });
       }}>
-      {w > 0 && (
+      {/* ★h > 0 까지 기다렸다 올린다 — 폭만 잡히고 높이가 0인 첫 레이아웃에서 이미지를 걸면,
+          안드(Glide)가 그 0에 가까운 크기로 비트맵을 디코드해 캐시한다. 뒤에 높이가 제대로 잡혀도
+          그 작은 디코드가 늘어나 보여서 '방금 저장한 기록의 사진만 흐릿'하고, 화면을 떠났다 오면
+          새로 요청돼 선명해진다. 카드 틀(aspectRatio)이 사진 비율에 맞춰 한 번 바뀌는 구조라
+          첫 레이아웃에서 높이가 0으로 오는 창이 실재한다. */}
+      {w > 0 && h > 0 && (
         <ScrollView
           horizontal
           pagingEnabled

@@ -34,6 +34,7 @@ import { ScorecardPreviewModal } from './ScorecardPreviewModal';   // 읽기 전
 import { createScoreShare } from '../utils/roundScoreShares';   // 동반자 스코어 공유([[companion-design]] §11 Phase C)
 import { normalizeScoreRow } from '../utils/scorecardOcr';   // 공유 전 총타 정규화(오버파 오독 방지)
 import { getUid } from '../utils/firebase';
+import { sameCourseName } from '../utils/courseNameKey';   // 구장명 비교 — 앱 전체가 쓰는 같은 기준(길이 추측 금지)
 import { uploadRoundMedia, deleteRoundMediaFiles } from '../utils/roundMedia';   // 사진 미리 업로드(저장 즉시화)
 import * as ImageManipulator from 'expo-image-manipulator';   // 스코어카드 사진 회전(옆으로 누운 카드 재인식)
 import * as MediaLibrary from 'expo-media-library';   // 촬영한 스코어카드 원본을 갤러리에 보관
@@ -82,7 +83,31 @@ function SectionHead({ title, sub, required }) {
   );
 }
 
-export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loadableRounds = [] }) {
+// 같은 라운딩 찾기 — 같은 날 + 같은 구장 (+ 양쪽 다 티오프가 있으면 그 시각까지 같아야).
+//   왜 필요한가: 친구가 보낸 스코어로 파생된 기록이 틀렸을 때 '제대로 다시 입력'하면 기록이 둘로 늘었다.
+//   본인이 만든 기억이 없는 기록이라 왜 2개인지도 알기 어렵다(사용자 제보 2026-07-31).
+//   ★티오프(time)는 선택 입력이라 비어 있는 기록이 많다 → 한쪽이라도 없으면 날짜·구장만으로 '후보'로만 본다.
+//     같은 구장에서 하루 36홀(2라운드)을 도는 경우가 있어 이 판정만으로 덮어쓰면 안 된다 → 호출부는 반드시 확인창을 띄운다.
+//   ★구장 비교는 sameCourseName(courseNameKey)로 — 앱 전체가 쓰는 기준과 같아야 하고,
+//     길이 기반 '앞부분 같으면 같은 구장' 규칙은 금지다('세인트포'/'세인트포레스트'가 합쳐진 적 있음).
+export function findSameRound(rounds, p) {
+  if (!Array.isArray(rounds) || !p?.date) return null;
+  return rounds.find(r => {
+    if (!r?.id) return false;
+    if ((r.kind || 'round') === 'moment') return false;        // 일상글은 대상 아님
+    if (r.date !== p.date) return false;
+    if (!!r.overseas !== !!p.overseas) return false;           // 국내/해외 도메인 분리
+    // 구장 ID가 양쪽 다 있으면 그게 가장 확실. 하나라도 없으면(직접 입력·해외) 이름으로.
+    const sameCourse = (r.courseId && p.courseId)
+      ? r.courseId === p.courseId
+      : sameCourseName(r.course, p.course);
+    if (!sameCourse) return false;
+    if (r.time && p.time) return r.time === p.time;            // 둘 다 있으면 시각까지 같아야 같은 라운딩
+    return true;                                               // 한쪽이라도 없으면 후보 → 확인창에서 사용자가 판단
+  }) || null;
+}
+
+export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loadableRounds = [], existingRounds = [] }) {
   const insets = useSafeAreaInsets();
   const { userProfile } = React.useContext(UserContext);
   const { schedules } = React.useContext(SchedulesContext);
@@ -912,40 +937,71 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
       overseas,
       country: overseas ? country.trim() : '',
     };
-    // 저장을 await — 실패 시 모달을 닫지 않고 입력(코스·스코어·사진·메모) 보존 + 안내
-    let saveOk;
-    try {
-      saveOk = isEdit ? await onSave('diary-edit', { id: initial.id, ...payload }) : await onSave('diary', payload);
-    } finally { savingRef.current = false; setSaving(false); }
-    if (saveOk === false) {
-      setOverlay({ title: '저장에 실패했어요', message: '네트워크 상태를 확인하고 다시 시도해주세요.\n작성한 내용은 그대로 남아 있어요.' });
+    // 저장 성공 뒤 마무리 — 임시 파일 참조 정리 + 동반자 스코어 공유 + 모달 닫기.
+    //   신규 저장과 덮어쓰기가 완전히 같은 뒷정리를 타도록 한 곳에 모아둔다.
+    const finishSave = async () => {
+      preUpRef.current.clear(); // 저장된 파일 참조는 버림(삭제 아님) — 취소 정리가 저장분을 지우지 않게
+      // 동반자에게 스코어 공유 — OCR 전체 행(scRows)을 친구 동반자에게. 수신자가 자기 행 골라 본인 기록에 파생.
+      //   best-effort(fire-and-forget) — 라운딩 저장 자체는 위에서 끝났으므로 공유 실패가 저장을 막지 않음. ([[companion-design]] §11)
+      if (shareScores && Array.isArray(shareRows) && shareRows.length >= 2) {
+        const audienceUids = companions.filter(c => c.friendUid).map(c => c.friendUid);
+        if (audienceUids.length) {
+          (async () => {
+            try {
+              const uid = await getUid();
+              await createScoreShare({
+                authorUid: uid,
+                authorName: userProfile.nickname || userProfile.realName || '',
+                round: {
+                  course: finalCourse, date: formatDate(date), day: formatDay(date),
+                  courseId: payload.courseId, courseLoc: payload.courseLoc, holePars,
+                  ...((pickedScheduleId || initial?.scheduleId) ? { scheduleId: pickedScheduleId || initial?.scheduleId } : {}),
+                },
+                rows: shareRows,
+                audienceUids,
+              });
+            } catch (e) { if (__DEV__) console.warn('[scoreShare] create fail', e?.message); }
+          })();
+        }
+      }
+      reset(); onClose();
+    };
+
+    // 저장 실행부 — 신규 저장과 '기존 기록 덮어쓰기'가 뒷정리·공유까지 똑같이 흐르도록 하나로 묶는다.
+    //   overwriteId가 있으면 그 기록을 수정한다(=덮어쓰기).
+    const commit = async (overwriteId) => {
+      // 저장을 await — 실패 시 모달을 닫지 않고 입력(코스·스코어·사진·메모) 보존 + 안내
+      let saveOk;
+      savingRef.current = true; setSaving(true);
+      try {
+        const editId = isEdit ? initial.id : overwriteId;
+        saveOk = editId ? await onSave('diary-edit', { id: editId, ...payload }) : await onSave('diary', payload);
+      } finally { savingRef.current = false; setSaving(false); }
+      if (saveOk === false) {
+        setOverlay({ title: '저장에 실패했어요', message: '네트워크 상태를 확인하고 다시 시도해주세요.\n작성한 내용은 그대로 남아 있어요.' });
+        return;
+      }
+      await finishSave();
+    };
+
+    // ★같은 날·같은 구장 기록이 이미 있으면 조용히 둘로 늘리지 않고 고르게 한다.
+    //   자동 덮어쓰기는 금지 — 같은 구장 하루 36홀(2라운드)이 실제로 있고, 티오프가 안 적힌 기록이 많아
+    //   '같은 라운딩'을 기계가 확정할 수 없다. 판단은 사용자가.
+    const dup = isEdit ? null : findSameRound(existingRounds, payload);
+    if (dup) {
+      savingRef.current = false; setSaving(false);   // 확인 동안은 저장 상태 해제(오버레이가 재탭을 막음)
+      setOverlay({
+        title: '이 날 기록이 이미 있어요',
+        message: `${payload.date} · ${dup.course}${dup.time ? ` · ${dup.time}` : ''} · 총 ${dup.score || 0}타\n하루에 두 라운드를 도셨다면 따로 저장하세요.`,
+        buttons: [
+          { text: '이 기록 고치기', onPress: () => { commit(dup.id); } },
+          { text: '따로 저장', onPress: () => { commit(null); } },
+          { text: '취소', style: 'cancel' },
+        ],
+      });
       return;
     }
-    preUpRef.current.clear(); // 저장된 파일 참조는 버림(삭제 아님) — 취소 정리가 저장분을 지우지 않게
-    // 동반자에게 스코어 공유 — OCR 전체 행(scRows)을 친구 동반자에게. 수신자가 자기 행 골라 본인 기록에 파생.
-    //   best-effort(fire-and-forget) — 라운딩 저장 자체는 위에서 끝났으므로 공유 실패가 저장을 막지 않음. ([[companion-design]] §11)
-    if (shareScores && Array.isArray(shareRows) && shareRows.length >= 2) {
-      const audienceUids = companions.filter(c => c.friendUid).map(c => c.friendUid);
-      if (audienceUids.length) {
-        (async () => {
-          try {
-            const uid = await getUid();
-            await createScoreShare({
-              authorUid: uid,
-              authorName: userProfile.nickname || userProfile.realName || '',
-              round: {
-                course: finalCourse, date: formatDate(date), day: formatDay(date),
-                courseId: payload.courseId, courseLoc: payload.courseLoc, holePars,
-                ...((pickedScheduleId || initial?.scheduleId) ? { scheduleId: pickedScheduleId || initial?.scheduleId } : {}),
-              },
-              rows: shareRows,
-              audienceUids,
-            });
-          } catch (e) { if (__DEV__) console.warn('[scoreShare] create fail', e?.message); }
-        })();
-      }
-    }
-    reset(); onClose();
+    await commit(null);
   };
 
 
