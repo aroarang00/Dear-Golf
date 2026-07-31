@@ -155,6 +155,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
   const [scReview, setScReview] = useState(false);
   const [scBusy, setScBusy] = useState(false);
   const [scPreviewUris, setScPreviewUris] = useState(null); // 읽기 전 방향 확인 대상 사진(있으면 미리보기 모달)
+  const [scShotUris, setScShotUris] = useState([]);         // AI에 실제로 보낸 사진 — 검토 화면에서 눈으로 대조용
   const [scRotating, setScRotating] = useState(false); // 스코어카드 사진 회전 후 재인식 중
   const scOrigUrisRef = useRef([]);                    // 마지막 인식에 쓴 원본 사진 uri(회전 재시도용)
   const scRotationRef = useRef(0);                      // 누적 회전각(원본 기준 0/90/180/270)
@@ -406,6 +407,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
   const runScorecardExtract = async (uris, opts = {}) => {
     if (!uris?.length || !visibleRef.current) { setScBusy(false); return; }
     if (!opts.fromRotate) { scOrigUrisRef.current = uris; scRotationRef.current = 0; } // 회전 재시도의 기준 원본
+    setScShotUris(uris);   // 검토 화면에서 이 사진 그대로 보고 대조한다(AI가 본 것과 동일해야 의미가 있음)
     setScFailReason('');   // 새 시도 — 지난 실패 사유가 남아 보이지 않게
     setScBusy(true);
     try {
@@ -612,6 +614,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
     setHoleScores(null); setHolePars(null); setScRows([]); setShareRows([]); setScReview(false); setScFailed(false); setScFailReason(''); setScLowConf(false);
+    setScNotes([]); setScShotUris([]);   // 다른 기록을 열었을 때 지난 카드 사진·경고가 남지 않게
     setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' }); setBetWon(false);
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
@@ -1858,6 +1861,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
           visible={scReview}
           rows={scRows}
           holePars={holePars}
+          photos={scShotUris}
           failed={scFailed}
           failedReason={scFailReason}
           lowConfidence={scLowConf}

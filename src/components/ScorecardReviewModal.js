@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Keyboard } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Keyboard, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,13 +12,15 @@ import { sumHoles, reconcileScoreRow } from '../utils/scorecardOcr';
 //  onConfirm({ holeScores:number[18], total })
 //
 // 자동 확정 X — 추출값을 사용자가 반드시 확인·수정 후 확정 ([[project_scorecard_ocr]]).
-export function ScorecardReviewModal({ visible, rows = [], holePars = null, failed = false, failedReason = '', lowConfidence = false, lowReasons = [], rotating = false, onRotate = null, onConfirm, onClose }) {
+export function ScorecardReviewModal({ visible, rows = [], holePars = null, photos = [], failed = false, failedReason = '', lowConfidence = false, lowReasons = [], rotating = false, onRotate = null, onConfirm, onClose }) {
+  const { width: winW } = useWindowDimensions();
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
   const [holes, setHoles] = useState([]); // 편집용 문자열 배열
   // 파는 화면에서 고칠 수 있다 — 파대비 카드에서 전원이 똑같이 어긋나는 원인이 '파 한 칸 오독'이라,
   //   그 한 칸만 바로잡으면 끝난다. 프롭을 복사해 로컬로 들고 있는다(원본은 안 건드림).
   const [pars, setPars] = useState([]);
+  const [photoBig, setPhotoBig] = useState(false);   // 카드 사진 확대(가로 스크롤로 훑어보기)
 
   // 행 로드 — 공유·수신과 같은 재조정 함수(단일 소스). par 있으면 파대비→실타수 환산.
   //   par를 못 읽어 환산 불가한 파대비 카드는 holes=null로 와서 셀을 비운다(파대비 숫자를 실타수인 척 보이면 99→27 오해).
@@ -32,6 +35,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
   useEffect(() => {
     if (!visible) return;
     setPars(Array.from({ length: 18 }, (_, i) => (Number.isFinite(holePars?.[i]) ? holePars[i] : null)));
+    setPhotoBig(false);
     if (multi) { setRowIdx(null); setHoles([]); }
     else { setRowIdx(0); loadRow(0); }
   }, [visible, rows, holePars]);
@@ -232,6 +236,28 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, fail
               ) : (
                 // ── 18홀 표 미리보기·수정 ──
                 <View>
+                  {/* ★카드 사진을 같은 화면에 둔다 — 숫자가 어긋났을 때 "카드와 대조하세요"라고만 하면
+                      사진첩을 오가며 18홀을 맞춰봐야 한다. 어느 홀이 틀렸는지는 산술로 특정할 수 없으니,
+                      최소한 대조할 사진은 눈앞에 있어야 한다(사용자 제보 2026-07-31).
+                      '크게 보기'는 가로로 넓혀 스크롤 — 파 줄의 작은 숫자를 읽을 수 있게. */}
+                  {photos.length > 0 && (
+                    <View style={{ marginBottom: 12 }}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={photoBig}
+                        pagingEnabled={!photoBig} nestedScrollEnabled>
+                        {photos.map((u, i) => (
+                          <Image key={`${u}-${i}`} source={{ uri: u }} contentFit="contain" cachePolicy="memory-disk"
+                            style={{ width: photoBig ? (winW - 40) * 2.6 : (winW - 40), height: photoBig ? 300 : 165,
+                              marginRight: i < photos.length - 1 ? 8 : 0, backgroundColor: '#15171A', borderRadius: 8 }} />
+                        ))}
+                      </ScrollView>
+                      <TouchableOpacity onPress={() => setPhotoBig(b => !b)} activeOpacity={0.85}
+                        style={{ marginTop: 6, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: C.bgSecondary }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>
+                          {photoBig ? '작게 보기' : '크게 보기 (파 줄 확인)'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                   {renderNine(0, '전반 (OUT)')}
                   {renderNine(9, '후반 (IN)')}
                   {/* 홀별 미인식(par 못 읽어 파대비 환산 실패 등) — 총타(인쇄값)만 반영. 필요하면 홀별 직접 입력. */}
