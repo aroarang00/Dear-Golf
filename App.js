@@ -92,6 +92,7 @@ import { FriendsScreen } from './src/components/FriendsScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 import { AppToastHost } from './src/components/AppToast';
+import { AndroidExitGuard } from './src/components/AndroidExitGuard'; // 뒤로가기로 앱 닫히기 직전 1회 경고(맨 첫 자식으로 둘 것)
 import { SplashOverlay, SplashContent } from './src/components/SplashOverlay';
 import { UpdateGate } from './src/components/UpdateGate';   // 구버전 차단·권장 (config/app)
 import { ScheduleReminderPopup } from './src/components/ScheduleReminderPopup';
@@ -720,6 +721,8 @@ function App() {
     } else {
       screen = <OnboardingScreen seed={kakaoSeed} consent={consentData} onComplete={handleOnboardingComplete} />;
     }
+    // 온보딩엔 AndroidExitGuard를 안 붙인다 — 토스트 호스트(AppToastHost)가 NavigationContainer 안이라
+    //   여기선 토스트가 안 뜬다. 안내도 없이 뒤로가기만 먹히면 '먹통'으로 보여 오히려 나쁘다.
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>{screen}</SafeAreaProvider>
@@ -730,6 +733,9 @@ function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+    {/* ★맨 첫 자식 — 자식 effect가 먼저 돌아 BackHandler에 가장 먼저 등록되고, 그래야 가장 나중에 불린다.
+        (아무 화면도 처리하지 않은 뒤로가기 = 앱이 닫히는 순간만 잡는다) */}
+    <AndroidExitGuard />
     <KeyboardProvider>
     <SafeAreaProvider>
     <CurrentUidContext.Provider value={authUid}>
