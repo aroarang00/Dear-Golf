@@ -316,8 +316,15 @@ export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, on
     } finally { setSavingPhoto(false); }
   };
 
+  // ★animationType='none' — 페이드로 열면 반투명한 모달 너머로 '뒤에 있던 피드 카드의 사진'이 비친다.
+  //   카드는 세로 사진을 4:5 틀에 잘라 보여주는데(높이 ≈SW*1.25) 뷰어는 안 자르고 다 보여주니(≈SW/ar),
+  //   페이드되는 동안 작은 사진이 큰 사진으로 바뀌는 게 '작았다가 갑자기 커짐'으로 보였다.
+  //   가로 사진은 카드와 뷰어 높이가 거의 같아 티가 안 나서, 세로·영상에서만 불거졌다.
+  //   ★레이아웃 문제가 아니다 — contain이라 비율 측정 전후로 그려지는 크기가 같다(2026-08-02 확인).
+  //    같은 증상이 또 보이면 mediaH부터 의심하지 말고 이 모달 전환부터 볼 것.
+  //   즉시 띄우면 카드가 곧바로 가려져 morph가 안 보인다. 사진은 피드와 캐시를 공유해 깜빡임도 없다.
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="none" onRequestClose={onClose}>
       {/* 안드로이드에서 Modal은 별도 윈도우 — 앱 루트의 GestureHandlerRootView 밖이라 핀치 줌이 안 먹는다.
           ScheduleScreen·WeatherTransportPopup과 동일하게 Modal 안에서 한 번 더 감싼다(2026-06-04 핀치 줌 버그 수정). */}
       <GestureHandlerRootView style={{ flex: 1 }}>
