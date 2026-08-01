@@ -13,8 +13,6 @@ import { resolvePhotoUri } from '../../utils/photoStorage';
 const { width: SW, height: SH } = Dimensions.get('window');
 // 안드 엣지투엣지 — 하단 시스템 내비바 높이(없으면 0). '게시글 보기' 버튼이 내비바에 가리지 않게 띄움.
 const NAV_BOTTOM = Platform.OS === 'android' ? (initialWindowMetrics?.insets?.bottom || 0) : 0;
-// 하단 안전영역 — 양 플랫폼 공통(iOS 홈 인디케이터 포함). 긴 캡션 마지막 줄이 시스템 UI에 가리지 않게.
-const SAFE_BOTTOM = initialWindowMetrics?.insets?.bottom || 0;
 const _arCache = new Map(); // uri → 종횡비(w/h) 세션 캐시 — 사진 실제 비율로 뷰어 높이 결정(가로사진 검은 여백 해소)
 
 // 외부에서 비율 미리 심기 — DM 말풍선 등에서 먼저 로드된 사진의 실비율을 뷰어 캐시에 넣어두면
@@ -23,6 +21,22 @@ export function primePhotoRatio(uri, ratio) {
   if (!uri || !ratio) return;
   const u = resolvePhotoUri(uri);
   if (u && !_arCache.has(u)) _arCache.set(u, ratio);
+}
+
+// 미디어 한 장의 비율 캐시 키 — 영상은 포스터(첫프레임) uri, 사진은 자기 uri.
+function ratioKey(p) {
+  if (p?.type === 'video') return p.poster ? resolvePhotoUri(p.poster) : null;
+  return resolvePhotoUri(p?.uri || p);
+}
+
+// 열자마자 쓸 수 있는 비율만 모아 초기 state로 — 세션 캐시에 이미 있는 것만(네트워크 호출 없음).
+function seedRatios(photos) {
+  const seed = {};
+  (photos || []).forEach(p => {
+    const u = ratioKey(p);
+    if (u && _arCache.has(u)) seed[u] = _arCache.get(u);
+  });
+  return seed;
 }
 
 function VideoItem({ uri, poster, active, width, height, muted = true, onRatio, onZoomChange }) {
@@ -216,9 +230,14 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
       }
     });
 
-  // 단일 탭 — 캡션(글) 표시/숨김 토글. 더블탭(확대)이 우선이라 Exclusive로 묶어 더블탭 실패 시에만 발화.
+  // 단일 탭 — 뷰어 닫기. 더블탭(확대)이 우선이라 Exclusive로 묶어 더블탭이 아닐 때만 발화한다.
+  //   ★확대 중엔 무시 — 사진을 크게 보며 옮기다 툭 건드려 닫히면 짜증난다. 확대 해제는 더블탭.
   const singleTap = Gesture.Tap().numberOfTaps(1)
-    .onEnd((_e, success) => { if (success && onSingleTap) runOnJS(onSingleTap)(); });
+    .onEnd((_e, success) => {
+      if (!success || !onSingleTap) return;
+      if (scale.value > 1.05) return;
+      runOnJS(onSingleTap)();
+    });
   const taps = Gesture.Exclusive(doubleTap, singleTap);
   const composed = Gesture.Simultaneous(Gesture.Race(taps, pan), pinch);
 
@@ -238,51 +257,41 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
   );
 }
 
-export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = false, onGoToPost = null }) {
+// 사진은 항상 화면 가운데에 꽉 차게(contain) 띄운다. 예전엔 친구 피드에서 글(caption)을 사진 아래 붙였는데
+//   사진을 위로 올려붙이고 높이를 절반으로 잡느라, 실비율이 늦게 도착하면 사진이 위로 튀어 '들썩'였다.
+//   글은 카드의 '더보기/기록 보기'로 이미 볼 수 있어 뷰어에서는 걷어냄 (사용자 2026-08-02).
+export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, onGoToPost = null }) {
   const [idx, setIdx] = useState(startIndex);
   const [zoomed, setZoomed] = useState(false); // 현재 사진 확대 여부 — 확대 중 가로 페이저 잠금
-  const [showCaption, setShowCaption] = useState(true); // 글(caption) 표시 — 사진 탭으로 토글
   const [savedToast, setSavedToast] = useState('');     // 저장 피드백(잠깐 표시)
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [muted, setMuted] = useState(true);   // 동영상 기본 음소거(스크롤·자동재생 톤). 우상단 토글로 켜기
   const current = photos[idx];
   const isVideo = current?.type === 'video';
 
-  // 사진 실제 비율 측정 → 가로사진은 높이를 낮춰 위로 붙이고, 남는 공간은 글이 채움(고정 박스 검은 여백 해소).
-  const [arMap, setArMap] = useState({});
-  useEffect(() => {
-    // 캐시된 비율만 즉시 반영 — 새 비율은 각 이미지 onLoad(handleRatio)로 도착(옛 Image.getSize 별도 다운로드 제거)
-    photos.forEach(p => {
-      // 영상은 포스터 uri로 비율 캐시(없으면 스킵), 사진은 자기 uri로.
-      const u = p?.type === 'video' ? (p.poster ? resolvePhotoUri(p.poster) : null) : resolvePhotoUri(p.uri || p);
-      if (u && _arCache.has(u)) setArMap(m => (m[u] ? m : { ...m, [u]: _arCache.get(u) }));
-    });
-  }, [photos]);
+  // 사진 실제 비율 — 캐시(_arCache)에 있으면 그 값으로 박스 높이를 정하고, 없으면 각 이미지 onLoad로 받는다.
+  //   ★캐시 반영을 useEffect로 하면 첫 프레임은 무조건 폴백 크기 → 다음 프레임에 실제 크기로 '툭' 바뀐다.
+  //    (특히 영상은 폴백 VIDEO_H와 실측 차이가 커서 작게 떴다가 커져 보였다.) 그래서 state 초기값으로 바로 심는다.
+  const [arMap, setArMap] = useState(() => seedRatios(photos));
+  useEffect(() => { setArMap(m => ({ ...seedRatios(photos), ...m })); }, [photos]);
   const handleRatio = (u, ar) => {
     if (!ar) return;
     _arCache.set(u, ar);
     setArMap(m => (m[u] ? m : { ...m, [u]: ar }));
   };
-  const captionShown = !!(caption && showCaption);
-  // 사진 영역 최대 높이 — 캡션 보일 땐 화면 절반(아래 글 공간 확보), 순수 보기는 크게.
-  const availMax = captionShown ? SH * 0.5 : SH * 0.84;
+  // 사진 영역 최대 높이 — 화면 전체. 박스는 화면 가운데 정렬이라 세로/가로 어느 쪽이든 꽉 차게 들어간다.
+  const availMax = SH;
   const curUri = !isVideo && current ? resolvePhotoUri(current.uri || current) : null;
   const curVideoUri = isVideo && current ? resolvePhotoUri(current.uri) : null;   // 영상 저장용 원본 URI
   // 영상도 포스터(첫프레임) 비율로 박스 높이를 맞춰 검은 여백 제거(A안, 사용자 2026-06-15). 포스터 없는 옛 영상은 VIDEO_H 폴백.
   const curPosterUri = isVideo && current?.poster ? resolvePhotoUri(current.poster) : null;
   const curAr = isVideo ? (curPosterUri ? arMap[curPosterUri] : null) : (curUri ? arMap[curUri] : null);
   // 가로(ar>1) → SW/ar로 낮게 / 세로 → availMax로 cap / 측정 전 → 영상=VIDEO_H, 사진=availMax.
-  const VIDEO_H = Math.max(Math.round(SW * 1.2), Math.round(SH * 0.8));
-  // 캡션 보일 땐 영상도 availMax(화면 절반)로 cap — 비율 측정 전/포스터 없는 영상이 VIDEO_H(화면 80%)로
-  //   잡혀 글을 밀어내던 문제 해소. 순수 보기(캡션 숨김)에선 영상은 크게(VIDEO_H) 유지. (사용자 2026-06-16)
+  const VIDEO_H = Math.min(availMax, Math.max(Math.round(SW * 1.2), Math.round(SH * 0.8)));
   // ★사진 폴백은 availMax — contain이라 이 높이에서 그린 이미지 크기가 실측(min(availMax, SW/ar)) 후와 동일하다.
-  //   (세로=둘 다 availMax / 가로=폭 SW에 맞춰져 박스만 줄고 이미지는 그대로). 옛 4:5 폴백은 실측 도착 시
-  //   박스가 커지며 이미지가 '갑자기 커져' 보였음. (사용자 2026-07-09)
-  const mediaH = curAr
-    ? Math.min(availMax, Math.round(SW / curAr))
-    : (isVideo
-        ? (captionShown ? Math.min(availMax, Math.round(SW * 1.25)) : VIDEO_H)
-        : availMax);
+  //   (세로=둘 다 availMax / 가로=폭 SW에 맞춰져 박스만 줄고 이미지는 그대로 + 박스가 가운데 정렬이라 자리도 그대로).
+  //   그래서 비율이 늦게 도착해도 사진이 움직이지 않는다. (사용자 2026-07-09 / 2026-08-02)
+  const mediaH = curAr ? Math.min(availMax, Math.round(SW / curAr)) : (isVideo ? VIDEO_H : availMax);
 
   // 현재 사진/동영상을 갤러리에 저장 — 원격(https) URL이면 캐시로 다운로드 후 저장(saveToLibraryAsync는 로컬 파일만).
   //   동영상은 확장자(mp4/mov)를 맞춰 받아야 갤러리가 영상으로 인식. 사진은 jpg.
@@ -312,7 +321,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
       {/* 안드로이드에서 Modal은 별도 윈도우 — 앱 루트의 GestureHandlerRootView 밖이라 핀치 줌이 안 먹는다.
           ScheduleScreen·WeatherTransportPopup과 동일하게 Modal 안에서 한 번 더 감싼다(2026-06-04 핀치 줌 버그 수정). */}
       <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.97)', justifyContent: (caption && showCaption && !zoomed) ? 'flex-start' : 'center' }}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.97)', justifyContent: 'center' }}>
         <TouchableOpacity style={{ position: 'absolute', top: 52, right: 20, zIndex: 10 }} onPress={onClose}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: fs(28), lineHeight: 32 }}>✕</Text>
         </TouchableOpacity>
@@ -346,11 +355,8 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
             {idx + 1} / {photos.length} {isVideo ? '· 영상' : ''}
           </Text>
         </View>
-        {/* 캡션 표시 중엔 미디어를 카운터 아래로 내려 바로 아래 글이 오게(중앙 정렬 시 생기는 검은 여백 해소).
-            ★영상도 동일 적용 — !isVideo면 영상만 스페이서가 빠져 화면 맨 위로 과하게 붙던 버그(사용자 2026-06-16).
-            캡션 숨김(탭)·순수 보기는 가운데 정렬 유지. */}
-        {captionShown && !zoomed ? <View style={{ height: 92 }} /> : null}
-        {/* 확대(zoomed) 중엔 박스를 풀스크린(SH)으로 펼쳐 화면 전체에서 확대되게 — 평상시엔 사진 비율 높이(mediaH, 검은여백·캡션 잘림 해소). */}
+        {/* 박스는 늘 화면 가운데. 확대(zoomed) 중엔 풀스크린(SH)으로 펼쳐 화면 전체에서 확대되게 —
+            평상시엔 사진 비율 높이(mediaH)라 위아래 검은 여백이 안 남는다. */}
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0, height: zoomed ? SH : mediaH }}
           scrollEnabled={!zoomed}
@@ -367,7 +373,7 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
               ) : (
                 // 윈도잉 — 현재±1만 제스처/reanimated PinchableImage, 나머지는 정적 Image(앨범 마운트 비용↓ 버벅임 완화)
                 Math.abs(i - idx) <= 1 ? (
-                  <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={() => setShowCaption(s => !s)} onRatio={handleRatio} />
+                  <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={onClose} onRatio={handleRatio} />
                 ) : (
                   <Image source={{ uri: resolvePhotoUri(item.uri || item) }} style={{ width: SW, height: mediaH }} contentFit="contain" cachePolicy="memory-disk" recyclingKey={resolvePhotoUri(item.uri || item)}
                     onError={() => { if (__DEV__) console.warn('[photoViewer] 정적 로드 실패', resolvePhotoUri(item.uri || item)); }} />
@@ -387,18 +393,6 @@ export function PhotoViewer({ photos, startIndex, onClose, caption, allowSave = 
           </TouchableOpacity>
         ) : null}
 
-        {/* 글(캡션) — 사진 바로 아래 흐름으로 배치, 남은 공간 전체에서 세로 스크롤. 사진 탭으로 숨김/표시 토글. 확대 중엔 숨김. */}
-        {caption && showCaption && !zoomed ? (
-          // ★하단 여백: 안전영역 + '게시글 보기' 버튼(있을 때)까지 확보 — 긴 글의 마지막 줄이 시스템 UI나
-          //   떠 있는 버튼에 가려 '잘린 것처럼' 보이던 문제(사용자 2026-07-22, 긴 일상 글 피드).
-          //   스크롤 막대도 켠다 — 아래에 글이 더 있다는 걸 알 방법이 없어 잘렸다고 오해하기 쉬움.
-          <ScrollView style={{ flex: 1, alignSelf: 'stretch' }}
-            contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 16,
-              paddingBottom: 40 + SAFE_BOTTOM + (onGoToPost ? 76 : 0) }}
-            showsVerticalScrollIndicator>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: '#fff', lineHeight: 23 }}>{caption}</Text>
-          </ScrollView>
-        ) : null}
       </View>
       </GestureHandlerRootView>
     </Modal>

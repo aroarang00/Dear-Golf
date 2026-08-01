@@ -244,7 +244,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
       const photoEl = (withDate) => (
         <View style={[dS.photoHero43, { aspectRatio: frameAspect }]}>
           <MediaCarousel photos={item.photos} onFirstRatio={setPhotoAr}
-            onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i, item.memo)) : (() => onPress(item))} />
+            onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i)) : (() => onPress(item))} />
           {ownerChip}
           {withDate && (
             <LinearGradient pointerEvents="none" colors={['transparent', 'rgba(0,0,0,0.45)']}
@@ -260,7 +260,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
       );
       if (isFriend) {
         // 친구 사진 일상 — MY 카드와 동일 스타일: 사진 + [날짜+더보기] 바 + 글 기본 숨김(더보기로 펼침).
-        //   친구는 상세가 없어 사진 탭은 PhotoViewer(사진 위 + 캡션 아래)로 전체 글 표시 ([[friend-feed-design]]).
+        //   글은 이 카드의 '더보기'로 본다. 사진 탭은 PhotoViewer 전체화면 보기 전용 ([[friend-feed-design]]).
         return wrapFriend(
           <View style={momentCard}>
             {photoEl(false)}
@@ -361,7 +361,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
           disabled={isFriend} onPress={isFriend ? undefined : () => onPress(item)}>
           {highlight && <View style={dS.cardSpecialLine} />}
           {photoHero(isFriend
-            ? (i => onOpenPhoto && onOpenPhoto(item.photos, i, item.memo))
+            ? (i => onOpenPhoto && onOpenPhoto(item.photos, i))
             : (() => onPress(item)))}
           {/* 기록보기 토글 줄 — 좋아요를 같은 줄 우측에 절대배치(토글 텍스트는 가운데 유지). 한 줄 아래가 아니라 '기록 보기' 줄에(사용자 2026-06-13) */}
           <View style={{ justifyContent: 'center' }}>

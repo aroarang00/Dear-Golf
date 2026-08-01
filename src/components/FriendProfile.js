@@ -287,7 +287,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                     <View style={{ marginTop: 2, marginBottom: 12 }}>
                       <DiaryCard item={item} variant="friend" myUid={myUid} collapseSignal={collapseSignal}
                         onReport={setReportItem}
-                        onOpenPhoto={(photos, index, caption) => setViewer({ photos, index, caption })} />
+                        onOpenPhoto={(photos, index) => setViewer({ photos, index })} />
                     </View>
                   )}
                 </View>
@@ -303,7 +303,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                     item={item} variant="friend" myUid={myUid}
                     collapseSignal={collapseSignal}
                     onReport={setReportItem}
-                    onOpenPhoto={(photos, index, caption) => setViewer({ photos, index, caption })} />
+                    onOpenPhoto={(photos, index) => setViewer({ photos, index })} />
                 </View>
               </View>
             ))}
@@ -489,7 +489,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
 
           {/* 사진·영상 전체화면 뷰어 — 카드 캐러셀에서 탭 시 */}
           {viewer && (
-            <PhotoViewer photos={viewer.photos} startIndex={viewer.index} caption={viewer.caption} onClose={() => setViewer(null)} />
+            <PhotoViewer photos={viewer.photos} startIndex={viewer.index} onClose={() => setViewer(null)} />
           )}
         </SafeAreaView>
       </SafeAreaProvider>

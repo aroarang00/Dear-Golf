@@ -11,7 +11,7 @@ import { dS } from '../styles/dS';
 import { formatNameList } from '../utils/nameList';
 import { UserContext } from '../contexts/UserContext';
 import { TripleStripe } from './common/TripleStripe';
-import { PhotoViewer } from './common/PhotoViewer';
+import { PhotoViewer, primePhotoRatio } from './common/PhotoViewer'; // 썸네일에서 잰 실비율을 뷰어에 미리 심음(열 때 크기 안 튀게)
 import { DiaryAddModal } from './DiaryAddModal';
 import { hofBgColor } from './HallOfFameCard';
 import { resolvePhotoUri } from '../utils/photoStorage';
@@ -436,7 +436,9 @@ function GridThumb({ item, src }) {
     return (
       <View style={{ flex: 1 }}>
         {thumb ? (
-          <Image source={{ uri: thumb }} style={dS.photoGridImg} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+          // 포스터(업로드된 첫프레임)일 때만 비율을 심는다 — 뷰어가 영상 높이를 그 키로 찾기 때문(기기 생성 썸네일은 키가 다름)
+          <Image source={{ uri: thumb }} style={dS.photoGridImg} contentFit="cover" cachePolicy="memory-disk" transition={150}
+            onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h && thumb === poster) primePhotoRatio(poster, w / h); }} />
         ) : (
           <View style={[dS.photoGridImg, { backgroundColor: '#2A2622' }]} />
         )}
@@ -467,6 +469,8 @@ function GridThumb({ item, src }) {
       </View>
     );
   }
+  // onLoad로 잰 실비율을 뷰어 캐시에 심어둔다 — 탭해서 열 때 첫 프레임부터 제 크기로 그려짐(작게 떴다가 커지는 것 제거).
   return <Image source={{ uri: src }} style={dS.photoGridImg} contentFit="cover" cachePolicy="memory-disk" transition={150}
+    onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h) primePhotoRatio(src, w / h); }}
     onError={() => { if (__DEV__) console.warn('[diaryPhoto] 미리보기 로드 실패', src); setBroken(true); }} />;
 }
