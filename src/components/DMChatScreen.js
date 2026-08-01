@@ -254,23 +254,39 @@ function TypingDots() {
   );
 }
 
-// DM 사진 한 칸 — 로드 실패(보관기간 만료·삭제) 시 '만료된 사진' 플레이스홀더. 만료는 정상 동작이라 조용히 대체.
+// 보관기간(30일)이 지나 사라진 사진·영상 자리.
+//   옛 버전은 🖼️ 유니코드 이모지를 작게 띄웠는데, 기기마다 그림이 다르고 작게 뜨니 '깨진 사진'처럼 보였다
+//   (사용자 2026-08-02). 앱 공통 규칙대로 커스텀 SVG 아이콘 + 옅은 원 배경으로 바꾸고, 왜 없어졌는지를
+//   한 줄로 알려준다 ([[deargolf-icon-convention]]). 큰 칸은 문구까지, 작은 격자칸은 짧게.
+function DmExpired({ size, radius, kind = 'photo' }) {
+  const big = size > 130;
+  const dot = big ? 46 : 34;
+  return (
+    <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.07)',
+      alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }}>
+      <View style={{ width: dot, height: dot, borderRadius: dot / 2, backgroundColor: 'rgba(0,0,0,0.07)',
+        alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={kind === 'video' ? 'video' : 'image'} size={big ? 22 : 17} color="rgba(0,0,0,0.42)" strokeWidth={1.6} />
+      </View>
+      <Text numberOfLines={big ? 1 : 2} style={{ fontFamily: F.sys, fontSize: fs(big ? 11.5 : 9.5),
+        color: 'rgba(0,0,0,0.45)', marginTop: big ? 9 : 6, textAlign: 'center' }}>
+        {big ? '30일이 지나 사라졌어요' : '사라짐'}
+      </Text>
+    </View>
+  );
+}
+
+// DM 사진 한 칸 — 로드 실패(보관기간 만료·삭제) 시 위 플레이스홀더. 만료는 정상 동작이라 조용히 대체.
 //  full=단일 사진(앨범 아님): 실제 비율로 높이를 잡아 세로로 긴 카드(초대장·모집공유)가 하단까지 보이게.
 //   과도한 길이는 클램프(0.6~1.9×). 비율 알기 전엔 정사각으로 시작 → onLoad에서 보정.
-function DmImg({ uri, size, radius, full }) {
+//  kind/onExpire — 영상 포스터로도 쓰이므로(DmVideo), 아이콘·문구를 맞추고 부모가 ▶ 오버레이를 걷을 수 있게 알린다.
+function DmImg({ uri, size, radius, full, kind = 'photo', onExpire }) {
   const [err, setErr] = useState(false);
   const [ratio, setRatio] = useState(null);   // w/h (full 모드 높이 산정용)
-  if (err) {
-    return (
-      <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.12)', alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: fs(size > 130 ? 26 : 18) }}>🖼️</Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(0,0,0,0.45)', marginTop: 4 }}>만료된 사진</Text>
-      </View>
-    );
-  }
+  if (err) return <DmExpired size={size} radius={radius} kind={kind} />;
   const h = full ? Math.min(size * 1.9, Math.max(size * 0.6, size / (ratio || 1))) : size;
   return (
-    <Image source={{ uri }} onError={() => setErr(true)}
+    <Image source={{ uri }} onError={() => { setErr(true); onExpire && onExpire(); }}
       onLoad={(e) => { const w = e?.source?.width, hh = e?.source?.height; if (w && hh) { primePhotoRatio(uri, w / hh); if (full) setRatio(w / hh); } }}
       style={{ width: size, height: h, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.06)' }}
       contentFit="cover" cachePolicy="memory-disk" priority="high" recyclingKey={uri} />
@@ -311,17 +327,33 @@ function DmImageGrid({ uris, onPressIndex, onLongPress, full }) {
 }
 
 // DM 동영상 — 포스터 썸네일 + ▶ 오버레이. 탭하면 전체화면 재생(PhotoViewer). 포스터 없으면 어두운 박스 폴백.
+//   보관기간이 지나면 포스터부터 사라진다 → ▶를 걷고 탭도 막는다(눌러도 안 나오는 재생 버튼을 남기지 않게).
 function DmVideo({ uri, poster, size, onPress, onLongPress }) {
-  return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onPress} onLongPress={onLongPress} delayLongPress={300}>
-      {poster
-        ? <DmImg uri={poster} size={size} radius={12} />
-        : <View style={{ width: size, height: size, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.3)' }} />}
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-        <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: fs(18), color: '#fff', marginLeft: 3 }}>▶</Text>
+  const [expired, setExpired] = useState(false);
+  if (!poster) {
+    // 옛 영상(포스터 없음) — 예전처럼 어두운 박스 + ▶ 유지. 만료 여부를 알 방법이 없어 그대로 둔다.
+    return (
+      <TouchableOpacity activeOpacity={0.9} onPress={onPress} onLongPress={onLongPress} delayLongPress={300}>
+        <View style={{ width: size, height: size, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.3)' }} />
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: fs(18), color: '#fff', marginLeft: 3 }}>▶</Text>
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
+    );
+  }
+  return (
+    <TouchableOpacity activeOpacity={expired ? 1 : 0.9} disabled={expired}
+      onPress={onPress} onLongPress={onLongPress} delayLongPress={300}>
+      <DmImg uri={poster} size={size} radius={12} kind="video" onExpire={() => setExpired(true)} />
+      {!expired && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: fs(18), color: '#fff', marginLeft: 3 }}>▶</Text>
+          </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
