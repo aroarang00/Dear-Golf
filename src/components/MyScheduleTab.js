@@ -766,7 +766,21 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                 {renderDateCircle(cell)}
                 {/* 일반 일정 제목 자리 — '모든 칸'에 항상 고정 높이로 예약해 어느 달이든 줄 간격을 동일하게. */}
                 <View style={{ height: GENERAL_LINE_H, marginTop: 2, width: '100%', alignItems: 'center', justifyContent: 'center' }}>
-                    {hasG && (
+                    {hasG && (gEvents.length === 1 && gEvents[0].isHoliday) ? (
+                      // 공휴일 하나만 있는 칸 — 이름을 끝까지 보여준다.
+                      //   칸 폭은 (화면폭-24)/7 ≈ 52px뿐인데 점(3)+여백(3)까지 빼면 글자 자리가 44px.
+                      //   fs(9) 한글은 글자당 ≈9px이라 5자('대체공휴일'·'임시공휴일'·'설날 연휴')부터 잘렸다.
+                      //   ① 점을 뺀다 — 날짜 숫자도 글자도 이미 버건디라 공휴일인 건 색으로 충분히 드러난다(+6px).
+                      //   ② 그래도 넘치는 '부처님오신날'(6자)은 adjustsFontSizeToFit으로 살짝만 줄인다.
+                      //      칸 전체를 쓰는 단일 Text라 폭이 확정돼 있어야 이 자동 축소가 제대로 먹는다.
+                      <TouchableOpacity onPress={() => openDeviceCalendarAt(new Date(year, month, cell.d))}
+                        activeOpacity={0.6} hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }} style={{ width: '98%' }}>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}
+                          style={{ textAlign: 'center', fontFamily: F.sys, fontSize: fs(9), lineHeight: GENERAL_LINE_H, color: C.burgundy }}>
+                          {gEvents[0].title}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : hasG ? (
                       // 제목 탭 → 폰 캘린더 앱에서 그 일정 열기(읽기전용, 여기선 수정 안 함).
                       //   첫 항목이 공휴일이면 버건디, 개인 일정이면 회색.
                       <TouchableOpacity
@@ -788,7 +802,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
                           </Text>
                         )}
                       </TouchableOpacity>
-                    )}
+                    ) : null}
                   </View>
               </TouchableOpacity>
             );
