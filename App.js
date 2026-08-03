@@ -32,6 +32,18 @@ try {
     //   부하를 줘 전반 렉의 한 원인(2026-06-13 사용자 "전반적으로 다 렉·반응 느림"). 에러 캡처는 그대로 유지.
     //   안정화 후 모니터링 필요하면 0.1 등 소량으로 재개([[sentry-symbolication]]).
     tracesSampleRate: 0,
+    // ★★추적 헤더 전파 OFF — 2026-08-03 날씨·미세먼지·자외선 전멸의 원인.
+    //   ①RN SDK의 tracePropagationTargets 기본값은 [/.*/](모든 주소)라 나가는 모든 fetch에
+    //     baggage: sentry-environment=production,... 헤더가 붙는다.
+    //     tracesSampleRate:0이어도 '값이 정의돼 있으면' 추적 통합이 켜져서 헤더는 계속 나간다.
+    //   ②공공데이터포털(apis.data.go.kr)이 이날부터 헤더에 `environment=`가 있으면
+    //     400 INVALID_REQUEST_PARAMETER_ERROR로 막기 시작했다(WAF 규칙).
+    //   실측: 같은 URL에 `baggage: environment=x` 하나만 붙여도 400, 빼면 200.
+    //     헤더 이름(baggage)이나 값 길이는 무관하고 `environment=` 문자열이 트리거다.
+    //     dev 빌드도 sentry-environment=development라 똑같이 막혔다(그래서 개발에서도 재현됨).
+    //   빈 배열은 truthy라 기본값으로 폴백하지 않고, 매칭 0건이라 헤더가 안 붙는다.
+    //   우리 서버가 없어 trace를 이어받을 대상 자체가 없으므로 전파는 필요 없다.
+    tracePropagationTargets: [],
     beforeSend(event) {
       // 이중 안전망 — 혹시 모를 PII 필드 제거
       if (event.user) {
