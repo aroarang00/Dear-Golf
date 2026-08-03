@@ -1801,7 +1801,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
               <SectionHead title="공개 범위" sub="· 누가 볼 수 있나요" />
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                 {[{ key: 'friends', label: '친구 전체' },
-                  ...(companionUids.length ? [{ key: 'companions', label: '동반자만' }] : []),
+                  // '동반자만'이 아니라 '동반자' — 그룹과 함께 고를 수 있게 된 뒤로 '만'은 사실과 다르다(2026-08-03).
+                  ...(companionUids.length ? [{ key: 'companions', label: '동반자' }] : []),
                   ...friendData.friendGroups.map(g => ({ key: g.id, label: g.name })),
                   { key: 'private', label: '나만 보기' }].map(opt => {
                   const on = privacy.includes(opt.key);

@@ -254,22 +254,28 @@ function TypingDots() {
   );
 }
 
+// DM 사진·영상 보관기간 — Storage 라이프사이클과 같은 값. 이 시각을 넘긴 미디어는 파일이 이미 없다.
+const MEDIA_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
 // 보관기간(30일)이 지나 사라진 사진·영상 자리.
 //   옛 버전은 🖼️ 유니코드 이모지를 작게 띄웠는데, 기기마다 그림이 다르고 작게 뜨니 '깨진 사진'처럼 보였다
 //   (사용자 2026-08-02). 앱 공통 규칙대로 커스텀 SVG 아이콘 + 옅은 원 배경으로 바꾸고, 왜 없어졌는지를
 //   한 줄로 알려준다 ([[deargolf-icon-convention]]). 큰 칸은 문구까지, 작은 격자칸은 짧게.
+//   ★색은 '흰색 계열'이어야 한다 — 이 자리가 놓이는 대화 배경이 DM_CANVAS(#2A2622) 다크다.
+//   처음엔 밝은 배경 기준으로 검정 계열(rgba(0,0,0,0.42))을 썼는데, 다크 위에 검정이라 아이콘도 글씨도
+//   거의 안 보였다. 사용자에겐 '까맣게 아무것도 안 뜬다'로 보였다(2026-08-03). 실제로는 그려지고 있었다.
 function DmExpired({ size, radius, kind = 'photo' }) {
   const big = size > 130;
   const dot = big ? 46 : 34;
   return (
-    <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.07)',
+    <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: 'rgba(255,255,255,0.06)',
       alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }}>
-      <View style={{ width: dot, height: dot, borderRadius: dot / 2, backgroundColor: 'rgba(0,0,0,0.07)',
+      <View style={{ width: dot, height: dot, borderRadius: dot / 2, backgroundColor: 'rgba(255,255,255,0.10)',
         alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={kind === 'video' ? 'video' : 'image'} size={big ? 22 : 17} color="rgba(0,0,0,0.42)" strokeWidth={1.6} />
+        <Icon name={kind === 'video' ? 'video' : 'image'} size={big ? 22 : 17} color="rgba(255,255,255,0.6)" strokeWidth={1.6} />
       </View>
       <Text numberOfLines={big ? 1 : 2} style={{ fontFamily: F.sys, fontSize: fs(big ? 11.5 : 9.5),
-        color: 'rgba(0,0,0,0.45)', marginTop: big ? 9 : 6, textAlign: 'center' }}>
+        color: 'rgba(255,255,255,0.62)', marginTop: big ? 9 : 6, textAlign: 'center' }}>
         {big ? '30일이 지나 사라졌어요' : '사라짐'}
       </Text>
     </View>
@@ -328,10 +334,15 @@ function DmImageGrid({ uris, onPressIndex, onLongPress, full }) {
 
 // DM 동영상 — 포스터 썸네일 + ▶ 오버레이. 탭하면 전체화면 재생(PhotoViewer). 포스터 없으면 어두운 박스 폴백.
 //   보관기간이 지나면 포스터부터 사라진다 → ▶를 걷고 탭도 막는다(눌러도 안 나오는 재생 버튼을 남기지 않게).
-function DmVideo({ uri, poster, size, onPress, onLongPress }) {
+function DmVideo({ uri, poster, size, onPress, onLongPress, sentMs = 0 }) {
   const [expired, setExpired] = useState(false);
+  // ★포스터 없는 옛 영상은 '로드 실패'로 만료를 감지할 수 없다 — 실패할 이미지가 없기 때문.
+  //   그래서 예전엔 만료된 뒤에도 까만 박스에 ▶만 남아, 눌러도 아무것도 안 나왔다(사용자 2026-08-03).
+  //   대신 보낸 시각으로 판단한다 — 보관기간이 지났으면 파일도 확실히 없다(네트워크 확인 불필요).
+  const agedOut = !!sentMs && Date.now() - sentMs > MEDIA_RETENTION_MS;
   if (!poster) {
-    // 옛 영상(포스터 없음) — 예전처럼 어두운 박스 + ▶ 유지. 만료 여부를 알 방법이 없어 그대로 둔다.
+    if (agedOut) return <DmExpired size={size} radius={12} kind="video" />;
+    // 아직 보관기간 안 — 예전처럼 어두운 박스 + ▶.
     return (
       <TouchableOpacity activeOpacity={0.9} onPress={onPress} onLongPress={onLongPress} delayLongPress={300}>
         <View style={{ width: size, height: size, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.3)' }} />
@@ -343,6 +354,8 @@ function DmVideo({ uri, poster, size, onPress, onLongPress }) {
       </TouchableOpacity>
     );
   }
+  // 포스터가 있어도 보관기간이 지났으면 곧 로드 실패한다 — 깜빡임 없이 바로 만료 자리로.
+  if (agedOut) return <DmExpired size={size} radius={12} kind="video" />;
   return (
     <TouchableOpacity activeOpacity={expired ? 1 : 0.9} disabled={expired}
       onPress={onPress} onLongPress={onLongPress} delayLongPress={300}>
@@ -855,7 +868,7 @@ function DMChatInner({ friendUid, friendName = '친구', friendAvatarUri = null,
               })()}
               {/* 동영상 — 포스터 썸네일+▶, 탭 시 전체화면 재생(PhotoViewer). */}
               {video && (
-                <DmVideo uri={video.uri} poster={video.poster} size={210}
+                <DmVideo uri={video.uri} poster={video.poster} size={210} sentMs={msgMs}
                   onPress={selectMode ? () => toggleSelect(item.id) : () => setImgViewer({ video })}
                   onLongPress={selectMode ? undefined : () => setReactTarget(item)} />
               )}
