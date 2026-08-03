@@ -68,7 +68,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
 
   // owner-only 그룹/공개범위 색라벨 — 내 카드에서만(친구 카드엔 숨김). group=색점+그룹명, private=🔒, 친구전체=없음 ([[friend_groups]])
-  const ownerLabelData = (!isFriend && friendGroups) ? ownerVisibilityLabel(friendGroups, item.visibility, item.audienceGroupIds, item.audienceKind) : null;
+  const ownerLabelData = (!isFriend && friendGroups) ? ownerVisibilityLabel(friendGroups, item.visibility, item.audienceGroupIds, item.audienceKind, !!(item.audienceCompanionUids || []).length) : null;
   // 공개범위 색라벨 — 무사진 카드 날짜 줄 오른쪽 끝(우상단)에 인라인. 사진 카드의 코너칩(ownerChip)과 같은 시각 위치로 통일 ([[friend_groups]])
   const ownerLabelTopRight = ownerLabelData ? (
     // flexShrink/minWidth/numberOfLines — 긴 그룹명이 날짜·더보기와 같은 줄에서 겹치지 않게 말줄임 ([[friend_groups]])

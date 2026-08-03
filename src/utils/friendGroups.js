@@ -166,20 +166,25 @@ export function nextGroupColor(friendGroups) {
 // 내 글/모집의 공개범위 → owner-only 표시 라벨. 친구 전체는 null(라벨 없음=깔끔).
 //   group → { text: 그룹명, color: 그룹색 } / private → { text:'나만 보기', icon:'🔒' }. ([[friend_groups]])
 //   ★남에겐 절대 노출 금지 — 호출부에서 authorUid==나(또는 variant==='mine')일 때만 렌더할 것.
+const COMPANION_COLOR = '#5E8B60'; // 동반자 라벨 색 — 그룹 색과 구분되는 세이지그린
 // audienceKind='companions' — 그룹이 아니라 '그 라운딩 동반자'에게만 공개한 글([[round-companion-visibility]] 2026-07-22).
 //   저장 구조는 group과 같아서(audienceUids) 이 표식이 없으면 라벨이 안 그려진다.
-export function ownerVisibilityLabel(friendGroups, visibility, audienceGroupIds, audienceKind) {
+// hasCompanions — '동반자'가 공개 대상에 포함됐는지(audienceCompanionUids 유무). 그룹과 함께 고를 수 있어
+//   (2026-08-03) 동반자도 그룹과 나란히 한 칸으로 그린다. 동반자만 단독이면 기존처럼 '동반자만'.
+export function ownerVisibilityLabel(friendGroups, visibility, audienceGroupIds, audienceKind, hasCompanions) {
   if (visibility === 'private') return { text: '나만 보기', icon: '🔒', color: null, groups: [] };
-  if (visibility === 'group' && audienceKind === 'companions') {
-    return { text: '동반자만', color: '#5E8B60', icon: null, groups: [] };
-  }
   if (visibility === 'group') {
     const ids = Array.isArray(audienceGroupIds) ? audienceGroupIds.filter(Boolean) : [];
-    if (ids.length) {
-      // groups=전체(상세=색점+이름 다 표시). text=컴팩트(카드=첫 그룹 + "외 N") ([[friend_groups]])
-      const groups = ids.map(gid => ({ name: groupName(friendGroups, gid), color: groupColor(friendGroups, gid) }));
-      const text = groups.length > 1 ? `${groups[0].name} 외 ${groups.length - 1}` : groups[0].name;
-      return { text, color: groups[0].color, icon: null, groups };
+    const withComp = !!hasCompanions || audienceKind === 'companions';
+    if (withComp && !ids.length) {
+      return { text: '동반자만', color: COMPANION_COLOR, icon: null, groups: [] };
+    }
+    // groups=전체(상세=색점+이름 다 표시). text=컴팩트(카드=첫 항목 + "외 N") ([[friend_groups]])
+    const groups = ids.map(gid => ({ name: groupName(friendGroups, gid), color: groupColor(friendGroups, gid) }));
+    const parts = withComp ? [{ name: '동반자', color: COMPANION_COLOR }, ...groups] : groups;
+    if (parts.length) {
+      const text = parts.length > 1 ? `${parts[0].name} 외 ${parts.length - 1}` : parts[0].name;
+      return { text, color: parts[0].color, icon: null, groups: parts };
     }
   }
   return null; // friends(친구 전체) 등 — 라벨 없음

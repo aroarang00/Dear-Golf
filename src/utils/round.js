@@ -139,9 +139,21 @@ export async function recomputeMyGroupAudiences(friendMeta) {
       const data = d.data();
       // ★'동반자만' 공개 글은 건드리지 않는다 — 그룹이 아니라 그 라운딩의 동반자로 대상이 정해진 글이라,
       //   그룹 기준으로 재계산하면 audienceUids가 빈 배열로 밀려 아무도 못 보게 된다(2026-07-22).
-      if (data.audienceKind === 'companions') return;
       const gids = Array.isArray(data.audienceGroupIds) ? data.audienceGroupIds : [];
-      const next = resolveGroupAudience(friendMeta, gids);   // 현재 멤버십 기준 재산출
+      // 동반자 원본이 있으면(2026-08-03 이후 저장) 그룹 재산출 결과에 '항상 다시 합친다'.
+      //   동반자는 그룹 멤버십과 무관해서, 안 합치면 재계산 때마다 조용히 빠져나간다.
+      const comp = Array.isArray(data.audienceCompanionUids) ? data.audienceCompanionUids : null;
+      if (comp === null) {
+        // ─ 옛 글 보호 ─ 동반자 원본이 없는 글은 그룹 기준으로 재계산하면 안 된다.
+        //   ①표식이 있는 '동반자만' 글 ②표식마저 유실된 옛 글(그룹 0개)은 audienceUids가 빈 배열로 밀려
+        //   동반자도 못 보게 된다. 그룹 0개인 group 글은 정상 경로로 생길 수 없으므로 스킵이 안전.
+        if (data.audienceKind === 'companions') return;
+        if (gids.length === 0) return;
+      }
+      const next = Array.from(new Set([
+        ...resolveGroupAudience(friendMeta, gids),   // 현재 멤버십 기준 재산출
+        ...(comp || []),                            // 동반자는 그대로 유지
+      ]));
       const cur = Array.isArray(data.audienceUids) ? data.audienceUids : [];
       const same = next.length === cur.length && next.every(u => cur.includes(u));
       if (!same) { batch.update(d.ref, { audienceUids: next, updatedAt: serverTimestamp() }); n++; }
@@ -165,6 +177,15 @@ export async function createRound(data) {
     // 그룹 공개 — 작성 시점 그룹 멤버 uid 스냅샷 + 원본 그룹 선택(수정 복원용). group 아니면 빈 배열 ([[friend_groups]])
     audienceUids: data.visibility === 'group' && Array.isArray(data.audienceUids) ? data.audienceUids : [],
     audienceGroupIds: data.visibility === 'group' && Array.isArray(data.audienceGroupIds) ? data.audienceGroupIds : [],
+    // ★'동반자만' 표식 — 저장 누락 시 3중 고장(2026-08-03): ①카드 라벨이 안 뜬다(audienceGroupIds도 비어
+    //   ownerVisibilityLabel이 null 반환=친구 전체처럼 보임) ②수정창이 ['friends']로 복원돼 '친구 전체'로
+    //   뒤바뀐다 ③recomputeMyGroupAudiences가 이 글을 그룹 기준으로 재계산해 audienceUids를 빈 배열로
+    //   밀어버린다(아무도 못 봄). 모달이 넘겨줘도 여기서 안 담으면 그대로 버려진다.
+    audienceKind: data.visibility === 'group' && data.audienceKind === 'companions' ? 'companions' : null,
+    // ★동반자 uid를 '따로' 보관 — 동반자+그룹 조합 공개 때문(2026-08-03). audienceUids는 둘을 합친 결과라
+    //   그룹 멤버십이 바뀌어 재계산하면 동반자가 조용히 빠진다. 원본을 남겨 매번 다시 합친다.
+    audienceCompanionUids: data.visibility === 'group' && Array.isArray(data.audienceCompanionUids)
+      ? data.audienceCompanionUids : [],
     date: data.date || '',
     day: data.day || '',
     time: data.time || null,   // 티오프 시간('HH:MM') — 일정에서 자동채움(단체 제외) or 직접 입력. 없으면 null=표시 안 함
@@ -234,9 +255,16 @@ export async function updateRound(roundId, data) {
     if (updatable.visibility === 'group') {
       updatable.audienceUids = Array.isArray(updatable.audienceUids) ? updatable.audienceUids : [];
       updatable.audienceGroupIds = Array.isArray(updatable.audienceGroupIds) ? updatable.audienceGroupIds : [];
+      // ★audienceKind는 '항상' 같이 써야 한다 — updateDoc은 안 넘긴 필드를 그대로 두므로,
+      //   '동반자만'이던 글을 그룹으로 바꿔도 표식이 companions로 남아 라벨·수정칩이 안 바뀐다(2026-08-03 제보).
+      updatable.audienceKind = updatable.audienceKind === 'companions' ? 'companions' : null;
+      updatable.audienceCompanionUids = Array.isArray(updatable.audienceCompanionUids)
+        ? updatable.audienceCompanionUids : [];
     } else {
       updatable.audienceUids = [];
       updatable.audienceGroupIds = [];
+      updatable.audienceKind = null;
+      updatable.audienceCompanionUids = [];
     }
   }
   // 새로 추가된 로컬 사진/영상 Storage 업로드(https는 멱등 스킵).

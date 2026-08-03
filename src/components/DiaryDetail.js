@@ -31,7 +31,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
   const isSpecial = item.special === 'HOLE IN ONE' || item.special === 'ALBATROSS' || item.special === 'EAGLE';
   const isMoment = item.kind === 'moment'; // 일상 — 스코어·구장·동반자 없이 날짜+글만 ([[moment-feed-extension]])
   // 공개범위(나만 보는 라벨) — 상세는 선택 그룹 전체 표시(색점+이름). 친구전체는 null ([[friend_groups]])
-  const ovd = friendGroups ? ownerVisibilityLabel(friendGroups, item.visibility, item.audienceGroupIds, item.audienceKind) : null;
+  const ovd = friendGroups ? ownerVisibilityLabel(friendGroups, item.visibility, item.audienceGroupIds, item.audienceKind, !!(item.audienceCompanionUids || []).length) : null;
   const isSingle = !!item.score && item.score <= 79; // 싱글 — 80타 미만
   const hasPar = typeof item.par === 'number'; // 파생 라운드 등 par 누락 시 NaN/"par undefined" 노출 방지
   const diff = hasPar ? item.score - item.par : null;

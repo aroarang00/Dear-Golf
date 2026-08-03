@@ -703,11 +703,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
       // 혹시 남아있는 옛 privacy 값도 폴백으로 인정. group이면 그룹 칩(첫 audienceGroupId) 복원 ([[friend_groups]]).
       {
         const v = initial.visibility || initial.privacy || 'friends';
-        // 동반자 공개도 저장은 group이라, audienceKind로 구분해 '동반자만' 칩을 되살린다(안 그러면 친구 전체로 뒤바뀜).
-        setPrivacy(v === 'group'
-          ? (initial.audienceKind === 'companions' ? ['companions']
-            : ((Array.isArray(initial.audienceGroupIds) && initial.audienceGroupIds.length) ? initial.audienceGroupIds : ['friends']))
-          : [v]);
+        // 동반자 공개도 저장은 group이라, 동반자 원본(또는 옛 표식)으로 '동반자만' 칩을 되살린다
+        //   — 안 그러면 친구 전체로 뒤바뀐다. 동반자+그룹 조합이면 둘 다 켠 채로 복원(2026-08-03).
+        if (v !== 'group') { setPrivacy([v]); }
+        else {
+          const gids = Array.isArray(initial.audienceGroupIds) ? initial.audienceGroupIds.filter(Boolean) : [];
+          const withComp = !!(initial.audienceCompanionUids || []).length || initial.audienceKind === 'companions';
+          const sel = [...(withComp ? ['companions'] : []), ...gids];
+          setPrivacy(sel.length ? sel : ['friends']);
+        }
       }
       setCompanions(
         (initial.companions || [])
@@ -821,13 +825,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
     () => Array.from(new Set((companions || []).map(c => c && c.friendUid).filter(Boolean))),
     [companions]);
 
+  // 'friends'·'private'만 단독. '동반자만'은 그룹과 함께 고를 수 있다(합집합 공개, 2026-08-03 사용자 요청).
+  //   ※예전엔 '동반자만'도 단독이었는데, 한쪽 방향(그룹을 눌러도 동반자만이 안 꺼짐)이 빠져 있어
+  //     ['companions', 그룹id] 상태가 만들어졌고 저장 때 그룹이 통째로 무시됐다. 이제는 조합이 정식 동작.
   const togglePrivacy = (key) => {
-    // 'companions'도 단독 선택 — 그룹과 섞으면 '동반자 + 그룹'이라 공개 범위가 모호해진다.
-    if (key === 'friends' || key === 'private' || key === 'companions') { setPrivacy([key]); return; }
+    if (key === 'friends' || key === 'private') { setPrivacy([key]); return; }
     setPrivacy(prev => {
-      const groupsOnly = prev.filter(k => k !== 'friends' && k !== 'private');
-      const next = groupsOnly.includes(key) ? groupsOnly.filter(k => k !== key) : [...groupsOnly, key];
-      return next.length ? next : ['friends']; // 그룹을 다 해제하면 친구 전체로 복귀(빈 공개범위 방지)
+      const multi = prev.filter(k => k !== 'friends' && k !== 'private');
+      const next = multi.includes(key) ? multi.filter(k => k !== key) : [...multi, key];
+      return next.length ? next : ['friends']; // 다 해제하면 친구 전체로 복귀(빈 공개범위 방지)
     });
   };
 
@@ -841,32 +847,40 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
       vis = { visibility: 'private' };
     } else if (privacy.includes('friends')) {
       vis = { visibility: 'friends' };
-    } else if (privacy.includes('companions')) {
-      // 동반자만 — 그룹 공개 구조를 그대로 재사용한다(규칙은 audienceUids만 검사하므로 규칙 변경 불필요).
-      //   audienceGroupIds는 비우고 audienceKind로 표시 — ★recomputeMyGroupAudiences가 그룹 기준으로 재계산할 때
-      //   이 글을 건너뛰게 하는 표식이기도 하다(안 그러면 audienceUids가 빈 배열로 밀려 아무도 못 본다).
-      if (companionUids.length === 0) {
-        setOverlay({
-          title: '친구로 등록된 동반자가 없어요',
-          message: '동반자를 친구 목록에서 선택하면\n그 동반자에게만 공개할 수 있어요.',
-          buttons: [{ text: '확인' }],
-        });
-        return;
-      }
-      vis = { visibility: 'group', audienceUids: companionUids, audienceGroupIds: [], audienceKind: 'companions' };
     } else {
-      const gids = privacy;
-      const uids = resolveGroupAudience(friendData.friendMeta, gids);
+      // 동반자·그룹 조합 — 저장 구조는 group 하나를 재사용한다(규칙은 audienceUids만 검사하므로 규칙 변경 불필요).
+      //   ★동반자 uid는 audienceCompanionUids에 따로 남긴다 — audienceUids는 합친 결과라,
+      //     나중에 그룹 멤버십이 바뀌어 재계산하면 동반자가 조용히 빠져나간다([[round-companion-visibility]]).
+      const withComp = privacy.includes('companions');
+      const gids = privacy.filter(k => k !== 'companions');
+      const groupUids = gids.length ? resolveGroupAudience(friendData.friendMeta, gids) : [];
+      const uids = Array.from(new Set([...groupUids, ...(withComp ? companionUids : [])]));
       if (uids.length === 0) {
-        const names = gids.map(id => (friendData.friendGroups.find(g => g.id === id) || {}).name).filter(Boolean).join(' · ') || '그룹';
-        setOverlay({
-          title: `'${names}'에 지정된 친구가 없어요`,
-          message: '친구 프로필 ⋯ → 그룹·별명 설정에서\n이 그룹에 친구를 먼저 지정해주세요.',
-          buttons: [{ text: '확인' }],
-        });
+        // 실제로 아무도 못 보게 되는 경우만 막는다 — 왜 비었는지에 따라 안내를 다르게.
+        if (gids.length) {
+          const names = gids.map(id => (friendData.friendGroups.find(g => g.id === id) || {}).name).filter(Boolean).join(' · ') || '그룹';
+          setOverlay({
+            title: `'${names}'에 지정된 친구가 없어요`,
+            message: '친구 프로필 ⋯ → 그룹·별명 설정에서\n이 그룹에 친구를 먼저 지정해주세요.',
+            buttons: [{ text: '확인' }],
+          });
+        } else {
+          setOverlay({
+            title: '친구로 등록된 동반자가 없어요',
+            message: '동반자를 친구 목록에서 선택하면\n그 동반자에게만 공개할 수 있어요.',
+            buttons: [{ text: '확인' }],
+          });
+        }
         return;
       }
-      vis = { visibility: 'group', audienceUids: uids, audienceGroupIds: gids };
+      vis = {
+        visibility: 'group',
+        audienceUids: uids,
+        audienceGroupIds: gids,
+        audienceCompanionUids: withComp ? companionUids : [],
+        // 동반자'만'일 때만 표식 유지 — 라벨('동반자만')과 옛 글 호환용. 그룹이 섞이면 null.
+        audienceKind: withComp && gids.length === 0 ? 'companions' : null,
+      };
     }
     // 일상(모멘트) — 글/사진만. 라운딩 전용 필드는 비워서 저장(통계 격리는 kind로 보장, 데이터도 깔끔히).
     if (isMoment) {
