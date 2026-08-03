@@ -39,6 +39,17 @@ function seedRatios(photos) {
   return seed;
 }
 
+// ★미디어 한 장의 박스 높이 — '그 장의 비율'로만 계산한다(이웃 사진 값을 절대 쓰지 않는다).
+//   비율을 아직 모르면 사진=화면 전체(SH), 영상=VIDEO_H. 둘 다 contain이라 비율이 늦게 도착해도
+//   그려지는 그림 크기가 같아 튀지 않는다(사진 폴백이 SH인 이유).
+const VIDEO_FALLBACK_H = Math.min(SH, Math.max(Math.round(SW * 1.2), Math.round(SH * 0.8)));
+function mediaHeightOf(item, arMap) {
+  const k = ratioKey(item);
+  const ar = k ? arMap[k] : null;
+  if (ar) return Math.min(SH, Math.round(SW / ar));
+  return item?.type === 'video' ? VIDEO_FALLBACK_H : SH;
+}
+
 function VideoItem({ uri, poster, active, width, height, muted = true, onRatio, onZoomChange }) {
   const player = useVideoPlayer(uri, p => {
     p.loop = false;
@@ -279,19 +290,10 @@ export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, on
     _arCache.set(u, ar);
     setArMap(m => (m[u] ? m : { ...m, [u]: ar }));
   };
-  // 사진 영역 최대 높이 — 화면 전체. 박스는 화면 가운데 정렬이라 세로/가로 어느 쪽이든 꽉 차게 들어간다.
-  const availMax = SH;
+  // 박스 높이는 장마다 따로 — mediaHeightOf(item, arMap). 여기서 '현재 사진 하나'로 정하지 말 것.
+  //   예전에 그렇게 했다가 넘기는 중인 사진이 앞 사진 박스에 갇혀 작게 그려졌다(2026-08-03 실측).
   const curUri = !isVideo && current ? resolvePhotoUri(current.uri || current) : null;
   const curVideoUri = isVideo && current ? resolvePhotoUri(current.uri) : null;   // 영상 저장용 원본 URI
-  // 영상도 포스터(첫프레임) 비율로 박스 높이를 맞춰 검은 여백 제거(A안, 사용자 2026-06-15). 포스터 없는 옛 영상은 VIDEO_H 폴백.
-  const curPosterUri = isVideo && current?.poster ? resolvePhotoUri(current.poster) : null;
-  const curAr = isVideo ? (curPosterUri ? arMap[curPosterUri] : null) : (curUri ? arMap[curUri] : null);
-  // 가로(ar>1) → SW/ar로 낮게 / 세로 → availMax로 cap / 측정 전 → 영상=VIDEO_H, 사진=availMax.
-  const VIDEO_H = Math.min(availMax, Math.max(Math.round(SW * 1.2), Math.round(SH * 0.8)));
-  // ★사진 폴백은 availMax — contain이라 이 높이에서 그린 이미지 크기가 실측(min(availMax, SW/ar)) 후와 동일하다.
-  //   (세로=둘 다 availMax / 가로=폭 SW에 맞춰져 박스만 줄고 이미지는 그대로 + 박스가 가운데 정렬이라 자리도 그대로).
-  //   그래서 비율이 늦게 도착해도 사진이 움직이지 않는다. (사용자 2026-07-09 / 2026-08-02)
-  const mediaH = curAr ? Math.min(availMax, Math.round(SW / curAr)) : (isVideo ? VIDEO_H : availMax);
 
   // 현재 사진/동영상을 갤러리에 저장 — 원격(https) URL이면 캐시로 다운로드 후 저장(saveToLibraryAsync는 로컬 파일만).
   //   동영상은 확장자(mp4/mov)를 맞춰 받아야 갤러리가 영상으로 인식. 사진은 jpg.
@@ -317,11 +319,10 @@ export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, on
   };
 
   // ★animationType='none' — 페이드로 열면 반투명한 모달 너머로 '뒤에 있던 피드 카드의 사진'이 비친다.
-  //   카드는 세로 사진을 4:5 틀에 잘라 보여주는데(높이 ≈SW*1.25) 뷰어는 안 자르고 다 보여주니(≈SW/ar),
-  //   페이드되는 동안 작은 사진이 큰 사진으로 바뀌는 게 '작았다가 갑자기 커짐'으로 보였다.
-  //   가로 사진은 카드와 뷰어 높이가 거의 같아 티가 안 나서, 세로·영상에서만 불거졌다.
-  //   ★레이아웃 문제가 아니다 — contain이라 비율 측정 전후로 그려지는 크기가 같다(2026-08-02 확인).
-  //    같은 증상이 또 보이면 mediaH부터 의심하지 말고 이 모달 전환부터 볼 것.
+  //   ※단, '작았다가 갑자기 커짐'의 진짜 원인은 이게 아니었다(아래 페이저 주석 참고).
+  //   ★2026-08-02에 "레이아웃 무죄, 모달 전환이 범인"이라고 적어뒀던 것은 오진이다.
+  //    08-03 실측 결과 탭→뷰어 58ms·그림 33ms로 전환은 충분히 빨랐고,
+  //    범인은 페이저가 높이 하나를 공유하던 것이었다. 같은 증상이 또 나오면 숫자부터 찍어볼 것.
   //   즉시 띄우면 카드가 곧바로 가려져 morph가 안 보인다. 사진은 피드와 캐시를 공유해 깜빡임도 없다.
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
@@ -362,32 +363,39 @@ export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, on
             {idx + 1} / {photos.length} {isVideo ? '· 영상' : ''}
           </Text>
         </View>
-        {/* 박스는 늘 화면 가운데. 확대(zoomed) 중엔 풀스크린(SH)으로 펼쳐 화면 전체에서 확대되게 —
-            평상시엔 사진 비율 높이(mediaH)라 위아래 검은 여백이 안 남는다. */}
+        {/* ★페이저는 늘 화면 전체 높이. 사진 박스는 '장마다 제 비율'로 따로 잡는다(2026-08-03).
+            예전엔 5장이 mediaH 하나를 공유했고 그 값이 '지금 보는 사진' 것이라, 넘기는 중인 사진이
+            앞 사진의 박스에 갇혀 그려졌다. 가로(302)→세로로 넘기면 세로 사진이 226×302로 작게 그려지다가
+            넘김이 끝나 박스가 536이 되는 순간 402×536으로 튀어올랐다 — 이게 '작았다가 갑자기 커짐'의 정체.
+            (실측 2026-08-03: 첫 302/1.333 → 변 536/0.750. 크기 점프가 각 변 1.8배)
+            ※배경이 검정이라 페이저를 꽉 채워도 보이는 그림은 같다 — 여백이 생기지 않는다. */}
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0, height: zoomed ? SH : mediaH }}
+          style={{ flexGrow: 0, height: SH }}
           scrollEnabled={!zoomed}
           contentOffset={{ x: idx * SW, y: 0 }}
           onMomentumScrollEnd={e => { setIdx(Math.round(e.nativeEvent.contentOffset.x / SW)); setZoomed(false); }}>
-          {photos.map((item, i) => (
-            <View key={i} style={{ width: SW, height: zoomed ? SH : mediaH, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+          {photos.map((item, i) => {
+            const itemH = mediaHeightOf(item, arMap); // ★그 사진 제 비율로. 이웃 사진 값을 쓰지 않는다.
+            return (
+            <View key={i} style={{ width: SW, height: SH, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
                 i === idx ? (
-                  <VideoItem uri={resolvePhotoUri(item.uri)} poster={item.poster ? resolvePhotoUri(item.poster) : null} active width={SW} height={mediaH} muted={muted} onRatio={handleRatio} onZoomChange={setZoomed} />
+                  <VideoItem uri={resolvePhotoUri(item.uri)} poster={item.poster ? resolvePhotoUri(item.poster) : null} active width={SW} height={itemH} muted={muted} onRatio={handleRatio} onZoomChange={setZoomed} />
                 ) : (
-                  <VideoPoster poster={item.poster ? resolvePhotoUri(item.poster) : null} height={mediaH} onRatio={handleRatio} />
+                  <VideoPoster poster={item.poster ? resolvePhotoUri(item.poster) : null} height={itemH} onRatio={handleRatio} />
                 )
               ) : (
                 // 윈도잉 — 현재±1만 제스처/reanimated PinchableImage, 나머지는 정적 Image(앨범 마운트 비용↓ 버벅임 완화)
                 Math.abs(i - idx) <= 1 ? (
-                  <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={mediaH} active={i === idx} onZoomChange={setZoomed} onSingleTap={onClose} onRatio={handleRatio} />
+                  <PinchableImage uri={resolvePhotoUri(item.uri || item)} width={SW} height={itemH} active={i === idx} onZoomChange={setZoomed} onSingleTap={onClose} onRatio={handleRatio} />
                 ) : (
-                  <Image source={{ uri: resolvePhotoUri(item.uri || item) }} style={{ width: SW, height: mediaH }} contentFit="contain" cachePolicy="memory-disk" recyclingKey={resolvePhotoUri(item.uri || item)}
+                  <Image source={{ uri: resolvePhotoUri(item.uri || item) }} style={{ width: SW, height: itemH }} contentFit="contain" cachePolicy="memory-disk" recyclingKey={resolvePhotoUri(item.uri || item)}
                     onError={() => { if (__DEV__) console.warn('[photoViewer] 정적 로드 실패', resolvePhotoUri(item.uri || item)); }} />
                 )
               )}
             </View>
-          ))}
+            );
+          })}
         </ScrollView>
 
         {/* 게시글 보기 — 갤러리에서 연 경우(onGoToPost) 원글(글·댓글)로 이동. 확대 중엔 숨김. */}
