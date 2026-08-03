@@ -15,7 +15,7 @@ import { Icon } from './common/Icon';   // 커스텀 SVG 아이콘(유니코드 
 //  내 일정에 자기파생(캘린더 동기화). cross-user 쓰기 0. uid=useCurrentUid(단일 소스, 재설치·계정전환 시 재구독).
 export function ScheduleInviteInbox({ onActiveChange }) {
   const uid = useCurrentUid();
-  const { schedules, addSharedSchedule, editSchedule } = useContext(SchedulesContext);
+  const { schedules, hydrated, addSharedSchedule, editSchedule } = useContext(SchedulesContext);
   const [invites, setInvites] = useState([]);
   const [busy, setBusy] = useState(false);
   const glow = useRef(new Animated.Value(0)).current;   // 배너 골드 글로우 맥동(초대 있을 때만)
@@ -26,20 +26,29 @@ export function ScheduleInviteInbox({ onActiveChange }) {
     return unsub;
   }, [uid]);
 
+  // ★실제로 보여줄 초대 — '이미 멤버'라도 그 일정이 내게 없으면 다시 보여준다(유령 멤버십 자가 치유).
+  //   일정을 지웠는데 그룹 탈퇴가 누락되면 memberUids에 남아, 재초대를 해도 영영 안 뜨던 문제(2026-08-03).
+  //   ※일정 로딩 전(hydrated=false)에는 판단을 미룬다 — 목록이 비어 보여 멀쩡한 멤버십까지 '유령'으로 오인하면
+  //     이미 참여 중인 일정의 초대 배너가 잘못 떠오른다.
+  const visibleInvites = React.useMemo(() => {
+    if (!hydrated) return invites.filter(i => !i._alreadyMember);
+    return invites.filter(i => !i._alreadyMember || !(schedules || []).some(s => s.groupId === i.id));
+  }, [invites, schedules, hydrated]);
+
   // 받은 초대가 있을 때만 은은하게 반짝이는 루프 — shadow/border 애니라 useNativeDriver:false.
   useEffect(() => {
-    if (!invites.length) { glow.setValue(0); return; }
+    if (!visibleInvites.length) { glow.setValue(0); return; }
     const loop = Animated.loop(Animated.sequence([
       Animated.timing(glow, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
       Animated.timing(glow, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
     ]));
     loop.start();
     return () => loop.stop();
-  }, [invites.length]);
+  }, [visibleInvites.length]);
 
   // 초대 배너 표시 여부를 부모(홈)에 통지 — 배너가 떠 있는 동안 홈은 아래 한줄메모/코멘트 카드를 숨겨
   //   좁은 화면에서 겹치지 않게 한다(수락/거절하면 다시 노출). 사용자 지정 2026-06-18.
-  const active = !!uid && invites.length > 0;
+  const active = !!uid && visibleInvites.length > 0;
   useEffect(() => { onActiveChange && onActiveChange(active); }, [active]);
 
   // 같은 라운딩(course+date) 일정을 이미 보유하면 중복 생성 대신 groupId 스탬프만(중복 방지, [[schedule-propagation-spec]] §4).
@@ -134,8 +143,8 @@ export function ScheduleInviteInbox({ onActiveChange }) {
     finally { setBusy(false); }
   };
 
-  if (!uid || !invites.length) return null;
-  const inv = invites[0];   // 가장 최근 1건씩 — 처리하면 다음 것이 올라옴
+  if (!uid || !visibleInvites.length) return null;
+  const inv = visibleInvites[0];   // 가장 최근 1건씩 — 처리하면 다음 것이 올라옴
 
   return (
     <Animated.View style={{
@@ -154,7 +163,7 @@ export function ScheduleInviteInbox({ onActiveChange }) {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 }}>
         <Icon name="calendar" size={fs(18)} color={C.butter} />
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }} numberOfLines={1}>
-          {inv.initiatorName || '친구'}님이 일정에 초대했어요{invites.length > 1 ? ` 외 ${invites.length - 1}건` : ''}
+          {inv.initiatorName || '친구'}님이 일정에 초대했어요{visibleInvites.length > 1 ? ` 외 ${visibleInvites.length - 1}건` : ''}
         </Text>
       </View>
       <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.78)', marginBottom: 9 }} numberOfLines={1}>

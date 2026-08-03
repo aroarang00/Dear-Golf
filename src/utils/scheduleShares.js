@@ -105,15 +105,18 @@ export function subscribeIncomingScheduleInvites(uid, cb) {
   }, (e) => { if (__DEV__) console.warn('[scheduleShare] subscribe fail', e?.message); cb([]); });
 }
 
-// 미응답(수락·거절 안 한) 초대만 추려 최신순. 본인이 보낸 그룹은 제외.
+// 미응답(수락·거절 안 한) 초대만 추려 최신순. 본인이 보낸 그룹·거절한 그룹은 제외.
+//   ★'이미 멤버'는 여기서 버리지 않고 _alreadyMember 표시만 달아 넘긴다 — 호출부(ScheduleInviteInbox)가
+//    '그 일정이 실제로 내게 있는지'까지 보고 판단한다. 멤버로만 남고 일정은 없는 '유령 멤버십'이 생기면
+//    (탈퇴 처리 누락 등) 여기서 버릴 경우 재초대를 해도 영영 안 뜨기 때문(2026-08-03 블랙스톤 건).
+//    이 함수는 내 일정 목록을 모르므로 판단을 미루는 것이다.
 function filterPending(snap, uid) {
   const list = [];
   snap.forEach(d => {
     const data = d.data();
     if (data.initiatorUid === uid) return;
-    if ((data.memberUids || []).includes(uid)) return;
     if ((data.declinedUids || []).includes(uid)) return;
-    list.push({ id: d.id, ...data });
+    list.push({ id: d.id, ...data, _alreadyMember: (data.memberUids || []).includes(uid) });
   });
   list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
   return list;

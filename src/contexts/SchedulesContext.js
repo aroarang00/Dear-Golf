@@ -5,6 +5,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { loadMySchedules, createSchedule, updateSchedule, deleteSchedule, setScheduleDoc } from '../utils/schedule';
 import { syncRoundToCalendar, removeRoundFromCalendar } from '../utils/deviceCalendar';
 import { cancelRoundAlarms, reconcileAlarms } from '../utils/notifications';
+import { leaveScheduleGroup } from '../utils/scheduleShares';
 import { normalizeSchedules } from '../utils/helpers';
 
 // 라운딩 예정 일정 — Firestore schedules/{scheduleId} 단일 소스.
@@ -127,6 +128,7 @@ export function SchedulesProvider({ children }) {
     //   네트워크 지연 동안 카드가 남아 있다가, 시트 닫힘 애니메이션과 리스트 변경이 겹쳐
     //   안드에서 삭제한 D-day 카드가 한 번 더 그려졌다 사라지는 잔상(깜빡임)이 났다(2026-06-28).
     const snapshot = schedulesRef.current;
+    const target = snapshot.find(s => s.id === id); // 그룹 탈퇴에 쓸 groupId — 지우기 전에 확보
     setSchedulesRaw(prev => prev.filter(s => s.id !== id));
     try {
       await deleteSchedule(id);
@@ -136,6 +138,14 @@ export function SchedulesProvider({ children }) {
     }
     removeRoundFromCalendar(id);
     cancelRoundAlarms(id); // 예약 알람도 중앙에서 취소 — 모든 삭제 경로가 remove를 거치므로 누락 없음(캘린더와 동일 패턴)
+    // ★전파 일정이면 그룹에서도 빠진다 — 알람·캘린더와 같은 이유로 '중앙'에서 처리한다.
+    //   호출부마다 따로 부르면 빠뜨리는 경로가 생긴다. 실제로 2026-08-03에 그 누락으로,
+    //   지운 뒤에도 memberUids에 남아 재초대가 영영 안 오던 일이 있었다(초대 목록이 '이미 멤버'를 숨기므로).
+    //   호출부(홈·MY탭)의 leaveScheduleGroup은 그대로 둬도 된다 — 같은 값을 다시 쓰는 멱등 연산이다.
+    if (target?.groupId) {
+      const uid = auth.currentUser?.uid;
+      if (uid) leaveScheduleGroup(target.groupId, uid).catch(e => { if (__DEV__) console.warn('[schedules] leave group', e?.message); });
+    }
   }, []);
 
   // 일정 전파 수락 — 결정적 ID로 자기파생 일정 setDoc(멱등) + 로컬 즉시 반영 + 캘린더 동기화 ([[schedule-propagation-spec]]).
