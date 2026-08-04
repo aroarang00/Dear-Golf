@@ -35,8 +35,6 @@ export const gS = StyleSheet.create({
   memoTxt:         { fontFamily: F.en, fontSize: fs(12), color: C.textSecondary, lineHeight: 18 },
   restItem:        { backgroundColor: C.bgSecondary, borderRadius: 10, padding: 10, flexDirection: 'row', gap: 10, marginBottom: 8, borderWidth: 0.5, borderColor: C.hairline },
   restIcon:        { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  mineBadge:       { backgroundColor: C.charcoal, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1, alignSelf: 'flex-start', marginBottom: 3 },
-  mineBadgeTxt:    { fontFamily: F.sys, fontSize: fs(8), color: C.butter },
   restName:        { fontFamily: F.sys, fontSize: fs(12), color: C.textPrimary, marginBottom: 1 },
   restType:        { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray },
   restMemo:        { fontFamily: F.en, fontSize: fs(10), color: C.textSecondary, marginTop: 3 },
@@ -48,6 +46,8 @@ export const gS = StyleSheet.create({
   commentCard:     { backgroundColor: C.bgSecondary, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 0.5, borderColor: C.hairline },
   // 내 코멘트 — 버건디 좌측 액센트로 한눈에 구분
   commentCardMine: { borderLeftWidth: 3, borderLeftColor: C.burgundy },
+  // ★위 맛집 블록에 같은 이름(차콜·fs8)이 한 번 더 있었다 — 뒤엣것이 이기므로 실제로 그려진 건 늘 이 버건디였고,
+  //   앞 정의는 죽은 코드였다. 08-04 ESLint(no-dupe-keys)로 발견해 삭제. 표시는 그대로다.
   mineBadge:       { backgroundColor: C.burgundy, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
   mineBadgeTxt:    { fontFamily: F.sysB, fontSize: fs(11), color: C.butter },
   // 한줄 메모 헤더 우측 '내 기록 N회' 칩

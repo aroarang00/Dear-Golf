@@ -18,8 +18,12 @@ export const storage = getStorage(app);   // Firebase Storage — 아바타 사�
 // Metro는 firebase/auth의 react-native 빌드를 골라 getReactNativePersistence를 제공.
 let auth;
 try {
+  // ★firebase/auth는 플랫폼(RN/web)에 따라 export가 갈리는 조건부 패키지라, 정적 분석이 RN 빌드의
+  //   getReactNativePersistence를 못 본다(ESLint import/namespace 오탐). 아래 typeof 가드가 실체다.
+  // eslint-disable-next-line import/namespace
   if (typeof fbAuth.getReactNativePersistence === 'function') {
     auth = fbAuth.initializeAuth(app, {
+      // eslint-disable-next-line import/namespace
       persistence: fbAuth.getReactNativePersistence(AsyncStorage),
     });
   } else {

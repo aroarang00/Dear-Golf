@@ -85,3 +85,7 @@ functions/node_modules/
 .expo-qr.png
 .expo-start.log
 *.expo-start.log
+
+# ESLint 리포트(로컬 분석용 임시 파일)
+eslint-report.json
+.eslintcache

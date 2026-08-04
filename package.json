@@ -11,7 +11,9 @@
     "check:native": "node scripts/check-native-config.js",
     "eas-build-post-install": "node scripts/check-native-config.js",
     "test:rules": "node --test test/rules/",
-    "test:rules:emu": "firebase emulators:exec --only firestore --project demo-deargolf \"npm run test:rules\""
+    "test:rules:emu": "firebase emulators:exec --only firestore --project demo-deargolf \"npm run test:rules\"",
+    "lint": "eslint . --max-warnings=-1",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@expo-google-fonts/cardo": "^0.4.1",
@@ -81,6 +83,8 @@
     "@firebase/rules-unit-testing": "^5.0.1",
     "babel-plugin-transform-remove-console": "^6.9.4",
     "babel-preset-expo": "~54.0.10",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~10.0.0",
     "patch-package": "^8.0.1"
   }
 }
