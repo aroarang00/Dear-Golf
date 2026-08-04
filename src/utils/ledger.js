@@ -1,6 +1,6 @@
 import {
   collection, query, where, orderBy, getDocs, onSnapshot,
-  addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp, increment, writeBatch,
+  addDoc, updateDoc, deleteDoc, doc, serverTimestamp, increment, writeBatch,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 import { newShareToken } from './settlement';   // 웹 공유 토큰 — 걷기와 같은 방식 재사용

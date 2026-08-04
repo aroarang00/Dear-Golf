@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
-import { searchNearbyDrivingRanges, searchNearbyScreenGolf, NON_COURSE_NAME_RE, HIDDEN_UMBRELLA_BASES } from '../utils/kakao';
+import { searchNearbyScreenGolf, NON_COURSE_NAME_RE, HIDDEN_UMBRELLA_BASES } from '../utils/kakao';
 import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
 import { getCurrentLocation, hasLocationPermission } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
@@ -116,11 +116,9 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const top100 = top100Prop !== undefined ? top100Prop : top100Local;
   const master = masterProp !== undefined ? masterProp : masterLocal;
 
-  const [nearby, setNearby] = useState([]);
-  const [nearbyLoading, setNearbyLoading] = useState(false);
-  const [nearbyMsg, setNearbyMsg] = useState('');
-  const [nearbyExpanded, setNearbyExpanded] = useState(false);
-
+  // ※'주변 연습장'은 카카오 데이터 부정확으로 2026-06-20에 화면에서 뺐다(아래 '내 저장 골프장'으로 대체).
+  //   그때 UI만 지우고 수집 코드가 남아, 코스 탭 열 때마다 아무도 안 보는 데이터를 받아오고 있었다.
+  //   08-04 ESLint(no-unused-vars)로 발견해 상태·fetch·캐시까지 정리. 스크린골프는 그대로 쓴다.
   const [screen, setScreen] = useState([]);
   const [screenLoading, setScreenLoading] = useState(false);
   const [screenMsg, setScreenMsg] = useState('');
@@ -175,23 +173,17 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
         const msg = granted
           ? '위치를 확인할 수 없어요.' + RETRY_HINT
           : '위치 권한을 허용하면\n주변 시설을 보여드려요';
-        setNearbyMsg(msg); setScreenMsg(msg);
+        setScreenMsg(msg);
         return;
       }
-      const [d, s] = await Promise.all([
-        searchNearbyDrivingRanges(loc.lat, loc.lng, 10000),
-        searchNearbyScreenGolf(loc.lat, loc.lng, 5000),
-      ]);
+      const s = await searchNearbyScreenGolf(loc.lat, loc.lng, 5000);
       // 결과 있으면 갱신, 빈 결과(카카오 일시오류 가능)면 기존(캐시) 유지 — setX 안 해 덮어쓰지 않음.
-      if (d.length) setNearby(d);
-      setNearbyMsg(d.length ? '' : '근처 연습장 정보가 없어요' + RETRY_HINT);
       if (s.length) setScreen(s);
       setScreenMsg(s.length ? '' : '근처 스크린골프 정보가 없어요' + RETRY_HINT);
-      if (d.length || s.length) {
-        AsyncStorage.setItem(NEARBY_CACHE_KEY, JSON.stringify({ ts: Date.now(), ranges: d, screens: s })).catch(() => {});
+      if (s.length) {
+        AsyncStorage.setItem(NEARBY_CACHE_KEY, JSON.stringify({ ts: Date.now(), screens: s })).catch(() => {});
       }
     } catch (e) {
-      setNearbyMsg('주변 시설 정보를 불러올 수 없어요' + RETRY_HINT);
       setScreenMsg('주변 시설 정보를 불러올 수 없어요' + RETRY_HINT);
     }
   }, []);
@@ -205,14 +197,14 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
         if (raw) {
           const c = JSON.parse(raw);
           if (c && Date.now() - c.ts < NEARBY_TTL) {
-            if (c.ranges?.length) { setNearby(c.ranges); hasCache = true; }
+            // 옛 캐시엔 ranges(연습장)도 들어 있으나 지금은 안 쓴다 — screens만 읽으면 그대로 호환된다.
             if (c.screens?.length) { setScreen(c.screens); hasCache = true; }
           }
         }
       } catch {}
-      if (!hasCache) { setNearbyLoading(true); setScreenLoading(true); }
+      if (!hasCache) setScreenLoading(true);
       await loadNearby();
-      setNearbyLoading(false); setScreenLoading(false);
+      setScreenLoading(false);
     })();
   }, [loadNearby]);
 
@@ -305,9 +297,6 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   // 지역 전체 골프장 — 처음 8개만 렌더(수도권 등 100곳+ 한 번에 그리면 JS 스레드가 막혀 지역탭 선택이 씹힘). 나머지는 더보기.
   const visibleRegionMaster = regionMasterExpanded ? regionMasterCourses : regionMasterCourses.slice(0, 8);
   const moreRegionMaster = regionMasterCourses.length - visibleRegionMaster.length;
-
-  const visibleNearby = nearbyExpanded ? nearby : nearby.slice(0, 5);
-  const moreNearby = nearby.length - visibleNearby.length;
 
   const visibleScreen = screenExpanded ? screen : screen.slice(0, 5);
   const moreScreen = screen.length - visibleScreen.length;

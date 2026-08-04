@@ -9,7 +9,6 @@ import { Icon } from './common/Icon'; // 📷 → 커스텀 카메라
 import { COURSE_TAGS, COURSE_TAG_COLORS, getCountryFlag } from '../constants/data';
 import { dS } from '../styles/dS';
 import { formatNameList } from '../utils/nameList';
-import { UserContext } from '../contexts/UserContext';
 import { TripleStripe } from './common/TripleStripe';
 import { PhotoViewer, primePhotoRatio } from './common/PhotoViewer'; // 썸네일에서 잰 실비율을 뷰어에 미리 심음(열 때 크기 안 튀게)
 import { DiaryAddModal } from './DiaryAddModal';
@@ -19,7 +18,6 @@ import { useAndroidBack } from '../hooks/useAndroidBack';
 import { ownerVisibilityLabel, friendDisplayName } from '../utils/friendGroups';
 
 export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirstSingle, friendGroups, friendMeta = {} }) {
-  const { userProfile } = React.useContext(UserContext);
   const insets = useSafeAreaInsets();
   // 안드로이드 뒤로가기 — 상세 화면이 RN Modal이 아니라 직접 닫기 처리
   useAndroidBack(true, onClose);
@@ -260,7 +258,6 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
             const scoreTxt = { fontFamily: F.sysSb, fontSize: fs(13), color: C.textPrimary };
             const labelTxt = { fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray, letterSpacing: 0.5 };
             const nums = (s) => Array.from({ length: 9 }, (_, k) => s + k + 1);
-            const scores = (s) => Array.from({ length: 9 }, (_, k) => { const v = hs[s + k]; return Number.isFinite(v) ? v : '-'; });
             const hp = item.holePars;
             const hasPar = Array.isArray(hp) && hp.some(n => Number.isFinite(n));
             const pars = (s) => Array.from({ length: 9 }, (_, k) => { const v = hp?.[s + k]; return Number.isFinite(v) ? v : '-'; });

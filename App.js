@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Modal, Image, Platform, StatusBar as RNStatusBar, Linking, AppState } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Platform, StatusBar as RNStatusBar, Linking, AppState } from 'react-native';
 
 // 글로벌 default 폰트 — fontFamily를 명시하지 않은 모든 Text/TextInput에 Pretendard Regular 적용.
 //  ※ React 19 + automatic JSX runtime(jsx())에선 함수형 컴포넌트 defaultProps가 무시돼(옛 _withDefaultFont 방식 사망),
@@ -96,7 +96,6 @@ import { OnboardingIntro } from './src/components/OnboardingIntro';
 import { OnboardingKakao } from './src/components/OnboardingKakao';
 import { OnboardingConsent } from './src/components/OnboardingConsent';
 import { HomeScreen } from './src/components/HomeScreen';
-import { ScheduleScreen } from './src/components/ScheduleScreen';
 import { LoungeScreen } from './src/components/LoungeScreen';
 import { DiaryScreen } from './src/components/DiaryScreen';
 import { GuideScreen } from './src/components/GuideScreen';

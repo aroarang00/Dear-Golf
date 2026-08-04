@@ -23,7 +23,7 @@ import { AttentionMotion } from './common/AttentionMotion'; // 맞춤 모집 배
 import { getPrefetch } from '../utils/prefetch'; // 앱 시작 프리페치 캐시 — 라운지 첫 진입 즉시 시드
 import { RoundupNotifications } from './RoundupNotifications';
 import { SettlementModal } from './SettlementModal';   // 모임 정산(걷기) — 선입금·식사정산
-import { SCOPE_BADGE, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED, matchesRoundup, hasRoundupMatch, isRoundupConfirmed } from '../constants/roundup';
+import { SCOPE_BADGE, REGION_OPTIONS, ROUNDUP_PUBLIC_ENABLED, ROUNDUP_LIKES_ENABLED, matchesRoundup, hasRoundupMatch } from '../constants/roundup';
 import { ROUTES } from '../constants/routes';
 import { RoundupMatchModal } from './RoundupMatchModal';
 import { RoundupGuideModal } from './RoundupGuideModal';
@@ -1335,10 +1335,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     setShowCreate(true);
   };
 
-  // 모집 인원 +1 (주최자가 신청을 수락할 때 호출) — 단체·개별 모두 joined 기반 통일
-  const bumpPostCount = (id) => {
-    setPosts(prev => prev.map(p => (p.id === id ? { ...p, joined: (p.joined || 0) + 1 } : p)));
-  };
 
   // 참여 신청 — 확인 후 신청 (주최자 수락 대기)
   // 참여 처리 — 전체공개는 applications에 pending 저장(수락 대기), 친구공개·친구지정은 joinRoundup 즉시 확정
@@ -1484,25 +1480,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     }
   };
 
-  // 대기 신청 확인창 — 참여와 동일하게 익명 옵션 제공(승격 시 승계). 친구공개·친구지정만 익명.
-  const confirmWaitlist = (id) => {
-    const post = posts.find(p => p.id === id);
-    if (!post) return;
-    const canAnon = post.scope !== 'all';
-    setAlert({
-      title: '대기 신청할까요?',
-      message: '자리가 나면 순서대로 참여 기회를 안내해 드려요.',
-      note: canAnon ? '익명으로 신청하면\n명단·댓글에 임의 닉으로 표시돼요.\n호스트에게는 이름이 보이고\n승격되면 그대로 이어져요.' : undefined,
-      buttons: canAnon ? [
-        { text: '대기 신청', onPress: () => handleWaitlist(id, false) },
-        { text: '익명으로 대기', style: 'secondary', onPress: () => handleWaitlist(id, true) },
-        { text: '취소', style: 'cancel' },
-      ] : [
-        { text: '취소', style: 'cancel' },
-        { text: '대기 신청', onPress: () => handleWaitlist(id, false) },
-      ],
-    });
-  };
 
   // 참여 취소 — 시스템 매너점수 차감 없음 (2026-05-25 단순화, [[roundup-penalty-policy]]).
   // 시점에 따른 골프장 위약금은 본인 부담. 노쇼만 별도 신고 시스템에서 처리 ([[noshow-report-system]]).
@@ -1566,56 +1543,6 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     }
   };
 
-  // 참여 취소 — D-7 이내는 시스템적으로 차단 ([[roundup-penalty-policy]] §1).
-  // D-7 이전엔 자유 취소, 패널티 X.
-  const cancelParticipation = (id) => {
-    const post = posts.find(p => p.id === id);
-    if (!post) return;
-    let hoursUntil = 24 * 30; // 오픈형 기본: 한 달치 — D-7 이전 취급
-    if (post.date) {
-      const [y, m, d] = post.date.split('.').map(Number);
-      const [hh, mm] = (post.time || '07:00').split(':').map(Number);
-      const target = new Date(y, m - 1, d, hh, mm);
-      const now = new Date();
-      hoursUntil = (target - now) / 3600000;
-    }
-    // 안내 3분기 (2026-05-30) — RoundupDetail.confirmCancel과 동일 문구.
-    // 매너 차감은 전체공개+D-7이내+확정만 (친구모집은 시스템 제재 예외).
-    const insideD7 = isD7Inside(hoursUntil);
-    // (1) 전체공개 + D-7 이내 + 모집확정 — 매너 점수 차감 분기
-    if (post.scope === 'all' && insideD7 && isRoundupConfirmed(post)) {
-      setAlert({
-        title: '확정된 라운딩 취소',
-        message: '확정된 라운딩이라 지금 취소하면\n매너 점수가 차감될 수 있어요.\n\n사전 안내 없이 나타나지 않으면\n노쇼로 신고받을 수 있으니\n부득이한 사정이라면 댓글로 양해를 구해주세요.',
-        buttons: [
-          { text: '계속 참여', style: 'cancel' },
-          { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
-        ],
-      });
-      return;
-    }
-    // (2) D-7 이내 + 미확정(또는 친구모집) — 패널티 없음, 임박 안내만
-    if (insideD7) {
-      setAlert({
-        title: '라운딩이 며칠 안 남았어요',
-        message: '라운딩 날짜가 가까워요.\n정말 취소하시겠어요?\n취소하면 자리는 다시 열려요.',
-        buttons: [
-          { text: '계속 참여', style: 'cancel' },
-          { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
-        ],
-      });
-      return;
-    }
-    // (3) D-7 이전 — 자유 취소, 약속 존중 톤
-    setAlert({
-      title: '참여를 취소할까요?',
-      message: '참여 확정된 라운딩이에요.\n신중하게 생각하고 취소해 주세요.\n취소하면 자리는 다시 열려요.',
-      buttons: [
-        { text: '계속 참여', style: 'cancel' },
-        { text: '취소하기', style: 'destructive', onPress: () => performCancel(id) },
-      ],
-    });
-  };
 
   // 대기 취소 — 대기는 확정 참여가 아니라 매너 점수 차감 없음
   const cancelWaitlist = async (id) => {

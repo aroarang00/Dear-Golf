@@ -13,7 +13,7 @@ import { showToast } from './AppToast';
 import { showAppAlert, AppAlertHost } from './AppAlert';   // 풀스크린 모달(정산·크루) 안에서도 알럿이 위로 보이게 자체 호스트 장착([[ios-modal-stacking]])
 import { C, F, fs } from '../constants/colors';
 import {
-  subscribeMyLedgers, createLedger, updateLedger, deleteLedger,
+  subscribeMyLedgers, createLedger, deleteLedger,
   subscribeLedgerEntries, addEntry, updateEntry, deleteEntry,
   findLedgerByCrew, updateLedgerDues, normDues, summarizeDues, listDuesPeriods, totalDuesCollected, duesCollectedIn,
   DUES_CYCLES, duesCycleTitle, duesCycleLabel, duesAmountLabel, duesPeriodKey, duesPeriodLabel, shiftDuesPeriod, isMemberIn,
@@ -35,7 +35,6 @@ const SAGE = '#5E7E42';        // 수입(플러스) — 세이지그린
 const SAGE_SOFT = 'rgba(94,126,66,0.10)';
 const RED = C.burgundy;        // 지출(마이너스) — 버건디
 const RED_SOFT = 'rgba(107,30,42,0.08)';
-const GOLD = '#C9A84C';        // AI 자동입력 — 앱 공통 AI 톤(가계부·예정 라운딩 추가와 통일)
 const GOLD_DEEP = '#8A6A33';
 
 const pad = (n) => String(n).padStart(2, '0');

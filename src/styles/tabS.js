@@ -1,5 +1,4 @@
 import { StyleSheet } from 'react-native';
-import { C, F, fs } from '../constants/colors';
 
 // 플로팅 유리(glass) 탭바 — 화면 위에 떠서 뒤 배경(홈 이미지 등)이 비치는 프로스티드 알약.
 //   wrap: position:absolute로 씬 위에 겹침(→ 씬이 전체 높이로 깔려 뒤 배경이 바 뒤까지 비침). 좌우·하단 여백.

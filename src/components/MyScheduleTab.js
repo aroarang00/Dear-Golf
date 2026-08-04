@@ -81,7 +81,7 @@ function SampleScheduleCard({ course, meta, sideColor, badgeBg, badgeFg, badgeTx
 }
 
 export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries = [], navigation, jumpDate, onCloseSchedule }) {
-  const { schedules, hydrated: schedHydrated, loadFailed: schedLoadFailed, reloadSchedules, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
+  const { schedules, loadFailed: schedLoadFailed, reloadSchedules, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const { userProfile } = React.useContext(UserContext);
   const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid (홈과 동일, [[uid-stabilization-plan]])
   // 캘린더 날짜 동그라미 — 확대(디스플레이 줌) 시 셀 폭(winW/7)이 좁아지면 32 고정이 셀을 넘쳐 캘린더 우측이

@@ -13,7 +13,6 @@ const { logger } = require('firebase-functions');
 const db = getFirestore();
 
 const HOUR_MS = 3600 * 1000;
-const DAY_MS = 24 * HOUR_MS;
 const WINDOW_HOURS = 48;
 const D7_HOURS = 7 * 24;
 const KST_OFFSET_HOURS = 9;

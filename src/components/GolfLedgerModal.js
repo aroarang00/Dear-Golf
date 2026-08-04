@@ -73,8 +73,6 @@ export function GolfLedgerModal({ visible, onClose, diaries = [] }) {
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   const thisMonthKey = `${now.getFullYear()}.${pad(now.getMonth() + 1)}`;
-  const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthKey = `${lm.getFullYear()}.${pad(lm.getMonth() + 1)}`;
   const thisYear = String(now.getFullYear());
 
   const monthSum = (list) => (list || []).reduce((s, it) => s + (it.spend || 0), 0);

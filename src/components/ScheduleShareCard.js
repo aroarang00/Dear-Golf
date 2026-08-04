@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { F, fs } from '../constants/colors';
 import QRCode from 'react-native-qrcode-svg';
-import { Icon, WeatherGlyph } from './common/Icon'; // 날씨·동반자 이모지 → 커스텀 SVG
+import { Icon } from './common/Icon'; // 날씨·동반자 이모지 → 커스텀 SVG
 
 // 일정 공유 — 공유용 정적 보딩패스 카드. 모집 초대장(RoundupShareCard)과 같은 보딩패스 디자인 재사용(사용자 확정),
 // 개인 라운딩 일정용이라 HOST/남은자리 대신 D-day·동반·날씨를 담음. 홈 D-day 카드(ScheduleSheetModal) 공유에서 호출.
@@ -18,14 +18,6 @@ const SURFACE = '#FFFFFF';
 const PAGE = '#FAF6EC';
 
 // 날씨 문자열 → 이모지 (홈에서 주입한 3일내 예보·사용자 입력 모두 대응)
-const wxIcon = (w) => {
-  if (!w) return '';
-  if (/비|우|소나기|rain/i.test(w)) return '🌧️';
-  if (/눈|snow/i.test(w)) return '🌨️';
-  if (/흐|구름|cloud/i.test(w)) return '☁️';
-  return '☀️';
-};
-
 function Field({ label, value, align = 'left', tone = 'ink', size = 'md' }) {
   return (
     <View style={[styles.field, align === 'right' && { alignItems: 'flex-end' }]}>

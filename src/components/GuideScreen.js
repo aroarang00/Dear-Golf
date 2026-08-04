@@ -10,15 +10,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ROUTES } from '../constants/routes';
 import { UserContext } from '../contexts/UserContext';
-import { DiariesContext } from '../contexts/DiariesContext';
-import { SchedulesContext } from '../contexts/SchedulesContext';
 
 // 헤더·버튼을 라운지(navy) 헤더 규격에 맞춰 안드 컴팩트 보정 (RoundupTab과 동일 패턴)
 const _and = Platform.OS === 'android';
 
 import { C, F, fs } from '../constants/colors';
 import {
-  FAVORITES_INIT, SCHEDULES_INIT, COURSE_LOG, WEEKDAYS,
+  FAVORITES_INIT, COURSE_LOG, WEEKDAYS,
 } from '../constants/data';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getTop100Courses, top100RankOf } from '../utils/top100';
@@ -29,7 +27,6 @@ import { CourseExploreTab } from './CourseExploreTab';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { fetchCoursePlaceInfo, searchNearbyRestaurants, searchNearbyCafes, searchNearbyGolfCourses, searchRestaurantsByKeyword, coord2region } from '../utils/kakao';
 import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
-import { isRoundDiary } from '../utils/diaryKind';
 import { cityTokenOf, regionOf, naverSearchUrl, naverFoodListUrl } from '../utils/naverMap';
 import { getCourseHomepage, courseSearchUrl, BOOKING_SITES } from '../utils/courseBooking'; // 예약하기 — 홈피/전화/골팡/카카오VX 선택 시트
 import { WebSheet } from './WebSheet'; // 구장 홈페이지 앱내 웹뷰(맛집 상세와 같은 결)
@@ -81,9 +78,6 @@ export function GuideScreen({ route, navigation }) {
   const [userCoursesList, setUserCoursesList] = useState([]);
   const [userCoursesHydrated, setUserCoursesHydrated] = useState(false);
   const [savedFav, setSavedFav] = useState([]); // 내 저장 골프장(위시리스트) — 코스 상세 저장 버튼 상태용
-  // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
-  const { diaries } = React.useContext(DiariesContext);
-  const { schedules } = React.useContext(SchedulesContext);
   const [comments, setComments] = useState([]);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentInput, setCommentInput] = useState('');
@@ -95,8 +89,6 @@ export function GuideScreen({ route, navigation }) {
   const [ratingDraft, setRatingDraft] = useState({ mgmt: 0, pace: 0, value: 0 });
   const [commentSort, setCommentSort] = useState('recent'); // 'recent'(최신순 기본) | 'likes'(좋아요순)
   const [myCommentsOnly, setMyCommentsOnly] = useState(false); // 내 코멘트만 보기 필터 (글 많아질 때 내 글 찾기)
-  const [search, setSearch] = useState('');
-  const [regionFilter, setRegionFilter] = useState('전체');
   // 코스 상세에서 날씨/교통 팝업
   const [showCoursePopup, setShowCoursePopup] = useState(false);
   const [coursePopupTab, setCoursePopupTab] = useState('wx');
@@ -104,7 +96,6 @@ export function GuideScreen({ route, navigation }) {
   // 상세화면 코스 정보 (phone) + 갤러리
   const [coursePhone, setCoursePhone] = useState('');
   const [courseAddress, setCourseAddress] = useState('');
-  const [coursePlaceLoading, setCoursePlaceLoading] = useState(false);
   // 맛집/코스 탭 — 골프장 좌표 + 주변 장소(카카오)
   const [courseCoord, setCourseCoord] = useState(null);
   const [nearbyFood, setNearbyFood] = useState([]);
@@ -136,20 +127,6 @@ export function GuideScreen({ route, navigation }) {
   // 내 저장 골프장(위시리스트) 로드 — 저장 버튼 상태(저장됨/저장)용
   useEffect(() => { getSavedCourses().then(list => setSavedFav(list || [])); }, []);
 
-  const REGIONS = ['전체', '수도권', '충청', '강원', '전라', '경상', '제주'];
-  const getRegion = (loc) => {
-    if (!loc) return null;
-    // 카카오 도로명 주소는 풀 행정명(경기도·서울특별시·강원특별자치도…)을 쓰므로 짧은/긴 형태 모두 매칭
-    const first = loc.split(' ')[0];
-    if (['서울', '서울특별시', '인천', '인천광역시', '경기', '경기도'].includes(first)) return '수도권';
-    if (['충북', '충청북도', '충남', '충청남도', '대전', '대전광역시', '세종', '세종특별자치시'].includes(first)) return '충청';
-    if (['강원', '강원도', '강원특별자치도'].includes(first)) return '강원';
-    if (['경북', '경상북도', '경남', '경상남도', '대구', '대구광역시', '부산', '부산광역시', '울산', '울산광역시'].includes(first)) return '경상';
-    if (['전북', '전북특별자치도', '전라북도', '전남', '전라남도', '광주', '광주광역시'].includes(first)) return '전라';
-    if (['제주', '제주특별자치도', '제주도'].includes(first)) return '제주';
-    return null;
-  };
-
   useEffect(() => {
     if (!navigation) return;
     const resetView = () => {
@@ -159,8 +136,6 @@ export function GuideScreen({ route, navigation }) {
       setInnerTab('course');
       setShowCommentInput(false);
       setCommentInput('');
-      setSearch('');
-      setRegionFilter('전체');
       setExploreRegion('전체');   // 코스 둘러보기 지역탭도 리셋 — 탭 떠났다 오면 '전체'로(상세 갔다 back은 blur 안 떠 유지)
       setFoodSearch('');
       setFoodSearchResults([]);
@@ -404,17 +379,16 @@ export function GuideScreen({ route, navigation }) {
 
   // selected 변경 시 카카오 place 정보(전화번호 + 주소) fetch
   useEffect(() => {
-    if (!selected) { setCoursePhone(''); setCourseAddress(''); setCoursePlaceLoading(false); return; }
+    if (!selected) { setCoursePhone(''); setCourseAddress(''); return; }
     const data = getCourseData(selected);
     if (!data?.name) return;
-    setCoursePhone(''); setCourseAddress(''); setCoursePlaceLoading(true);
+    setCoursePhone(''); setCourseAddress('');
     let cancelled = false;
     (async () => {
       const info = await fetchCoursePlaceInfo(data.name);
       if (cancelled) return;
       if (info?.phone) setCoursePhone(info.phone);
       if (info?.address) setCourseAddress(info.address);
-      setCoursePlaceLoading(false);
     })();
     return () => { cancelled = true; };
   }, [selected, userCoursesList]);
@@ -726,19 +700,6 @@ export function GuideScreen({ route, navigation }) {
     else showAppAlert('코멘트 저장 실패', '네트워크 상태를 확인하고 다시 시도해주세요.');
   };
 
-  const toggleFavorite = (id) => {
-    setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
-  };
-
-  const scheduleCourseIds = SCHEDULES_INIT.map(s => s.courseLogId).filter(Boolean);
-  const favoriteCourses = COURSE_LOG.filter(c => favorites.includes(c.id) && !scheduleCourseIds.includes(c.id));
-  const otherCourses = COURSE_LOG.filter(c => !scheduleCourseIds.includes(c.id) && !favorites.includes(c.id));
-  const chipCourses = [
-    ...SCHEDULES_INIT.filter(s => s.courseLogId).map(s => ({ ...COURSE_LOG.find(c => c.id === s.courseLogId), isScheduled: true })),
-    ...favoriteCourses.map(c => ({ ...c, isFavorite: true })),
-    ...otherCourses,
-  ].filter(Boolean);
-
   // 홈 '구장 ›' → 상세 여는 중(코스 새로고침·카카오 검색) — 목록 대신 스피너로 즉시 반응감 부여.
   //   selected가 잡히면 바로 아래 상세 렌더로 넘어가므로 selected 없을 때만.
   if (openingCourse && !selected) {
@@ -775,38 +736,6 @@ export function GuideScreen({ route, navigation }) {
         </View>
       );
     }
-    const isUserCourse = c._source === 'user';
-    const guideTabIdx = innerTab === 'course' ? 0 : 1;
-    // 내 코스기록 — courseId 우선, 없으면 코스명으로 매칭
-    // 코스명은 공백·구두점·골프장 표기어(CC·컨트리클럽 등)를 제거해 직접 입력 표기 차이를 흡수,
-    // 정규화 후 동일하거나 한쪽이 다른 쪽을 포함하면 같은 코스로 간주
-    const normName = (s) => (s || '')
-      .toLowerCase()
-      .replace(/[\s·.\-_]/g, '')
-      .replace(/컨트리클럽|골프클럽|골프장|컨트리|클럽|countryclub|golfclub|cc|gc/g, '');
-    const nameMatch = (a, b) => {
-      const na = normName(a), nb = normName(b);
-      if (na.length < 2 || nb.length < 2) return false;
-      return na === nb || na.includes(nb) || nb.includes(na);
-    };
-    const myDiaries = diaries.filter(d =>
-      isRoundDiary(d) && ( // 일상(모멘트) 제외 — 방문 횟수는 라운딩만
-        (d.courseId && c.id && d.courseId === c.id) ||
-        nameMatch(d.course, c.name)
-      )
-    );
-    // 방문 횟수 = 다이어리 기록 + 기록 없는 지난 일정 (CourseLogTab '방문' 기준과 통일).
-    // 방문이 본질, 기록은 옵션 — 라운딩만 하고 기록 안 남긴 경우도 방문에 포함.
-    const todayMs = (() => { const t = new Date(); t.setHours(0, 0, 0, 0); return t.getTime(); })();
-    const isPast = (date) => !!date && new Date(String(date).replace(/\./g, '-')).getTime() < todayMs;
-    const mySchedules = (schedules || []).filter(s =>
-      isPast(s.date) &&
-      ((s.courseId && c.id && s.courseId === c.id) || nameMatch(s.course, c.name))
-    );
-    const unrecordedSched = mySchedules.filter(s =>
-      !myDiaries.some(r => (s.id && r.scheduleId === s.id) || (!r.scheduleId && r.date === s.date)));
-    const visitCount = myDiaries.length + unrecordedSched.length;
-
     return (
       <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
         <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
@@ -1683,7 +1612,6 @@ export function GuideScreen({ route, navigation }) {
     );
   }
 
-  const hasCourses = chipCourses.length > 0;
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
       <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 7, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

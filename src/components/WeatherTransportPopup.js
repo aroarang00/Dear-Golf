@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, ScrollView, View, Text, TextInput, TouchableOpacity, Linking, Animated, useWindowDimensions, ActivityIndicator, Platform, Keyboard } from 'react-native';
+import { Modal, ScrollView, View, Text, TouchableOpacity, Linking, Animated, useWindowDimensions, ActivityIndicator, Platform, Keyboard } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { Spinner } from './common/Spinner'; // 로딩=스피너(안드 애니끄기서도 도는 공용 JS타이머 스피너)
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';

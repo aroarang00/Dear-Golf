@@ -33,32 +33,12 @@ const BG    = '#C8D9E6';
 const INK   = '#1A3D52';
 const SUB   = 'rgba(26,61,82,0.78)';
 const CARD  = '#FFFFFF';
-const SAGE  = '#8FB06B';
 const SAGE_DEEP = '#5E7E42';
 const LINE  = 'rgba(26,61,82,0.12)';
 const NEWMARK = '#6B1E2A';   // 안 본 글·내 글 새 댓글 표식 — 목록 '새 글' 배지와 같은 버건디 톤
 const ACCENTS = ['#8FB06B', '#5B86A8', '#C98B7F', '#9B7FB0', '#C9A24B', '#5E7E42'];
 const colorOf = (id) => ACCENTS[[...String(id)].reduce((a, ch) => a + ch.charCodeAt(0), 0) % ACCENTS.length];
 const HEART_RED = '#E5484D';
-
-// 상대시각 — DM/목록과 동일(방금/N분 전/N시간 전/어제/N일 전/날짜)
-function fmtTime(ts) {
-  const ms = ts?.toMillis ? ts.toMillis() : 0;
-  if (!ms) return '방금';
-  const d = new Date(ms);
-  const now = new Date();
-  const diff = now - d;
-  if (diff < 60000) return '방금';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}분 전`;
-  if (d.toDateString() === now.toDateString()) return `${Math.floor(diff / 3600000)}시간 전`;
-  const a = new Date(d); a.setHours(0, 0, 0, 0);
-  const t = new Date(now); t.setHours(0, 0, 0, 0);
-  const days = Math.round((t - a) / 86400000);
-  if (days === 1) return '어제';
-  if (days <= 6) return `${days}일 전`;
-  if (d.getFullYear() === now.getFullYear()) return `${d.getMonth() + 1}월 ${d.getDate()}일`;
-  return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}`;
-}
 
 // 게시글 작성 시점 — 상대시간 대신 '날짜 + 시간'으로 표시(언제 올렸는지 명확). 같은 해는 연도 생략.
 function fmtDateTime(ts) {

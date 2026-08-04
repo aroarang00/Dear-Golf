@@ -239,7 +239,17 @@ export function HomeScreen({ navigation, route }) {
   // 맥동을 scale→opacity로 — iOS는 얇은 테두리(1.5·1.2px) 원을 scale하면 매 프레임 테두리를 재샘플링해
   //   가장자리가 찌글거림(native driver로도 못 막음, 사용자 2026-06-20). 기하학 변형 없는 opacity 브리드로 대체.
   const dmIdleOpacity = dmBreathe.interpolate({ inputRange: [0, 1], outputRange: [1, 0.45] });
-  useEffect(() => { if (!dmOpen) loadUnreadTotal(userProfile?.blockedUsers).then(setDmUnread).catch(() => {}); }, [dmOpen]);
+  // DM 안읽음 재조회 — 세 군데(마운트·홈 복귀·푸시 수신)가 같은 계산을 하므로 하나로 모은다.
+  //   ★차단 목록(blockedUsers)이 계산에 들어간다 — 예전엔 세 곳이 각자 userProfile을 클로저로 잡고 있어
+  //   누굴 차단해도 뱃지 숫자가 안 줄었다(DM창을 열었다 닫아야 반영). 08-04 ESLint exhaustive-deps로 발견.
+  //   App이 '실제로 달라졌을 때만' 새 배열을 주므로(App.js 블록 동기화) 이 의존성으로 재조회가 새지 않는다.
+  const blockedUsers = userProfile?.blockedUsers;
+  const refreshDmUnread = useCallback(() => {
+    if (dmOpen) return;   // 대화 보는 중엔 생략 — 닫을 때 다시 센다
+    loadUnreadTotal(blockedUsers).then(setDmUnread).catch(() => {});
+  }, [dmOpen, blockedUsers]);
+  // 마운트 + dmOpen 변화 + 차단 목록 변화 시 재조회.
+  useEffect(() => { refreshDmUnread(); }, [refreshDmUnread]);
   // 미확인 알림 수 — 홈 우측 레일 3번(크루 아래) 종 아이콘. 0이면 아이콘 자체를 숨긴다(사용자 2026-07-21).
   //   라운지 알림함이 읽음의 진짜 소스라 같은 쿼리·같은 필터(visibleNotifications)를 쓴다. 상시 구독 대신
   //   마운트·홈 복귀·푸시 수신 때만 1회 조회 — DM 뱃지와 동일한 비용 원칙([[lounge-realtime]]).
@@ -334,11 +344,11 @@ export function HomeScreen({ navigation, route }) {
   useEffect(() => {
     if (!navigation?.addListener) return;
     const unsub = navigation.addListener('focus', () => {
-      if (!dmOpen) loadUnreadTotal(userProfile?.blockedUsers).then(setDmUnread).catch(() => {});
+      refreshDmUnread();
       refreshNotiUnread();   // 라운지에서 읽고 홈으로 돌아오면 종이 사라져야 함
     });
     return unsub;
-  }, [navigation, dmOpen, refreshNotiUnread]);
+  }, [navigation, refreshDmUnread, refreshNotiUnread]);
   // 알림 뱃지 최초 로드 + 앱 복귀(다른 앱 갔다 옴) 시 갱신. 홈 탭 전환은 위 focus가 담당.
   useEffect(() => {
     refreshNotiUnread();
@@ -351,10 +361,10 @@ export function HomeScreen({ navigation, route }) {
     const sub = Notifications.addNotificationReceivedListener((noti) => {
       // DM 외 종류는 라운지 알림함 뱃지 갱신 — 앱 켜둔 채 푸시를 받으면 홈 종이 바로 뜬다.
       if (noti?.request?.content?.data?.type !== 'dm') { refreshNotiUnread(); return; }
-      if (!dmOpen) loadUnreadTotal(userProfile?.blockedUsers).then(setDmUnread).catch(() => {});
+      refreshDmUnread();
     });
     return () => sub.remove();
-  }, [dmOpen, refreshNotiUnread]);
+  }, [refreshDmUnread, refreshNotiUnread]);
   const cardsScrollRef = useRef(null);
 
   // 다이어리 추가 모달이 일정 모달에서 진입한 경우 → 닫을 때 일정 모달 자동 재오픈
@@ -397,7 +407,7 @@ export function HomeScreen({ navigation, route }) {
     if (!pendingCommentsId || !hydrated) return;
     const s = (schedules || []).find((x) => x.groupId === pendingCommentsId || x.id === pendingCommentsId);
     if (s) { setCommentsSchedule(s); setPendingCommentsId(null); }
-  }, [pendingCommentsId, hydrated, schedules]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pendingCommentsId, hydrated, schedules]);
 
   // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.
   const [autoOpenMeal, setAutoOpenMeal] = useState(false);

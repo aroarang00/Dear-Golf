@@ -137,7 +137,7 @@ function SwipeableFriendCard({ friend, favorite, onToggleFavorite, onHide, ...ca
 }
 
 export function FriendsTab({ navigation, onInvite, openFinderRef }) {
-  const { userProfile, setUserProfile } = React.useContext(UserContext);
+  const { userProfile } = React.useContext(UserContext);
   const insets = useSafeAreaInsets();
   const { setFriendReqCount } = useContext(FriendBadgeContext);
   const { block: blockUserFn, remaining: blockRemaining } = useBlockUser(); // 공용 차단 훅(친구·DM 통일)
@@ -380,6 +380,11 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       }
     })();
     return () => { cancelled = true; };
+    // ★blockedUsers를 일부러 의존성에 안 넣는다(ESLint exhaustive-deps 경고는 오탐).
+    //   여기 쓰인 차단 필터는 '첫 그림용 시드'일 뿐이고, 차단 이후의 반영은 아래 blockedIds effect가
+    //   friends·receivedRequests에서 즉시 걸러낸다(네트워크 없이). 의존성에 넣으면 차단할 때마다
+    //   이 무거운 초기 로드가 통째로 다시 돈다. 검토 2026-08-04.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile?.nickname, reloadKey, currentUid]);
 
   // 친구 탭 재방문 시 — 검색·프로필·찾기 닫고 목록 맨 위로 + 친구·신청 재조회

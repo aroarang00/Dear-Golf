@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal, View, Text, StyleSheet, TouchableOpacity, PanResponder,
-  ActivityIndicator, useWindowDimensions, Image as RNImage,
+  ActivityIndicator, useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImageManipulator from 'expo-image-manipulator';

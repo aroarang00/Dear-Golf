@@ -3,7 +3,7 @@ import { ScrollView, View, Text, TouchableOpacity, Modal, Platform } from 'react
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
-import { OVERSEAS_COURSE_LOG, COURSE_LOG, getCountryFlag } from '../constants/data';
+import { COURSE_LOG, getCountryFlag } from '../constants/data';
 import { syncUserCoursesFromFirestore } from '../utils/userCourses';
 import { getTop100Courses, matchVisitedTop100, getManualTop100Checks, saveManualTop100Checks, normalizeCourseName } from '../utils/top100';
 import { getGolfCourses } from '../utils/golfCourses';
@@ -25,7 +25,6 @@ const REGION_STYLE = {
   other:       { bg: '#8B8680', fg: '#fff',    label: '국내' },
 };
 
-const OVERSEAS_STYLE = { bg: '#C8D9E6', fg: C.navy };
 
 // 위치 정보가 없을 때
 const ETC_STYLE = { bg: '#B8B3AB', fg: '#fff', label: '기타' };
@@ -128,7 +127,6 @@ export function CourseLogTab({ avgRating, navigation }) {
   const { userProfile } = React.useContext(UserContext);
   const [scoreStatsOpen, setScoreStatsOpen] = useState(false);
   const [region, setRegion] = useState('domestic');
-  const [countryFilter, setCountryFilter] = useState('전체');
   const [userCourses, setUserCourses] = useState([]);
   const [masterCourses, setMasterCourses] = useState([]); // 전국 골프장 마스터 — 옛 기록 지역 복구용
   const [top100, setTop100] = useState([]);
@@ -355,15 +353,6 @@ export function CourseLogTab({ avgRating, navigation }) {
       addTime: c.time || null,   // 코스의 최근 미기록 일정 티오프 자동채움(단체·없음이면 null=빈칸)
     });
   };
-
-  const countries = ['전체', ...new Set(OVERSEAS_COURSE_LOG.map(c => c.country))];
-  const filteredOverseas = countryFilter === '전체' ? OVERSEAS_COURSE_LOG : OVERSEAS_COURSE_LOG.filter(c => c.country === countryFilter);
-
-  const renderRegionTag = (bg, fg, label) => (
-    <View style={{ backgroundColor: bg, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-      <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: fg }}>{label}</Text>
-    </View>
-  );
 
   return (
     <>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -80,7 +80,6 @@ export function FriendFinder({
   const [tab, setTab] = useState(initialTab);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   // 카카오 친구 — 'idle'|'loading'|'ok'|'empty'|'no-consent'|'error'
   const [kakaoState, setKakaoState] = useState('idle');
   const [kakaoUsers, setKakaoUsers] = useState([]);  // [{ id: uid, name: nickname }]
@@ -140,7 +139,6 @@ export function FriendFinder({
   // 닉네임 검색 — TextInput에서 "검색" 키(returnKeyType) 누를 때만 Firestore 호출 (글자마다 X)
   const runSearch = async () => {
     if (!q) { setSearchResults([]); return; }
-    setSearching(true);
     try {
       const users = await searchUsersByNickname(q);
       // 차단한 사람은 검색결과에서 숨김 (카카오톡 차단친구 모델 — [[block-nickname]])
@@ -154,8 +152,6 @@ export function FriendFinder({
     } catch (e) {
       if (__DEV__) console.warn('[FriendFinder] search failed', e?.message);
       setSearchResults([]);
-    } finally {
-      setSearching(false);
     }
   };
 

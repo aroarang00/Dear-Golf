@@ -1,6 +1,6 @@
 import {
   collection, query, where, onSnapshot,
-  setDoc, updateDoc, deleteDoc, getDoc, doc, serverTimestamp, arrayRemove, Timestamp, runTransaction,
+  updateDoc, deleteDoc, getDoc, doc, serverTimestamp, arrayRemove, Timestamp, runTransaction,
 } from 'firebase/firestore';
 import { db } from './firebase';
 

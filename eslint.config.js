@@ -44,6 +44,12 @@ module.exports = defineConfig([
       'react-native/no-inline-styles': 'off',
       // ④ 삼항·단축평가를 문장으로 쓰는 표기(6건) — 이 코드베이스가 의도적으로 쓰는 축약형이고 동작은 정확하다.
       'no-unused-expressions': ['warn', { allowTernary: true, allowShortCircuit: true }],
+      // ⑤ catch(e)의 안 쓰는 e(64곳) — 여기서 지적해봐야 지울 수도 없고(잡는 건 맞다) 진짜 문제를 가린다.
+      //    ★단 이 64곳은 '에러를 잡아놓고 아무 데도 안 쓴다'는 뜻이다 = 조용한 실패 목록.
+      //    Sentry 연결 작업(예정)의 후보가 정확히 여기다. 검사에서만 빼고 사실은 남겨둔다.
+      //    ★나머지 옵션은 eslint-config-expo 기본값 그대로 둘 것(utils/core.js) — 특히 ignoreRestSiblings:true.
+      //    이걸 빠뜨리면 `const { ownerUid, ...rest } = doc`(필드 빼내는 관용구)가 전부 경고로 뜬다.
+      'no-unused-vars': ['warn', { vars: 'all', args: 'none', ignoreRestSiblings: true, caughtErrors: 'none' }],
     },
   },
   {

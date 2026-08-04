@@ -22,8 +22,6 @@ const GOLD = '#E8D9A0';
 const GOLD_DEEP = '#C9A84C';
 const CHAMPAGNE = '#EFE7CC'; // 흰-골드 중간 샴페인 — 구장명에 고급 색감(타수 골드보다 옅어 위계 유지)
 const WHITE = '#F6F2E9'; // 순백 대신 따뜻한 화이트
-const BURGUNDY = '#6B1E2A'; // 특별한 순간(홀인원·이글 등) 채움 박스 — 골드(평범)보다 특별, 사진 위에서도 또렷. 에메랄드는 촌스러워 버건디로(사용자 2026-06-14) ([[score-brag-card]])
-const CREAM = '#F5E6A8';   // 버건디 채움 박스 위 글자
 const SHADOW = { textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
 
 export function RoundCard({ item, width = 320 }) {
@@ -42,7 +40,6 @@ export function RoundCard({ item, width = 320 }) {
   const isBest = item.badge === '베스트';
   const special = item.special || null;
   const sideBadge = isBest ? 'BEST' : isSingle ? 'SINGLE' : null; // special 외 영예칩(베스트/싱글)
-  const accentLabel = special || sideBadge;
   // 타수 색 — 점수로 색을 깎으면(흰·무채) 기록에 연연하는 주 사용자층(80~100타) 자존심을 상하게 함.
   //   타수는 점수와 무관하게 항상 골드로 강조(평범한 흰색 폐기). 싱글·베스트의 영예는 SINGLE/BEST 칩으로 구분 ([[golfer-score-psychology]])
   const scoreColor = GOLD;

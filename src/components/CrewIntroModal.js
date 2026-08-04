@@ -8,7 +8,6 @@ import { Icon } from './common/Icon';
 
 const SAGE_DEEP = '#5E7E42';                  // 크루 아이덴티티(진한 세이지) — 홈/목록 진입 아이콘과 동색
 const SAGE_SOFT = 'rgba(143,176,107,0.12)';   // 아이콘 칩·강조 카드 배경
-const SAGE_BORDER = 'rgba(94,126,66,0.25)';
 
 // 핵심 흐름 — 만들기 → 초대 → 올리기 → 반응 → 새 글 신호
 const STEPS = [

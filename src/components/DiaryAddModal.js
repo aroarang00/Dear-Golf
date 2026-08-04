@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { loadFriendData, resolveGroupAudience, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
