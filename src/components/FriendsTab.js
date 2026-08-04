@@ -739,7 +739,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
                   backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 7 : 9 }}>
                   <TouchableOpacity onPress={() => openFinder('received')} activeOpacity={0.8}
                     style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontSize: fs(15) }}>📬</Text>
+                    <Icon name="mailbox" size={fs(18)} color={C.butter} strokeWidth={1.7} />
                     <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }} numberOfLines={1}>
                       <Text style={{ fontFamily: F.sysB, color: C.butter }}>{r.name}</Text>님의 친구 신청
                     </Text>
@@ -759,7 +759,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
               <TouchableOpacity onPress={() => openFinder('received')} activeOpacity={0.8}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
                   backgroundColor: C.burgundy, borderRadius: 12, paddingHorizontal: 14, paddingVertical: _and ? 8 : 11 }}>
-                <Text style={{ fontSize: fs(15) }}>📬</Text>
+                <Icon name="mailbox" size={fs(18)} color={C.butter} strokeWidth={1.7} />
                 <Text style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>
                   받은 친구 신청 <Text style={{ fontFamily: F.sysB, color: C.butter }}>{receivedRequests.length}</Text>건
                 </Text>

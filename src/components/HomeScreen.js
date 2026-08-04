@@ -56,6 +56,7 @@ import { ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
 import { deleteMeal, leaveMealAudience, mealKeyOf } from '../utils/mealSuggestions';     // 고아 정리 + 일정 이탈 시 식사 audience 이탈 + 식사 공유 키
 import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
+import { FriendRequestInbox } from './FriendRequestInbox';
 import { RoundupInviteInbox } from './RoundupInviteInbox';
 import { ScoreShareInbox } from './ScoreShareInbox';   // 동반자 스코어 공유 수신 — 기록화면에서 홈으로 이동(안 쓰는 유저도 홈에서 바로 인지, 2026-07-23)
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
@@ -111,6 +112,7 @@ export function HomeScreen({ navigation, route }) {
   const { userProfile } = React.useContext(UserContext);
   const { refreshRoundupHidden } = React.useContext(FriendBadgeContext); // 라운지 초대 가리기 재로드(focus 시)
   const [roundupInviteActive, setRoundupInviteActive] = React.useState(false); // 라운지 초대 배너 표시 중 여부(아래 카드 겹침 방지)
+  const [friendReqActive, setFriendReqActive] = React.useState(false);   // 받은 친구신청 배너 표시 중 여부(큐 5순위)
   const [scoreShareActive, setScoreShareActive] = React.useState(false); // 스코어 공유 배너 표시 중 여부 — 초대 배너와 동일하게 아래 한줄메모 숨김(2026-07-23)
   const { schedules, hydrated, loadFailed, addSchedule, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid ([[uid-stabilization-plan]])
@@ -1182,12 +1184,15 @@ export function HomeScreen({ navigation, route }) {
   const [scheduleInvitePending, setScheduleInvitePending] = useState(false);
 
   // 홈 상단 배너 큐 — 여러 개가 동시에 떠 세로로 쌓이면 좁아지므로 '한 번에 하나만' 노출(2026-07-23, 사용자 요청).
-  //   우선순위(급한 순): 일정변경 → 일정초대 → 라운지초대 → 스코어공유. 최상위 하나만 펼치고 나머지는 높이 0으로 접는다
-  //   (숨겨도 구독은 유지 → 위 배너를 처리하면 다음 게 자동으로 펼쳐지고, 다 처리하면 메모/카드가 복원된다).
+  //   우선순위(급한 순): 일정변경 → 일정초대 → 라운지초대 → 스코어공유 → 친구신청. 최상위 하나만 펼치고
+  //   나머지는 높이 0으로 접는다(숨겨도 구독은 유지 → 위 배너를 처리하면 다음 게 자동으로 펼쳐지고,
+  //   다 처리하면 메모/카드가 복원된다).
+  //   ★친구신청이 맨 뒤인 이유 — 앞의 넷은 날짜·시간이 걸려 놓치면 손해지만, 친구 신청은 미뤄도 아무 일이 안 난다.
   const topBanner = pendingScheduleChange ? 'change'
     : scheduleInvitePending ? 'schedInvite'
     : roundupInviteActive ? 'roundupInvite'
     : scoreShareActive ? 'scoreShare'
+    : friendReqActive ? 'friendReq'
     : null;
 
   // 하단 캘린더 알약 라벨 — 오늘 날짜·요일 노출(진입 유도 + 정보 겸용). 렌더마다 계산이라 자정 넘어가도 갱신.
@@ -1427,6 +1432,14 @@ export function HomeScreen({ navigation, route }) {
             nickname={userProfile?.nickname || userProfile?.realName || ''}
             onDerived={reloadDiaries}
             onActiveChange={setScoreShareActive} />
+        </View>
+
+        {/* 받은 친구 신청 — 친구 탭에 들어가야만 보이던 배너를 홈에도(2026-08-05). 큐 맨 뒤(안 급함).
+            수락·무시는 여기서 안 한다 — 누구인지 보고 정할 일이라 친구 화면 '받은 신청'으로 보낸다. */}
+        <View style={topBanner === 'friendReq' ? undefined : { height: 0, overflow: 'hidden' }}>
+          <FriendRequestInbox
+            onActiveChange={setFriendReqActive}
+            onOpen={() => navigation.navigate(ROUTES.FRIENDS, { openFinder: 'received' })} />
         </View>
 
         {/* 전파 일정 변경 반영 — 다른 멤버가 바꾼 시간·인원·예약자·세부코스. 초대처럼 눈에 띄게 + 맥동(중요한 부분).
