@@ -122,6 +122,17 @@ function filterPending(snap, uid) {
   return list;
 }
 
+// 실제로 '아직 응답 안 한' 초대만 — filterPending이 판단을 미룬 _alreadyMember를 여기서 확정한다.
+//   ★홈 배너(ScheduleInviteInbox)와 탭바 뱃지(TabBar)가 반드시 같은 기준을 쓰도록 한 곳에 둔다.
+//   따로 두면 수락 후 배너는 닫히는데 탭바 뱃지만 계속 흔들리는 어긋남이 난다(2026-08-04).
+//   '이미 멤버'라도 그 일정이 내게 없으면 유령 멤버십 → 다시 보여준다(자가 치유, 2026-08-03).
+//   일정 로딩 전(hydrated=false)엔 판단을 미뤄 멀쩡한 멤버십을 '유령'으로 오인하지 않는다.
+export function visibleScheduleInvites(invites, schedules, hydrated) {
+  const list = invites || [];
+  if (!hydrated) return list.filter(i => !i._alreadyMember);
+  return list.filter(i => !i._alreadyMember || !(schedules || []).some(s => s.groupId === i.id));
+}
+
 // 그룹 → 내 schedules 파생 payload(프리필). 호출부에서 setDoc/캘린더 동기화에 사용.
 export function buildDerivedSchedule(group, uid) {
   return {

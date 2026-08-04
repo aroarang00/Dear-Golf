@@ -5,6 +5,8 @@ import { C } from '../constants/colors';
 import { tabS } from '../styles/tabS';
 import { ROUTES } from '../constants/routes';
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
+import { SchedulesContext } from '../contexts/SchedulesContext';
+import { visibleScheduleInvites } from '../utils/scheduleShares';
 import { AttentionMotion } from './common/AttentionMotion';
 import { Icon } from './common/Icon';
 
@@ -34,7 +36,14 @@ const SCREEN_ACCENT = {
 
 export function TabBar({ state, navigation }) {
   const insets = useSafeAreaInsets();
-  const { friendReqCount, scheduleInviteCount } = useContext(FriendBadgeContext);
+  const { friendReqCount, scheduleInvites } = useContext(FriendBadgeContext);
+  const { schedules, hydrated } = useContext(SchedulesContext);
+  // ★수락한 초대는 세지 않는다 — 구독 목록엔 '이미 멤버'인 건도 들어온다(유령 멤버십 자가 치유용).
+  //   홈 배너와 같은 판정 함수를 써서, 배너가 닫힌 초대로 탭 아이콘만 계속 흔들리는 일을 막는다(2026-08-04).
+  const scheduleInviteCount = React.useMemo(
+    () => visibleScheduleInvites(scheduleInvites, schedules, hydrated).length,
+    [scheduleInvites, schedules, hydrated],
+  );
   const activeName = state.routes[state.index]?.name;
   const onHome = activeName === ROUTES.HOME;
   // 밝은 화면: 선택 아이콘 색을 그 화면 대표색으로(라운지=네이비 등). 홈은 자체 버터 테마.

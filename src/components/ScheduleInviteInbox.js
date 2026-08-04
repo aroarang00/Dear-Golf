@@ -4,7 +4,7 @@ import { C, F, fs } from '../constants/colors';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import {
-  subscribeIncomingScheduleInvites, buildDerivedSchedule,
+  subscribeIncomingScheduleInvites, buildDerivedSchedule, visibleScheduleInvites,
   derivedScheduleId, joinScheduleGroup, declineScheduleInvite,
 } from '../utils/scheduleShares';
 import { normalizeCourseName } from '../utils/top100';
@@ -26,14 +26,11 @@ export function ScheduleInviteInbox({ onActiveChange }) {
     return unsub;
   }, [uid]);
 
-  // ★실제로 보여줄 초대 — '이미 멤버'라도 그 일정이 내게 없으면 다시 보여준다(유령 멤버십 자가 치유).
-  //   일정을 지웠는데 그룹 탈퇴가 누락되면 memberUids에 남아, 재초대를 해도 영영 안 뜨던 문제(2026-08-03).
-  //   ※일정 로딩 전(hydrated=false)에는 판단을 미룬다 — 목록이 비어 보여 멀쩡한 멤버십까지 '유령'으로 오인하면
-  //     이미 참여 중인 일정의 초대 배너가 잘못 떠오른다.
-  const visibleInvites = React.useMemo(() => {
-    if (!hydrated) return invites.filter(i => !i._alreadyMember);
-    return invites.filter(i => !i._alreadyMember || !(schedules || []).some(s => s.groupId === i.id));
-  }, [invites, schedules, hydrated]);
+  // ★실제로 보여줄 초대 — 판정은 공용 함수(visibleScheduleInvites)에 둔다. 탭바 뱃지와 같은 기준.
+  const visibleInvites = React.useMemo(
+    () => visibleScheduleInvites(invites, schedules, hydrated),
+    [invites, schedules, hydrated],
+  );
 
   // 받은 초대가 있을 때만 은은하게 반짝이는 루프 — shadow/border 애니라 useNativeDriver:false.
   useEffect(() => {

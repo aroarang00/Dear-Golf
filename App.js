@@ -168,8 +168,10 @@ function App() {
 
   // 친구 탭 탭바 뱃지 — 받은 친구신청 수. 친구신청 알림은 라운지 알림함에서 분리, 친구 탭에서만 표시.
   const [friendReqCount, setFriendReqCount] = useState(0);
-  // 홈 탭 뱃지 — 받은 일정 전파 초대 수(어느 탭에서든 보이게). 홈 배너와 별개 신호 ([[schedule-propagation-spec]])
-  const [scheduleInviteCount, setScheduleInviteCount] = useState(0);
+  // 홈 탭 뱃지 — 받은 일정 전파 초대 '목록'(어느 탭에서든 보이게). 홈 배너와 별개 신호 ([[schedule-propagation-spec]])
+  //   ★개수가 아니라 목록을 넘긴다 — 수락 여부(_alreadyMember) 확정에 내 일정 목록이 필요한데
+  //   App은 SchedulesProvider 바깥이라 못 본다. 최종 판단은 TabBar가 visibleScheduleInvites로.
+  const [scheduleInvites, setScheduleInvites] = useState([]);
   // 수동 갱신 폴백(컨텍스트 제공) — 리스너 붙기 전/오류 시 1회 조회용.
   const refreshFriendBadge = useCallback(async () => {
     try {
@@ -216,7 +218,7 @@ function App() {
     (async () => {
       const uid = await getUid();
       if (!uid || cancelled) return;
-      unsub = subscribeIncomingScheduleInvites(uid, list => setScheduleInviteCount(Array.isArray(list) ? list.length : 0));
+      unsub = subscribeIncomingScheduleInvites(uid, list => setScheduleInvites(Array.isArray(list) ? list : []));
     })();
     return () => { cancelled = true; if (unsub) unsub(); };
   }, [showOnboarding, profileLoaded, authUid]);
@@ -754,7 +756,7 @@ function App() {
     <UserContext.Provider value={userCtxValue}>
     <SchedulesProvider>
     <DiariesProvider>
-    <FriendBadgeContext.Provider value={{ friendReqCount, setFriendReqCount, refreshFriendBadge, scheduleInviteCount, roundupInviteCount, roundupInvites, declineRoundupInvite, refreshRoundupHidden }}>
+    <FriendBadgeContext.Provider value={{ friendReqCount, setFriendReqCount, refreshFriendBadge, scheduleInvites, roundupInviteCount, roundupInvites, declineRoundupInvite, refreshRoundupHidden }}>
     <InsetGate>
     <NavigationContainer
       ref={navigationRef}

@@ -8,8 +8,9 @@ export const FriendBadgeContext = createContext({
   friendReqCount: 0,
   setFriendReqCount: () => {},
   refreshFriendBadge: () => {},
-  // 홈 탭 뱃지 — 받은 일정 전파 초대 수(어느 탭에서든 보이게). 홈 배너와 별개 신호 ([[schedule-propagation-spec]])
-  scheduleInviteCount: 0,
+  // 홈 탭 뱃지 — 받은 일정 전파 초대 '목록'(어느 탭에서든 보이게). 홈 배너와 별개 신호 ([[schedule-propagation-spec]])
+  //   수락 여부 확정(visibleScheduleInvites)은 내 일정 목록을 볼 수 있는 TabBar에서 한다.
+  scheduleInvites: [],
   // 라운지 탭 뱃지 + 홈 배너 — 받은 친구지정(select) '미응답' 초대. 푸시 꺼도 어디서든 인지 ([[roundup-invitation]]).
   //   roundupInvites는 가리기(로컬 roundupHidden) 반영된 목록, count는 그 길이. decline은 로컬 가리기 처리.
   roundupInviteCount: 0,
