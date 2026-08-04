@@ -802,15 +802,16 @@ export function HomeScreen({ navigation, route }) {
   }, [isD0, next?.id, next?.date, d0Info]);
 
   // 캐러셀 슬라이드 수 — 기본(메모 1 + 골퍼코멘트 1) + 스토어 광고(storeAds 원격, 비면 0).
-  //   메모 여부는 렌더와 동일하게 '첫 기록의 memo' 기준(diaryEntries[0]) — some()과 어긋나면 회전만 돌고 카드는 한 장인 불일치.
   const homeSlideCount = React.useMemo(() => {
     const course = next?.course;
     if (!course) return 1;
     const entries = diaries.filter(d => isRoundDiary(d) && d.course === course); // 일상(모멘트) 제외
-    // 렌더(아래 IIFE 슬라이드 조립)와 반드시 동일해야 회전/탭 인덱스가 맞음:
-    //   미기록(첫 방문)=안내메모+골퍼 2장 / 그 외=기본1+(내메모&골퍼 있으면 골퍼1) + 스토어광고
+    // ★렌더(아래 IIFE 슬라이드 조립)와 반드시 동일해야 회전/탭 인덱스가 맞음 — 어긋나면
+    //   회전만 돌고 카드는 한 장인 불일치가 난다. 조건을 고칠 땐 두 곳을 같이 고칠 것.
+    //   미기록(첫 방문)=안내메모+골퍼 2장 / 그 외=기본1+(골퍼 있으면 골퍼1) + 스토어광고
+    //   ※골퍼 코멘트는 '내 메모 유무'와 무관(2026-08-05) — 여기도 memo 조건을 뺐다.
     const isFirstVisit = entries.length === 0;
-    const base = isFirstVisit ? 2 : (1 + ((entries[0]?.memo && homeTopComment) ? 1 : 0));
+    const base = isFirstVisit ? 2 : (1 + (homeTopComment ? 1 : 0));
     return base + Math.min(storeAds.length, 2);
   }, [next?.course, diaries, homeTopComment, storeAds]);
   const carouselActive = homeSlideCount > 1;
@@ -1743,7 +1744,10 @@ export function HomeScreen({ navigation, route }) {
             const courseLabel = next?.course || '';
 
             const diaryEntries = diaries.filter(d => isRoundDiary(d) && d.course === next?.course); // 일상(모멘트) 제외 — 방문 판정은 라운딩만
-            const myMemo = diaryEntries[0]?.memo;
+            // ★메모가 '있는' 기록 중 가장 최근 것 — 예전엔 diaryEntries[0](맨 앞 기록)의 memo만 봐서,
+            //   여러 번 간 구장에서 최근 라운딩에 메모를 안 썼으면 예전 메모가 있는데도 '아직 메모가 없어요'로
+            //   떴다. diaries는 loadMyRounds가 date desc로 주므로 앞에서부터 찾으면 그게 최신 메모다.
+            const myMemo = diaryEntries.find(d => (d.memo || '').trim())?.memo;
             // 방문 여부는 실제 라운딩 기록 기준 (COURSE_LOG 목업이 아님)
             const visitCount = diaryEntries.length;
             const isFirstVisit = visitCount === 0;
@@ -1753,7 +1757,11 @@ export function HomeScreen({ navigation, route }) {
             // 캐러셀(슬라이드 2+)이면 카드 높이 완전 고정 — memoCard의 minHeight만으론 내용 많은 카드
             //   (광고·코멘트 2줄)에서 늘어나 위 디데이 카드까지 들썩임(사용자 2026-07-03). 케이스별
             //   자연 높이 기준 + fs() 비례(디스플레이 확대 시 클립 방지). 슬라이드 1장이면 종전 그대로.
-            const withGolfer = !isFirstVisit && !!myMemo && hasGolfer;
+            // ★골퍼 코멘트는 '내 메모 유무'와 무관하다 — 예전엔 `&& !!myMemo` 조건이 붙어 있어서,
+            //   그 구장에 다녀왔는데 메모를 안 쓴 경우 남이 남긴 코멘트가 통째로 안 보였다(2026-08-05 실측:
+            //   블랙스톤이천GC, 기록 1건·메모 없음·코멘트 있음 → 슬라이드 누락). 남의 코멘트를 보여줄지가
+            //   내가 메모를 썼는지에 걸릴 이유가 없다. 첫 방문일 땐 firstVisitCard가 따로 코멘트를 보여준다.
+            const withGolfer = !isFirstVisit && hasGolfer;
             const adsCount = Math.min(storeAds.length, 2);
             const slideCount = (isFirstVisit ? 2 : 1 + (withGolfer ? 1 : 0)) + adsCount;
             const isAnd = Platform.OS === 'android';
@@ -1820,22 +1828,37 @@ export function HomeScreen({ navigation, route }) {
                   <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
                 </View>
                 <View style={homeS.memoCardBottom}>
-                  <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 메모가 없어요</Text>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => navigation.navigate(ROUTES.MY, {
-                      openAddModal: true,
-                      addDate: next?.date,
-                      addCourse: next?.course,
-                      addCourseId: next?.courseLogId || next?.courseId,
-                      addScheduleId: next?.id || null,
-                      // 동반자·티오프 직접 전달(scheduleId find 의존 제거). 단체 모집(teams>1)은 시간 제외(null).
-                      addCompanions: Array.isArray(next?.companions) ? next.companions : null,
-                      addTime: (next?.roundupId && (next?.teams || 1) > 1) ? null : (next?.time || null),
-                    })}
-                    style={{ marginTop: 8, alignSelf: 'flex-start' }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>메모 남기기 →</Text>
-                  </TouchableOpacity>
+                  {/* ★'메모 남기기'는 라운딩이 끝난 뒤에만 — 예전엔 항상 떠 있었는데, next는 '다가오는' 일정이라
+                      아직 안 간 날짜(addDate: next.date)로 라운딩 기록을 만들려는 꼴이었다. 메모는 다녀와야 생긴다
+                      (사용자 2026-08-05). 첫방문 카드를 '이동 없이 정보만'으로 바꾼 2026-07-20 결정과 같은 이유다.
+                      오늘 라운딩이 끝난 카드(roundEnded)는 그 날짜로 기록하는 게 맞으므로 그때만 유지. */}
+                  {/* 상태(왼쪽)와 안내(오른쪽 칩)를 다른 요소로 분리 — 나란히 두면서 글씨 크기만 다르면
+                      '맞추다 만 것'처럼 보인다. 칩 배경을 깔아 크기 차이가 의도로 읽히게 한다(사용자 2026-08-05). */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 메모가 없어요</Text>
+                    {!roundEnded && (
+                      <View style={{ flexShrink: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.6)' }} numberOfLines={1}>다녀와서 기록하면 보여드려요</Text>
+                      </View>
+                    )}
+                  </View>
+                  {roundEnded && (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => navigation.navigate(ROUTES.MY, {
+                        openAddModal: true,
+                        addDate: next?.date,
+                        addCourse: next?.course,
+                        addCourseId: next?.courseLogId || next?.courseId,
+                        addScheduleId: next?.id || null,
+                        // 동반자·티오프 직접 전달(scheduleId find 의존 제거). 단체 모집(teams>1)은 시간 제외(null).
+                        addCompanions: Array.isArray(next?.companions) ? next.companions : null,
+                        addTime: (next?.roundupId && (next?.teams || 1) > 1) ? null : (next?.time || null),
+                      })}
+                      style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8' }}>메모 남기기 →</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             );
