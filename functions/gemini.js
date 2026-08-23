@@ -273,6 +273,14 @@ const SCORECARD_SCHEMA = {
               + '파만 적힌 칸이면 "4"처럼. PAR 행이 없으면 빈 배열 [].',
             items: { type: 'STRING' },
           },
+          holeMarks: {
+            type: 'ARRAY',
+            description: 'PAR 행이 없는 스마트스코어 요약 화면 전용 — 홀 칸 숫자 "위"에 붙은 표식을 '
+              + 'holeNumbers와 같은 순서·같은 개수로 담아라. 숫자 위에 가로 바(¯, 위쪽 줄)면 "bar", '
+              + '점(˙)이면 "dot", 아무 표식도 없으면 "none". (이 표식으로 파를 판단한다: bar=파5, dot=파3, none=파4 — 계산은 내가 한다.) '
+              + 'PAR 행이 이미 있으면 빈 배열 [].',
+            items: { type: 'STRING' },
+          },
           players: {
             type: 'ARRAY',
             description: '점수 행(사람)마다 하나. 표에 4명이면 4개 전부(대표 1명만 고르지 말 것).',
@@ -338,7 +346,14 @@ function normalizeCard(c, index) {
     backSub: Number(p?.backSub) || 0,
     total: Number(p?.total) || 0,
   })).filter(p => countFinite(p.cells) > 0);          // 숫자 하나도 못 읽은 유령 행 제거
-  const pars = (Array.isArray(c?.pars) ? c.pars : []).map(par);
+  let pars = (Array.isArray(c?.pars) ? c.pars : []).map(par);
+  // ★PAR 행이 없는 스마트스코어 요약 화면 — 홀 숫자 위 표식으로 파를 복원한다(사용자 제보 2026-08-24).
+  //   바(¯)=파5, 점(˙)=파3, 표식 없음=파4. AI는 표식만 읽고(holeMarks) 파 매핑은 코드가 한다.
+  //   pars를 하나도 못 읽었을 때만 복원 — PAR 행이 있으면 그걸 우선한다.
+  if (countFinite(pars) === 0) {
+    const marks = (Array.isArray(c?.holeMarks) ? c.holeMarks : []).map(m => String(m ?? '').trim().toLowerCase());
+    if (marks.length) pars = marks.map(m => (m === 'bar' ? 5 : m === 'dot' ? 3 : m === 'none' ? 4 : null));
+  }
   // 이 표가 담은 홀 수 — 홀번호·par·점수칸 중 가장 긴 것(9=조각, 18=완결 카드)
   const size = Math.min(HOLES, Math.max(
     holeNumbers.length, pars.length, ...players.map(p => p.cells.length), 0));
@@ -582,6 +597,7 @@ exports.extractScorecard = onCall(
       `- label: 표 왼쪽 위 코스명/제목(예: 선샤인, 네스트, OUT, IN). 없으면 ''.\n` +
       `- holeNumbers: 점수 칸 위에 적힌 홀 번호를 왼쪽부터 그대로(예: 1~9만 있으면 [1,…,9]). 화면에 1~9로 적혀 있으면 그게 후반 같아 보여도 [1,…,9]로 적어라 — 순서는 내가 정한다.\n` +
       `- pars: PAR(파) 행을 holeNumbers와 같은 개수로. "4/7"처럼 par/HDCP가 붙어 있으면 앞의 par만(4). PAR 행은 대부분 있으니 꼭 찾아라. 정말 없으면 [].\n` +
+      `- holeMarks: PAR 행이 없는 스마트스코어 요약 화면이면, 홀 숫자 "위"의 표식을 홀 순서대로 담아라 — 가로 바(¯)="bar", 점(˙)="dot", 표식 없음="none". (이 표식이 파를 뜻한다: bar=파5·dot=파3·none=파4. 판단은 내가 한다.) PAR 행이 있으면 [].\n` +
       `[각 사람(점수 행)에서 읽을 것]\n` +
       `- cells: 홀 칸의 숫자를 계산 없이 그대로. 파 대비 표기(파=0, 언더 −1, 오버 +2)면 0·-1·2를 그대로 담아라. ★절대 파를 더하지 마라.\n` +
       `- 빈칸이거나 손·그림자·반사에 가려 확신할 수 없는 칸은 추측하지 말고 99를 넣어라(99 = 못 읽음).\n` +
