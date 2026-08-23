@@ -18,7 +18,13 @@ const { logger } = require('firebase-functions');
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 
 // 구조화 추출용 — 저렴하고 빠름. 스크린샷 텍스트 추출엔 충분(정확도 부족 시 상위 모델로 올림).
+//   예약·지출·정산은 이걸로. 스코어카드만 아래 SCORECARD_MODEL(3세대)로 따로 올렸다(표 숫자 정확도).
 const MODEL = 'gemini-2.5-flash';
+
+// ★스코어카드 전용 모델 — 작고 빽빽한 표 숫자 읽기가 2.5 Flash는 약해 홀별 오독이 잦았다(2026-08-24).
+//   3세대 Flash는 비전·표 인식이 확실히 낫고, 어차피 2.5는 2026-10-16 단종 예정이라 갈아탄다.
+//   ※Vertex(aiplatform) express 엔드포인트에서 서빙되는 이름. 404가 나면 날짜 붙은 정식명 확인.
+const SCORECARD_MODEL = 'gemini-3.5-flash';
 
 // ★스코어카드 추론 예산 — 요금 노브. 생각 토큰도 '출력'으로 청구되므로 여기가 스코어카드 원가의 대부분이다.
 //   2026-07-26에 2048로 올렸던 이유는 "PAR 행 읽기 + 파대비→실타수 계산 + 합=총타 자체검증"이었는데,
@@ -33,7 +39,12 @@ const MODEL = 'gemini-2.5-flash';
 //     정확해졌는데([[project-nunapick-gemini-cost]]), 작고 빽빽한 표에서 숫자를 뽑는 건 성격이 다르다.
 //     → 2048 유지. **0으로 내리는 재시도 금지**(이미 실측으로 반증됨).
 //     비용을 더 줄이려면 추론을 깎는 게 아니라 '구장별 파 기억'으로 파 읽기 자체를 건너뛰는 쪽이 맞다.
+//   ★2026-08-24 SCORECARD_MODEL을 3세대(gemini-3.5-flash)로 올리면서 추론 파라미터가 바뀐다:
+//     Gemini 3은 thinkingBudget(토큰수) 대신 thinkingLevel(minimal/low/medium/high)을 쓴다. 둘을 섞으면 에러.
+//     표 숫자·파 행 정확도가 최우선이라 'high'로 시작. 잘 되고 비용이 크면 'medium'으로 낮춰 재조정.
+//     (아래 SCORECARD_THINKING(2048)은 2.5 시절 값 — 3세대엔 안 쓰이지만 롤백 대비 남겨둔다.)
 const SCORECARD_THINKING = 2048;
+const SCORECARD_THINK_LEVEL = 'high';
 // ★Vertex AI express 엔드포인트 사용 — AI Studio가 발급하는 새 API 키('AQ.' 형식, 서비스계정 연결형)는
 //   org 정책(iam.managed.disableServiceAccountApiKeyCreation)상 apiTargets가 aiplatform으로만 제한됨.
 //   그래서 generativelanguage.googleapis.com(구 Gemini Developer API)로는 막히고, aiplatform으로만 호출 가능.
@@ -84,21 +95,27 @@ function logUsage(label, json) {
   } catch (e) { /* 로깅 실패가 기능을 막지 않는다 */ }
 }
 
-async function callGemini({ key, parts, schema, temperature = 0, thinkingBudget = 0, label = '' }) {
+async function callGemini({ key, parts, schema, temperature = 0, thinkingBudget = 0, thinkingLevel = null, model = MODEL, label = '' }) {
+  const generationConfig = {
+    responseMimeType: 'application/json',
+    responseSchema: schema,
+    temperature,
+  };
+  // ★추론 파라미터는 모델 세대별로 다르다 — 섞어 보내면 400 에러(호환 불가).
+  //   Gemini 3 세대: thinkingLevel(minimal/low/medium/high) / Gemini 2.5 세대: thinkingBudget(토큰 수).
+  if (/gemini-3/.test(model)) {
+    if (thinkingLevel) generationConfig.thinkingConfig = { thinkingLevel };
+  } else {
+    // 2.5는 기본 추론이 켜져 있어 지연이 큼. thinkingBudget:0으로 끄면 빨라짐(정확도 떨어지면 값 상향).
+    generationConfig.thinkingConfig = { thinkingBudget };
+  }
   const body = {
     contents: [{ role: 'user', parts }],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: schema,
-      temperature,
-      // 2.5 Flash는 기본 'thinking'(추론)이 켜져 있어 지연이 큼. 스코어/예약 추출은 추론이 거의 불필요해
-      //   thinkingBudget:0으로 끄면 응답이 크게 빨라짐. 인식 정확도가 떨어지면 값을 올려 재조정.
-      thinkingConfig: { thinkingBudget },
-    },
+    generationConfig,
   };
   let res;
   try {
-    res = await fetch(GEMINI_URL(MODEL), {
+    res = await fetch(GEMINI_URL(model), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify(body),
@@ -421,6 +438,7 @@ function assembleScorecard(rawCards) {
       notes.push('half');
       low = true;
       blocks.push({
+        frag: true,   // 조각 카드 — 합계 칸이 '한 라운드 총타'가 아니라 그 나인 소계일 수 있다(아래 total 계산 참고)
         pars: padTo(a.pars, HOLES),
         entries: a.players.map(p => ({
           name: p.name, cells: padTo(p.cells, HOLES), printedTotal: p.total, subTotal: p.frontSub || p.backSub || 0,
@@ -434,12 +452,15 @@ function assembleScorecard(rawCards) {
     const entries = pairPlayers(front, back).map(pr => ({
       name: pr.name,
       cells: [...padTo(pr.f?.cells, 9), ...padTo(pr.b?.cells, 9)],
-      // 합계 칸은 두 화면 모두 같은 '한 라운드 총타'를 찍어준다 — 있는 쪽을 쓴다.
+      // ★조각(전/후반 각 화면)의 '합계' 칸은 한 라운드 총타가 아니라 '그 나인 소계'인 경우가 있다
+      //   (스마트스코어 태블릿: 전반 화면 합계=47, 후반 화면 합계=49, 실제 총타=96).
+      //   그대로 총타로 믿으면 96타가 47타로 박힌다(사용자 제보 2026-08-24) → 아래 total 계산에서
+      //   조각 블록은 홀 합(scoreSum)을 총타로 쓴다. 여기선 참고용으로 두 소계 합을 담아둔다.
       printedTotal: pr.f?.total || pr.b?.total || 0,
       subTotal: 0,
       subs: { front: pr.f?.frontSub || pr.b?.frontSub || 0, back: pr.f?.backSub || pr.b?.backSub || 0 },
     }));
-    blocks.push({ pars: pars18, entries });
+    blocks.push({ frag: true, pars: pars18, entries });
   }
 
   // par는 카드 공통 — 홀별로 가장 먼저 읽힌 값 사용
@@ -480,14 +501,24 @@ function assembleScorecard(rawCards) {
       //   예전엔 total을 홀 합으로 계산해서, 파 한 칸을 잘못 읽으면 그 파를 쓰는 전원의 총타가
       //   똑같이 어긋났다(사용자 제보 2026-07-31). 가장 못 믿을 값에 가장 중요한 결과를 매달고 있던 셈.
       //   홀별은 여전히 파가 필요하지만, 그건 홀별만의 문제로 격리된다.
-      const total = e.printedTotal > 0 ? e.printedTotal : scoreSum;
-      if (full && e.printedTotal > 0 && scoreSum !== e.printedTotal) { low = true; notes.push('total'); }
+      // ★조각(전/후반) 병합 블록은 '합계' 칸이 나인 소계일 수 있어 총타로 못 믿는다 → 18홀을 다 읽었으면
+      //   홀 합(scoreSum)을 총타로 쓴다(96타가 47타로 박히던 버그, 2026-08-24). 못 읽은 홀이 있으면
+      //   scoreSum이 부족하므로 인쇄 합계로 폴백(소계일 수 있으나 어차피 검토표에서 수정).
+      //   완결 카드(18홀 한 화면)는 종전대로 printedTotal 우선 — 파 오독이 총타로 번지는 걸 막는 교훈 유지.
+      const total = (bl.frag && full)
+        ? scoreSum
+        : (e.printedTotal > 0 ? e.printedTotal : scoreSum);
+      // 인쇄 총계와 홀 합의 불일치 경고는 완결 카드에서만 — 조각은 소계라 다른 게 '정상'이라 경고하면 오탐.
+      if (!bl.frag && full && e.printedTotal > 0 && scoreSum !== e.printedTotal) { low = true; notes.push('total'); }
       if (!full) low = true;
       // ★printedTotal(카드에 인쇄된 총타)을 함께 내려보낸다 — 홀 합과 어긋날 때 검토 화면이
       //   "카드엔 100타인데 홀 합은 99타"라고 숫자로 짚어주기 위함.
       //   파대비 카드에서 PAR 한 칸을 1 잘못 읽으면 그 par를 쓰는 전원이 똑같이 1타씩 어긋나는데,
       //   예전엔 이 값이 없어 사용자에게 그냥 99타로 보였다(사용자 제보 2026-07-31, 힐마루 안드).
-      players.push({ name: e.name, scores, total, printedTotal: e.printedTotal > 0 ? e.printedTotal : 0 });
+      //   ※조각+full은 인쇄 합계가 '나인 소계'라 총타와 다른 게 정상 → 검토화면이 "카드엔 47타"라고
+      //     오해시키지 않도록 검산 기준(printedTotal)을 0으로 내려보낸다(총타는 위 total=scoreSum이 이미 맞다).
+      const outPrinted = (bl.frag && full) ? 0 : (e.printedTotal > 0 ? e.printedTotal : 0);
+      players.push({ name: e.name, scores, total, printedTotal: outPrinted });
     }
   }
 
@@ -565,10 +596,10 @@ exports.extractScorecard = onCall(
       parts.push({ inlineData: { mimeType: im.format === 'png' ? 'image/png' : 'image/jpeg', data: im.data } });
     });
 
-    logger.info('[gemini] scorecard req', { uid, imgs: valid.length });
-    // 스코어카드는 추론을 켠다(thinkingBudget>0) — PAR 행 읽기 + 파대비→실타수 계산 + '합=총타' 자체검증에 필요.
-    //   추출은 예약/지출보다 정확도가 중요해 속도(수 초)보다 정확도 우선. 느리면 값 하향(정확도 트레이드오프).
-    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SCORECARD_SCHEMA, thinkingBudget: SCORECARD_THINKING, label: 'scorecard' });
+    logger.info('[gemini] scorecard req', { uid, imgs: valid.length, model: SCORECARD_MODEL });
+    // 스코어카드는 3세대 모델 + 추론 'high'로 읽는다 — 표 숫자·PAR 행 정확도 우선(속도보다 정확도).
+    //   예약/지출과 달리 작고 빽빽한 표라 오독이 치명적. 느리거나 비용이 크면 thinkingLevel을 medium으로.
+    const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SCORECARD_SCHEMA, model: SCORECARD_MODEL, thinkingLevel: SCORECARD_THINK_LEVEL, label: 'scorecard' });
 
     // ★조립 — 여기서 전/후반 순서와 파대비/실타수를 '산술'로 결정한다(위 assembleScorecard 주석 참고).
     const { pars, players, lowConfidence, notes, parSum, parSumTarget, parNine } = assembleScorecard(out?.cards);

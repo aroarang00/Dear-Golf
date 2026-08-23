@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Modal, View, Text, FlatList, TouchableOpacity, Platform, Keyboard } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
 import { getTrustGrade } from '../constants/trustGrade';
@@ -40,6 +40,9 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const [compact, setCompact] = useState(false);
   const [collapseSignal, setCollapseSignal] = useState(0);   // 프로필을 닫을 때 올려 카드 펼침을 원위치
   const [rowOpenId, setRowOpenId] = useState(null);          // 요약보기에서 그 자리에 펼친 행(한 번에 하나)
+  // 하단 안전영역 인셋 — SafeAreaView 'bottom' edge 대신 스크롤 콘텐츠 paddingBottom으로 넣어야
+  //   피드가 화면 끝까지 자연스럽게 스크롤된다(bottom edge를 쓰면 리스트 아래에 고정 배경 '벽'이 남음).
+  const insets = useSafeAreaInsets();
   useEffect(() => { storage.load(STORAGE_KEYS.diaryCompactView, false).then(v => setCompact(!!v)); }, []);
 
   // 요약보기 월별 카드용 메타 — FlatList에서 월별 카드 모양을 내려면 행마다 '그 달 첫/끝 행'만 알면 된다.
@@ -161,7 +164,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
       statusBarTranslucent={Platform.OS === 'android'}
       onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
           {/* 헤더 — 버터. 우측 ⋯ 옵션(알림·숨기기·삭제) */}
           <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 13,
             flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -186,7 +189,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
             data={friend.feed || []}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 32 }}
+            contentContainerStyle={{ paddingBottom: 32 + insets.bottom }}
             initialNumToRender={6}
             maxToRenderPerBatch={5}
             windowSize={9}

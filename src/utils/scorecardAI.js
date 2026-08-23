@@ -28,9 +28,10 @@ export async function pickScorecardImages(source = 'gallery', max = 2) {
 //   ★상한 2장(위 pickScorecardImages 참고). 단체는 팀 카드 2장씩 나눠 담기.
 //   CLOVA OCR(PAR 표 필수·태블릿 전후반 분리 못 읽음) 대체. 정책: 프리필만, 검토 모달에서 사용자 확인·수정.
 
-// 이미지 URI → 리사이즈·JPEG base64. 스코어카드는 작은 숫자라 해상도 좀 높게(1600px) 유지.
+// 이미지 URI → 리사이즈·JPEG base64. 스코어카드는 작고 빽빽한 표 숫자라 해상도를 높게 유지.
+//   2026-08-24 1600→2048px 상향 — 홀별 숫자 오독을 줄이려 더 선명하게(base64는 8MB 상한 안, 여유).
 async function toBase64(uri) {
-  const img = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1600 } }], {
+  const img = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 2048 } }], {
     compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true,
   });
   return img.base64;
