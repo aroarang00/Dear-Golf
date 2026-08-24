@@ -48,7 +48,8 @@ import { CrewListScreen } from './CrewListScreen'; // 크루(친구 소수그룹
 import { subscribeCrewInvites, subscribeMyCrews } from '../utils/crews';
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
-import { loadMyFriendsEnriched, loadMyFriends } from '../utils/friends';
+import { loadMyFriendsEnriched, loadMyFriends, loadFriendProfiles } from '../utils/friends';
+import { loadFriendRounds } from '../utils/round';
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, pendingContentChange, isSyncingGroup, memoChangePreview, propagateMemoEdit } from '../utils/scheduleShares';
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { getScheduleWxSummary, getScheduleDriveMin } from '../utils/scheduleWx'; // 공유 카드 날씨 주입 + D-0 카드 우측 날씨·교통
@@ -128,11 +129,34 @@ export function HomeScreen({ navigation, route }) {
   const [commentsSchedule, setCommentsSchedule] = useState(null); // 일정 '이야기'(댓글) 모달 대상 — 시트 위에 겹쳐 열림
   // 동반자 별명(customName) 해석용 owner-only 메타 — 일정 시트에서 별명 표시 ([[friend_groups]])
   const [friendMeta, setFriendMeta] = useState({});
+  const [friendsFeed, setFriendsFeed] = useState([]); // 친구 최신 라운딩(홈 백그라운드 로드)
   useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
   // 빈 상태 '친구 추가' CTA 노출 판별 — 진짜 친구 수(accepted)로만. friendMeta는 별명·그룹 지정분만이라 0명 판별엔 부정확.
   //   null=미확정(로드 전엔 CTA 숨겨 깜빡임 방지), false=친구 0명일 때만 보조 CTA 노출.
   const [hasFriends, setHasFriends] = useState(null);
   useEffect(() => { loadMyFriends().then(fs => setHasFriends(fs.length > 0)).catch(() => {}); }, []);
+  // ★친구 최신 라운딩(2026-08-24) — 친구별 공개 라운딩 병렬 로드 → 친구당 최신 2개 합쳐 전체 최신 4개.
+  //   비동기(홈 블로킹 없음). 친구 프로필(이름/아바타)은 loadFriendProfiles 배치로 한 번에.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const friends = await loadMyFriends();
+        const uids = friends.map(f => f.otherUid).filter(Boolean);
+        if (!uids.length) return;
+        const [roundsArr, profiles] = await Promise.all([
+          Promise.all(uids.map(u => loadFriendRounds(u).then(rs => rs.slice(0, 2).map(r => ({ ...r, _uid: u }))).catch(() => []))),
+          loadFriendProfiles(uids).catch(() => ({})),
+        ]);
+        const all = roundsArr.flat()
+          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+          .slice(0, 4)
+          .map(r => ({ ...r, _friendName: profiles[r._uid]?.nickname || '친구', _friendAvatar: profiles[r._uid]?.avatarUrl || null }));
+        if (alive) setFriendsFeed(all);
+      } catch { /* 무시 */ }
+    })();
+    return () => { alive = false; };
+  }, []);
   const [showHomeIntro, setShowHomeIntro] = useState(false);   // Dear Golf 이용 안내 모달
   const [homeIntroSeen, setHomeIntroSeen] = useState(true);    // 초기 true(뱃지 X), AsyncStorage 로드 후 갱신
   const [showWeatherFull, setShowWeatherFull] = useState(false);
@@ -1873,7 +1897,7 @@ export function HomeScreen({ navigation, route }) {
           </>)}
           {/* ★내 피드 최신(2026-08-24) — 내 라운딩 기록 최근 4개. 사진 썸네일+구장+날짜+스코어/메모. 탭→MY 다이어리 상세 */}
           {myFeed.length > 0 && (
-            <View style={{ marginTop: 24, paddingHorizontal: SIDE_PAD }}>
+            <View style={{ marginTop: 34, paddingHorizontal: SIDE_PAD }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 12 }}>최근 기록</Text>
               {myFeed.map((d) => {
                 const uri = resolvePhotoUri(firstPhotoUri(d.photos));
@@ -1906,7 +1930,50 @@ export function HomeScreen({ navigation, route }) {
             </View>
           )}
           {/* ★스코어 추이(2026-08-24) — 공용 ScoreBanner 재사용(스파크라인+평균/베스트/핸디+추세문구). 탭→상세 통계 */}
-          <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)} style={{ marginHorizontal: SIDE_PAD, marginTop: 8, marginBottom: 0 }} />
+          <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)} style={{ marginHorizontal: SIDE_PAD, marginTop: 26, marginBottom: 0 }} />
+          {/* ★친구 소식(2026-08-24) — 친구 최신 라운딩 4개. 사진+친구이름(아바타)+구장+날짜/스코어. 탭→친구 탭 */}
+          {friendsFeed.length > 0 && (
+            <View style={{ marginTop: 34, paddingHorizontal: SIDE_PAD }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 12 }}>친구 소식</Text>
+              {friendsFeed.map((d) => {
+                const uri = resolvePhotoUri(firstPhotoUri(d.photos));
+                const avatar = /^https?:/.test(d._friendAvatar || '') ? d._friendAvatar : null;
+                return (
+                  <TouchableOpacity key={d.id} activeOpacity={0.85} onPress={() => navigation.navigate(ROUTES.FRIENDS)}
+                    style={{ flexDirection: 'row', gap: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12, marginBottom: 12, alignItems: 'center' }}>
+                    {uri ? (
+                      <ExpoImage source={{ uri }} contentFit="cover" transition={0} style={{ width: 74, height: 74, borderRadius: 10 }} />
+                    ) : (
+                      <View style={{ width: 74, height: 74, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                        <GreenFlag size={fs(26)} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1, justifyContent: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                        {avatar ? (
+                          <ExpoImage source={{ uri: avatar }} style={{ width: 22, height: 22, borderRadius: 11 }} />
+                        ) : (
+                          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(245,230,168,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter }}>{(d._friendName || '친').slice(0, 1)}</Text>
+                          </View>
+                        )}
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }} numberOfLines={1}>{d._friendName}</Text>
+                      </View>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: '#fff' }} numberOfLines={1}>{d.course}</Text>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+                        {d.date}{typeof d.score === 'number' ? ` · ${d.score}타` : ''}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+              {/* 더보기 → 친구 탭. 최근 기록의 '전체 기록 보기'와 동일 패턴 */}
+              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.FRIENDS)} activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ alignItems: 'center', paddingVertical: 8, marginTop: 2 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: 'rgba(255,255,255,0.72)' }}>친구 소식 더보기 ›</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {/* 하단 여백 22→8 — 캐러셀 점과 하단 탭 사이가 너무 벌어 보임(사용자 2026-07-03) */}
           <View style={{ height: 8 }} />
         </View>
