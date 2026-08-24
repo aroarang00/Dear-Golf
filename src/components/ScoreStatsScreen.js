@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Dimensions, Animated, Easing } from 'react-native';
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Polyline, Circle, Line, G, Text as SvgText } from 'react-native-svg';
 import { C, F, fs } from '../constants/colors';
 import { AttentionMotion } from './common/AttentionMotion';
@@ -145,6 +145,7 @@ export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible 
 }
 
 export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userProfile }) {
+  const insets = useSafeAreaInsets();   // 하단 '벽'(SafeAreaView bottom edge 바탕색 띠) 대신 콘텐츠 paddingBottom으로 흡수
   const [period, setPeriod] = useState(20);
   const [infoOpen, setInfoOpen] = useState(false);   // 안내 — 항상 접힌 채 시작, 탭 시 펼침
   // 화면을 닫으면(다른 화면으로 이동) 안내를 다시 접는다 — 모달은 마운트 유지라 상태가 남기 때문.
@@ -181,7 +182,7 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
           {/* 헤더 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 13,
             borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
@@ -191,7 +192,7 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>내 스코어</Text>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 + insets.bottom }}>
             {/* A. 요약 스탯바 */}
             <View style={{ flexDirection: 'row', backgroundColor: C.navy, borderRadius: 16, paddingVertical: 18 }}>
               {[
