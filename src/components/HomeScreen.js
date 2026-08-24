@@ -783,6 +783,66 @@ export function HomeScreen({ navigation, route }) {
   // 확대(디스플레이 줌) 대응 배율 — winW가 360 이상이면 정확히 1(정상, 무변화), 좁아질수록(확대 ON) 비례 축소.
   //   헤더 타이틀·날씨이모지가 함께 줄어 DM과 안 겹치게. 정상/확대를 깔끔히 구분(정상은 절대 안 건드림).
   const zoomScale = Math.min(1, winW / 360);
+  // ★다음 라운딩 카드(2026-08-24 재설계) — 아티팩트 e71b6422 '히어로 카드' 그대로. 와이드+피크 캐러셀, 최대 3장 스와이프.
+  //   구성: 골드 알약(다음 라운딩·D-N) → 구장명 크게(주인공) → 동반자+인원 → 날씨·교통 칩 2개. '정보를 정확히 깔끔하게'.
+  //   카드 몸통 탭→일정 시트 / 구장명 탭→코스 / 칩 탭→날씨·교통 상세. D-0(당일) 카드는 아래 별도 분기 유지.
+  const CARD_W = Math.max(0, winW - SIDE_PAD * 2 - 40);   // 40 = 다음 카드 피크 여백(gap 10 포함 → 우측 ~30px 보임)
+  const HERO_BG = 'rgba(255,255,255,0.10)';   // 사진이 비치는 글래시 카드(홈 다른 카드와 통일) — 초록 대신
+  const renderNextCard = (s) => {
+    const names = (s.companions || []).map(c => (c?.name || '').trim()).filter(Boolean);
+    const total = Number(s.members) || (names.length + 1);
+    const shown = names.slice(0, 4);
+    return (
+      <TouchableOpacity key={s.id} activeOpacity={0.9} onPress={() => openScheduleSheet(s)}
+        style={{ width: CARD_W, backgroundColor: HERO_BG, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 20, padding: 18 }}>
+        {/* 골드 알약 — 다음 라운딩 · D-N (D-N은 여기 안에 작게) */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.butter, borderRadius: 20, paddingHorizontal: 11, paddingVertical: 4 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#22301F' }}>다음 라운딩</Text>
+            <Text style={{ fontFamily: F.en, fontSize: fs(12), color: '#22301F' }}>D-{freshDDay(s)}</Text>
+          </View>
+          {s.groupId && unreadComments[s.groupId] > 0 ? <View style={{ marginLeft: 8 }}>{commentBadge(s.groupId)}</View> : null}
+        </View>
+        {/* 구장명 = 주인공. 탭하면 코스 페이지 */}
+        <TouchableOpacity activeOpacity={canOpenCourse(s) ? 0.7 : 1} onPress={() => handleCardCoursePress(s)}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(24), lineHeight: fs(30), color: '#fff', marginTop: 13, textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCourseName(s.course)}
+            {canOpenCourse(s) ? <Text style={{ fontSize: fs(14), color: 'rgba(255,255,255,0.6)' }}> ›</Text> : null}
+          </Text>
+        </TouchableOpacity>
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: 'rgba(255,255,255,0.85)', marginTop: 3 }} numberOfLines={1}>
+          {s.date.slice(5)} {s.day} · {s.time}{(s.subCourse || '').trim() ? ` · ${s.subCourse.trim()}` : ''}
+        </Text>
+        {/* 동반자 이니셜 + 인원 — 구분선 위 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 15, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.18)' }}>
+          {shown.length > 0 && (
+            <View style={{ flexDirection: 'row' }}>
+              {shown.map((nm, i) => (
+                <View key={i} style={{ width: 27, height: 27, borderRadius: 13.5, marginLeft: i === 0 ? 0 : -8, borderWidth: 2, borderColor: 'rgba(28,34,28,0.5)', backgroundColor: 'rgba(245,230,168,0.95)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#22301F' }}>{nm.slice(0, 1)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.9)' }}>
+            <Text style={{ fontFamily: F.sysB, color: C.butter }}>{total}명</Text> 라운딩
+          </Text>
+        </View>
+        {/* 날씨·교통 칩 2개 — 나란히. 탭→상세(이모지 대신 앱 커스텀 아이콘) */}
+        <View style={{ flexDirection: 'row', gap: 9, marginTop: 14 }}>
+          <TouchableOpacity onPress={() => { setSelectedSchedule(s); setShowWeatherFull(true); }} activeOpacity={0.8}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingVertical: 10 }}>
+            <WeatherGlyph icon="⛅" size={fs(19)} />
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#fff' }}>날씨</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { setSelectedSchedule(s); setShowTrafficFull(true); }} activeOpacity={0.8}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingVertical: 10 }}>
+            <Icon name="car" size={fs(19)} color="#fff" strokeWidth={1.8} />
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#fff' }}>가는 길</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
   // 체크인 배너 맥동 — 활성일 때만 루프(은은한 scale + 골드 오버레이 opacity 펄스). MyScheduleTab 코스버튼과 동일 톤.
   //   ★LinearGradient를 Animated.View 안에 넣었더니 런타임 에러나서, 글로우는 단순 골드 오버레이 opacity 펄스로(안전).
   const checkinPulse = useRef(new Animated.Value(0)).current;
@@ -1442,10 +1502,8 @@ export function HomeScreen({ navigation, route }) {
             {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이·패딩은 CARD_H/CARD_PAD 단일 소스로 D-N 카드와 항상 동일.
                 ★카드 높이 항상 고정(height) — 내용이 많아도 카드가 높아지지 않게(세부코스·확대 등). 넘침은 overflow hidden으로
                   경계 유지하되, 잘림이 안 보이게 내용은 폰트 축소(adjustsFontSizeToFit)·간격(flex)으로 CARD_H 안에 조정. iOS·안드 공통(2026-06-24). */}
-            <View style={isD0
-              ? { width: winW - SIDE_PAD * 2, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, height: CARD_H, overflow: 'hidden' }
-              : homeS.mainCard}>
-              {(freshDDay(next) === 0) ? (
+            {isD0 ? (
+              <View style={{ width: winW - SIDE_PAD * 2, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD, height: CARD_H, overflow: 'hidden' }}>
                 <>
                   {/* D-0 카드(전폭) — 상단 좌(정보 박스)·우(날씨교통, 박스X 큰 이모지) + 우측하단 나가기 + 하단 함께식사 긴 박스.
                       티오프+4h는 좌측 박스 내용만 토글([[home-round-ended-threshold]] 2026-06-18 재정의) */}
@@ -1574,94 +1632,11 @@ export function HomeScreen({ navigation, route }) {
                     </View>
                   </View>
                 </>
-              ) : (
-                <>
-                  <TouchableOpacity
-                    onPress={() => handleCardCoursePress(next)}
-                    activeOpacity={canOpenCourse(next) ? 0.7 : 1}
-                    style={{ marginBottom: 4 }}>
-                    {/* 구장명 1줄 고정(길면 자동 축소) — 세부코스 줄이 들어가도 iOS 좁은 카드서 행 안 붙고 넘침 방지. */}
-                    <Text style={homeS.cardCourse} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>{displayCourseName(next.course)}
-                      {canOpenCourse(next) ? <Text style={{ fontSize: fs(11), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
-                    </Text>
-                    <Text style={homeS.cardDate}>{next.date} {next.day} · {next.time} · {next.members}명</Text>
-                  </TouchableOpacity>
-                  {/* 코스(세부코스) + 이야기 안읽음 뱃지 — 한 줄. 세부코스가 길면 줄어들고(truncate) 뱃지는 옆에 유지. */}
-                  {(!!(next.subCourse || '').trim() || (next.groupId && unreadComments[next.groupId] > 0)) && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 }}>
-                      {!!(next.subCourse || '').trim() && (
-                        <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', flexShrink: 1 }} numberOfLines={1}>{next.subCourse.trim()}</Text>
-                      )}
-                      {next.groupId && unreadComments[next.groupId] > 0 ? commentBadge(next.groupId) : null}
-                    </View>
-                  )}
-                  <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-                    <TouchableOpacity
-                      onPress={() => openScheduleSheet(next)}
-                      activeOpacity={0.7}
-                      style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={homeS.cardDDay}>D-{freshDDay(next)}</Text>
-                      {/* 탭하면 일정 시트 열린다는 affordance(테스터 피드백 2026-06-26) */}
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(30), color: C.butter, marginLeft: 8, marginTop: 6 }}>›</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => { setSelectedSchedule(next); setShowWeatherFull(true); }}
-                      activeOpacity={0.7}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: Platform.OS === 'android' ? 4 : 6 }}>
-                        <WeatherGlyph icon="⛅" size={Platform.OS === 'android' ? fs(30) : fs(34)} />
-                        <Icon name="car" size={Platform.OS === 'android' ? fs(40) : fs(44)} color="#8FB06B" strokeWidth={1.8} />
-                      </View>
-                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.85)' }}>탭하여 확인하기 →</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-            </View>
+              </View>
+            ) : renderNextCard(next)}
 
-            {upcomingSchedules.slice(1, 5).map((s, i) => {
-              const opacity = [1, 0.85, 0.7, 0.55][i] ?? 0.55;
-              // 카드 전체 = 일정 시트 열기(탭 영역 넓힘 — 가운데·여백·D-n 어디를 찍어도 시트, 발견성↑ 2026-06-13).
-              //   구장명만 안쪽 터치로 코스 연결(코스 연결 불가하면 구장명도 시트로 폴백).
-              return (
-              <TouchableOpacity key={s.id} style={[homeS.subCard, { opacity }]}
-                onPress={() => openScheduleSheet(s)} activeOpacity={0.85}>
-                <TouchableOpacity
-                  onPress={() => (canOpenCourse(s) ? handleCardCoursePress(s) : openScheduleSheet(s))}
-                  onLongPress={() => openScheduleSheet(s)}
-                  delayLongPress={350}
-                  activeOpacity={canOpenCourse(s) ? 0.7 : 0.85}>
-                  <Text style={homeS.subCourse} numberOfLines={2}>{displayCourseName(s.course)}
-                    {canOpenCourse(s) ? <Text style={{ fontSize: fs(8), color: 'rgba(200,217,230,0.55)' }}> ›</Text> : null}
-                  </Text>
-                  <Text style={homeS.subDate}>{s.date.slice(5)} {s.day}</Text>
-                  {!!(s.groupId && groupSharedCounts[s.groupId] > 1) && (
-                    <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(245,230,168,0.15)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 3 }}>
-                      <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(245,230,168,0.75)' }}>{groupSharedCounts[s.groupId]}명 공유중</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                  <View>
-                    {s.groupId && unreadComments[s.groupId] > 0 ? <View style={{ alignSelf: 'flex-start', marginBottom: 4 }}>{commentBadge(s.groupId)}</View> : null}
-                    <Text style={homeS.subDDay}>D-{freshDDay(s)}</Text>
-                  </View>
-                  {/* 탭하면 일정 시트 열린다는 affordance — '카드 탭하면 뭐 뜨는지 모르겠다' 테스터 피드백(2026-06-26) */}
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: 'rgba(245,230,168,0.7)', includeFontPadding: false }}>›</Text>
-                </View>
-              </TouchableOpacity>
-              );
-            })}
-
-            {/* 예정 라운딩이 5개 초과면 '+N개 더' 카드 — 홈 캐러셀은 5개까지만 보여, 나머지가 '사라진 것처럼'
-                보이던 것 해소. 탭하면 일정(캘린더) 화면으로 열어 전체 목록에서 확인. (사용자 2026-07-28) */}
-            {upcomingSchedules.length > 5 && (
-              <TouchableOpacity
-                style={[homeS.subCard, { opacity: 0.5, alignItems: 'center', justifyContent: 'center' }]}
-                onPress={() => { setScheduleJumpTo(upcomingSchedules[5]?.date || null); setShowScheduleScreen(true); }} activeOpacity={0.85}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: 'rgba(245,230,168,0.9)' }}>+{upcomingSchedules.length - 5}</Text>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: 'rgba(245,230,168,0.7)', marginTop: 5 }}>더 보기 →</Text>
-              </TouchableOpacity>
-            )}
+            {/* 다가오는 라운딩 전부 — 같은 와이드 히어로 카드로 스와이프(개수 제한 없음, 일정 하나하나 다 소중히). D-0이면 그날 카드 뒤로. */}
+            {upcomingSchedules.slice(1).map(renderNextCard)}
 
           </ScrollView>
 

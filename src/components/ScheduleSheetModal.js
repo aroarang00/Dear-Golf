@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { sheetS } from '../styles/sheetS';
 import { Icon, GreenFlag } from './common/Icon';
-import { TripleStripe } from './common/TripleStripe';
 import AppTextInput from './common/AppTextInput';
 import { buildCompanionNames } from '../utils/scheduleCompanions';
 import { getAlarmConfig, computeRoundTimeline, fmtClock } from '../utils/notifications'; // 라운드 알람 요약 표시
@@ -191,11 +190,40 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     return true;
   });
 
-  // 모든 액션(수정·삭제 포함)을 같은 아이콘 격자로(사용자 2026-07-27). 삭제는 danger 색으로 구분하고,
-  //   탭하면 곧바로 지우지 않고 확인 화면(confirmDelete)을 거쳐 오탭이 사고로 이어지지 않는다.
-  const gridItems = items;
-  const gridRows = [];
-  for (let gi = 0; gi < gridItems.length; gi += 3) gridRows.push(gridItems.slice(gi, gi + 3));
+  // ★도구 두 갈래(2026-08-24) — 자주 쓰는 것(이 라운딩 준비: 날씨·교통·식사·단체팀·모집) vs 관리(알람·수정·삭제).
+  //   한 벽 격자가 복잡해 보여 구역을 나눔. 삭제는 danger 색 + 확인 화면(confirmDelete)으로 오탭 방지(종전 유지).
+  const FREQ_KEYS = ['wx', 'tr', 'ml', 'team', 'rd'];
+  const MANAGE_KEYS = ['al', 'ed', 'dl'];
+  const freqItems = items.filter(it => FREQ_KEYS.includes(it.key));
+  const manageItems = items.filter(it => MANAGE_KEYS.includes(it.key));
+  const toRows = (arr) => { const r = []; for (let i = 0; i < arr.length; i += 3) r.push(arr.slice(i, i + 3)); return r; };
+  // 타일 하나 — manage면 링·글씨 작게, 톤 낮춤. TILE(색·라벨)은 종전 그대로.
+  const renderTile = (it, manage) => {
+    const cfg = TILE[it.key] || { color: C.charcoal, tint: C.bgSecondary, short: it.label };
+    const ring = manage ? 40 : 46;
+    return (
+      <TouchableOpacity key={it.key} onPress={it.onPress} activeOpacity={0.85}
+        style={{ flex: 1, alignItems: 'center', paddingVertical: manage ? 13 : 15, paddingHorizontal: 4, borderRadius: 16, backgroundColor: it.highlight ? '#EDF1F4' : C.bgSecondary }}>
+        {it.isNew && (
+          <View style={{ position: 'absolute', top: 7, right: 7, backgroundColor: C.burgundy, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1.5 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(8.5), color: '#fff', letterSpacing: 0.4 }}>NEW</Text>
+          </View>
+        )}
+        <View style={{ width: ring, height: ring, borderRadius: ring / 2, backgroundColor: cfg.tint, alignItems: 'center', justifyContent: 'center', marginBottom: manage ? 6 : 8 }}>
+          <Icon name={it.icon} size={it.size || (manage ? 20 : 24)} color={cfg.color} strokeWidth={1.7} />
+        </View>
+        <Text style={{ fontFamily: manage ? F.sysM : F.sysSb, fontSize: fs(manage ? 12.5 : 13.5), color: it.danger ? '#D32F2F' : (manage ? C.textSecondary : C.charcoal) }} numberOfLines={1}>{cfg.short}</Text>
+      </TouchableOpacity>
+    );
+  };
+  const renderTileRows = (arr, manage) => toRows(arr).map((row, ri) => (
+    <View key={ri} style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+      {row.map(it => renderTile(it, manage))}
+      {row.length < 3 && Array.from({ length: 3 - row.length }).map((_, k) => (
+        <View key={`sp${k}`} style={{ flex: 1 }} />
+      ))}
+    </View>
+  ));
 
   // hasRec: 과거 라운딩 + 다이어리 기록이 있는 경우. 시트 안에서 다이어리 안내만 표시 (삭제 X)
   const hasRec = !!schedule.hasRec;
@@ -226,7 +254,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     <Modal visible={visible && showSheet} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheetS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { if (!confirmDelete) onClose(); }} />
-        <View style={[sheetS.sheet, { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View style={[sheetS.sheet, { maxHeight: '94%', minHeight: '58%', paddingBottom: Math.max(insets.bottom, 12) }]}>
           <View style={sheetS.handle} />
           {/* 고정 ✕ — iOS는 백버튼 없고 시트가 길면 상단(핸들)이 노치 근처라 닫기 어려움(사용자 2026-07-06).
               스크롤·길이와 무관하게 우상단 고정. 삭제 확인 중엔 숨김(취소/삭제 버튼으로 유도). */}
@@ -280,28 +308,46 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
             // 시트 기본 메뉴
             <>
               <View style={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 14 }}>
+                {/* ★히어로 헤더(2026-08-24) — 알약[다음 라운딩·D-N] → 구장명 크게 → 날짜·시간·인원. D-DAY 큰 블록은 알약으로 합침. */}
+                {dd != null && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                    {isPast ? (
+                      <View style={{ backgroundColor: C.hairline, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray }}>지난 라운딩</Text>
+                      </View>
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: C.butter, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: '#7A6A1E' }}>{dd === 0 ? '오늘' : '다음 라운딩'}</Text>
+                        <Text style={{ fontFamily: F.en, fontSize: fs(14), color: '#4A3F12' }}>{dd === 0 ? 'D-DAY' : `D-${dd}`}</Text>
+                        <GreenFlag size={15} />
+                      </View>
+                    )}
+                  </View>
+                )}
                 <TouchableOpacity onPress={onCourseTap} activeOpacity={canOpenCourse ? 0.6 : 1}>
-                  <Text style={sheetS.course}>{schedule.course}
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(24), lineHeight: fs(30), color: C.charcoal }}>{schedule.course}
                     {canOpenCourse ? <Text style={sheetS.courseArrow}> ›</Text> : null}
                   </Text>
                 </TouchableOpacity>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                  <View style={{ width: 20, alignItems: 'center' }}><Icon name="calendar" size={17} color={C.charcoal} strokeWidth={1.7} /></View>
-                  {/* 날짜·시간은 시트의 핵심 정보 — 메타(옅은 회색·작음)보다 진하고 크게(사용자 2026-07-27, 한눈에) */}
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: C.charcoal, marginLeft: 5, flex: 1 }}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
-                </View>
-                {/* 동반자 — 아이콘 열·간격을 예약자와 통일. 전파 일정(groupId) 로딩 중에도 줄 자리를 잡아둠(dDay 리플로우 방지) */}
-                {(companionNames.length > 0 || (schedule.groupId && !group)) && (
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 6 }}>
-                    <View style={{ width: 20, alignItems: 'center', marginTop: 1 }}><Icon name="people" size={17} color={C.textSecondary} strokeWidth={1.6} /></View>
-                    <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]} numberOfLines={3}>
-                      {/* 일정 전파는 최대 8명 → 8명까지 이름 다 표시(초대중 포함). 9명↑(라운지 단체 대량 모집)만 인원 축약,
-                          명단은 단체팀 화면에 ([[event-model]], 5→9 상향 사용자 2026-07-06) */}
-                      {companionNames.length > 8 ? `동반자 ${companionNames.length}명`
-                        : companionNames.length > 0 ? companionNames.join(', ') : '동반자 확인 중…'}
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: '#5B554C', marginTop: 6 }}>{schedule.date} {schedule.day} · {schedule.time} · {schedule.members}명</Text>
+                {/* 동반자 — 아바타 이니셜 스택 + 이름(홈 카드와 통일). 전파 일정 로딩 중엔 '확인 중' 자리 유지(리플로우 방지). */}
+                {companionNames.length > 0 ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 13 }}>
+                    <View style={{ flexDirection: 'row' }}>
+                      {companionNames.slice(0, 4).map((nm, i) => (
+                        <View key={i} style={{ width: 29, height: 29, borderRadius: 14.5, marginLeft: i === 0 ? 0 : -9, borderWidth: 2.5, borderColor: C.bgPrimary, backgroundColor: C.butter, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#4A3F12' }}>{(nm || '').trim().slice(0, 1)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    {/* 8명까지 이름 다 표시(초대중 포함). 9명↑(단체 대량 모집)만 인원 축약, 명단은 단체팀 화면에 ([[event-model]]). */}
+                    <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.textSecondary, flex: 1 }} numberOfLines={2}>
+                      {companionNames.length > 8 ? `동반자 ${companionNames.length}명` : companionNames.join(' · ')}
                     </Text>
                   </View>
-                )}
+                ) : (schedule.groupId && !group) ? (
+                  <Text style={[sheetS.meta, { marginTop: 10 }]}>동반자 확인 중…</Text>
+                ) : null}
                 {/* 예약자 — 프론트 체크인 이름(있을 때만) ([[schedule-booker]]) */}
                 {!!schedule.booker && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
@@ -316,19 +362,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                     <Text style={[sheetS.meta, { marginTop: 0, marginLeft: 5, flex: 1 }]} numberOfLines={2}>{alarmSummary}</Text>
                   </View>
                 )}
-                {dd != null && (
-                  isPast ? (
-                    <Text style={[sheetS.ddayLabel, { marginTop: 12 }]}>지난 라운딩이에요</Text>
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 14 }}>
-                      <Text style={sheetS.dday}>{dd === 0 ? 'D-DAY' : `D-${dd}`}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={sheetS.ddayLabel}>{dd === 0 ? '오늘 라운딩이에요' : `${dd}일 후 라운딩이에요`}</Text>
-                        <GreenFlag size={18} />
-                      </View>
-                    </View>
-                  )
-                )}
+                {/* (D-DAY 큰 블록은 상단 알약으로 이동 — 2026-08-24) */}
                 {/* 메모(공지) 카드 — 인라인 편집 지원. 3종:
                     ①라운지 모집(roundupId) = 모집글 공지(teamNotice), '호스트만' 편집·참가자 열람
                     ②전파(groupId)          = group.memo, 동반자 공유(전원 편집·확인)
@@ -493,39 +527,21 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
                   </View>
                 )}
               </View>
-              <TripleStripe height={2} />
-              {/* ★액션 격자 — 날씨·교통·알람·식사·단체팀·모집을 큰 아이콘 타일로(중장년 '한눈에', 사용자 2026-07-27).
-                  나열식 텍스트 행 → 아이콘+짧은 라벨 3열 격자. 위험한 관리(수정·삭제)는 격자에 안 섞고 아래 별도. */}
-              {gridRows.length > 0 && (
-                <View style={{ paddingHorizontal: 18, paddingTop: 16 }}>
-                  {gridRows.map((row, ri) => (
-                    <View key={ri} style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-                      {row.map(it => {
-                        const cfg = TILE[it.key] || { color: C.charcoal, tint: C.bgSecondary, short: it.label };
-                        return (
-                          <TouchableOpacity key={it.key} onPress={it.onPress} activeOpacity={0.85}
-                            style={{ flex: 1, alignItems: 'center', paddingVertical: 15, paddingHorizontal: 4, borderRadius: 16,
-                              backgroundColor: it.highlight ? '#EDF1F4' : C.bgSecondary }}>
-                            {it.isNew && (
-                              <View style={{ position: 'absolute', top: 7, right: 7, backgroundColor: C.burgundy,
-                                borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1.5 }}>
-                                <Text style={{ fontFamily: F.sysB, fontSize: fs(8.5), color: '#fff', letterSpacing: 0.4 }}>NEW</Text>
-                              </View>
-                            )}
-                            <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: cfg.tint,
-                              alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-                              <Icon name={it.icon} size={it.size || 24} color={cfg.color} strokeWidth={1.7} />
-                            </View>
-                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: it.danger ? '#D32F2F' : C.charcoal }} numberOfLines={1}>{cfg.short}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                      {/* 마지막 줄이 3칸이 안 차면 빈 칸으로 정렬 유지 */}
-                      {row.length < 3 && Array.from({ length: 3 - row.length }).map((_, k) => (
-                        <View key={`sp${k}`} style={{ flex: 1 }} />
-                      ))}
-                    </View>
-                  ))}
+              {/* ★도구 — 자주 쓰는 것 / 관리 두 구역으로(2026-08-24). 한 벽 격자가 복잡해 보이던 것 해소. */}
+              {(freqItems.length > 0 || manageItems.length > 0) && (
+                <View style={{ paddingHorizontal: 18, paddingTop: 6 }}>
+                  {freqItems.length > 0 && (
+                    <>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.textSecondary, marginTop: 18, marginBottom: 11, marginLeft: 4 }}>이 라운딩 도구</Text>
+                      {renderTileRows(freqItems, false)}
+                    </>
+                  )}
+                  {manageItems.length > 0 && (
+                    <>
+                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGrayLight, marginTop: freqItems.length ? 12 : 18, marginBottom: 11, marginLeft: 4 }}>관리</Text>
+                      {renderTileRows(manageItems, true)}
+                    </>
+                  )}
                 </View>
               )}
 
