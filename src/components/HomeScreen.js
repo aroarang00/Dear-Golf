@@ -38,6 +38,9 @@ import { AlarmSetupModal, QuickMealPrompt } from './AlarmSetupModal';
 import { scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms, computeRoundTimeline } from '../utils/notifications';
 import { getTopComment } from '../utils/courseComments';
 import { isRoundDiary } from '../utils/diaryKind';
+import { firstPhotoUri } from '../utils/photoRatio';
+import { resolvePhotoUri } from '../utils/photoStorage';
+import { ScoreBanner, ScoreStatsScreen } from './ScoreStatsScreen';
 import { loadFriendData } from '../utils/friendGroups';
 import { DMListScreen } from './DMListScreen';
 import { DMChatScreen } from './DMChatScreen';
@@ -136,6 +139,7 @@ export function HomeScreen({ navigation, route }) {
   const [showTrafficFull, setShowTrafficFull] = useState(false);
   const [showWeatherPopup, setShowWeatherPopup] = useState(false);
   const [showScheduleScreen, setShowScheduleScreen] = useState(false); // 일정(캘린더) 풀스크린
+  const [scoreStatsOpen, setScoreStatsOpen] = useState(false); // 스코어 추이 상세(홈 배너 탭)
   const [scheduleJumpTo, setScheduleJumpTo] = useState(null); // 캘린더 열 때 점프할 날짜('YYYY.MM.DD') — '+N개 더' 카드용
   const [editScheduleTarget, setEditScheduleTarget] = useState(null);
   const [pendingScheduleChange, setPendingScheduleChange] = useState(null); // 전파 일정 변경 반영 대기 1건 { schedule, pc } — 홈 상단 맥동 배너
@@ -1199,26 +1203,34 @@ export function HomeScreen({ navigation, route }) {
   // 하단 캘린더 알약 라벨 — 오늘 날짜·요일 노출(진입 유도 + 정보 겸용). 렌더마다 계산이라 자정 넘어가도 갱신.
   const _today = new Date();
   const todayLabel = `${_today.getMonth() + 1}월 ${_today.getDate()}일 (${WEEKDAYS[_today.getDay()]})`;
+  // ★하단 주간 스트립(2026-08-24) — 이번 주 일~토 7칸, 오늘 강조, 일정 있는 날 점(schedules 날짜 매칭).
+  const _weekBase = new Date(_today); _weekBase.setHours(0, 0, 0, 0);
+  const _todayMid = _weekBase.getTime();
+  const _weekStart = new Date(_weekBase); _weekStart.setDate(_weekBase.getDate() - _weekBase.getDay());
+  const _schedDaySet = new Set((schedules || []).map(s => { const d = new Date(parseSchedDate(s)); d.setHours(0, 0, 0, 0); return d.getTime(); }));
+  const weekStrip = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(_weekStart); d.setDate(_weekStart.getDate() + i);
+    const t = d.getTime();
+    return { day: d.getDate(), dow: d.getDay(), isToday: t === _todayMid, hasEvent: _schedDaySet.has(t) };
+  });
+  // ★내 피드 최신(2026-08-24) — 내 라운딩 기록(일상/모멘트 제외) 최근 4개. diaries는 date desc라 slice가 최신.
+  const myFeed = (diaries || []).filter(isRoundDiary).slice(0, 4);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0a1e10' }}>
       <StatusBar barStyle="light-content" />
       <HomeBgSlider />
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
-        {/* SafeArea top: iOS는 노치, Android는 status bar 자동 padding.
-            ※ currentHeight 수동 패딩(b63920e) 롤백 — 안드 edge-to-edge에서 SafeArea와 이중 적용돼
-            삼선바가 과하게 내려오는 부작용(흔들림도 못 고침). 흔들림은 dev로 insets 실측 후 재시도 ([[cross-platform-check]])
+      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
+        {/* ★전체 스크롤(2026-08-24 개편): 상단 SafeArea top 여백을 ScrollView 밖 고정으로 두면
+            "삼단바 위부터만 스크롤"되는 어정쩡한 경계가 생김 → top edge를 빼고 콘텐츠 paddingTop:insets.top으로
+            흡수해 화면 최상단부터 콘텐츠 전체가 스크롤되게. 배경(HomeBgSlider)은 그대로 고정 배경.
             하단은 SafeArea 안 함 — 탭바가 자체 처리하고 안드로이드 navigation bar는 bottomArea가 처리 */}
-        {/* 확대(디스플레이 줌) 대응 — flexGrow:1로 정상 줌엔 화면을 꽉 채워 스크롤 안 생기고(레이아웃 100% 동일),
-            확대로 내용이 넘칠 때만 세로 스크롤로 구제(하단 카드/골퍼코멘트 잘림 방지). 헤더·폰트는 손대지 않음. */}
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: winW < 360 ? tabBarHeight : 0 }}
-          showsVerticalScrollIndicator={false}
-          bounces={false}>
+          contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, paddingBottom: tabBarHeight + 24 }}
+          showsVerticalScrollIndicator={false}>
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
         <View style={homeS.hdr}>
-          <Text style={homeS.hdrSub}>라운딩의 모든 순간을 더 특별하게</Text>
           {/* 타이틀 줄 — Dear Golf + 날씨 + DM 💬. 💬는 날씨 아이콘 우상단에 살짝 띄워(브랜드가 말하는 말풍선 느낌),
               너무 붙지 않게 간격(marginLeft)·위로 올림(marginTop 음수). 사용자 위치 지정 2026-06-17. */}
           {/* 우측 버튼 레일(메시지·크루)은 절대좌표로 통일(RAIL_TOP/STEP) — 아래 hdr 마지막 자식들.
@@ -1237,6 +1249,18 @@ export function HomeScreen({ navigation, route }) {
           <Text style={homeS.hdrGreeting}>
             안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
           </Text>
+          {/* ★주간 스트립(2026-08-24) — 인사말 아래, 콘텐츠와 같이 스크롤. 이번 주 7일·오늘 강조·일정 있는 날 점. 탭→일정 캘린더 */}
+          <View style={{ flexDirection: 'row', marginTop: 16, backgroundColor: 'rgba(0,0,0,0.24)', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 4 }}>
+            {weekStrip.map((wd, i) => (
+              <TouchableOpacity key={i} onPress={() => setShowScheduleScreen(true)} activeOpacity={0.7} style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: wd.isToday ? C.butter : 'rgba(255,255,255,0.6)', marginBottom: 6 }}>{WEEKDAYS[wd.dow]}</Text>
+                <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: wd.isToday ? C.butter : 'transparent' }}>
+                  <Text style={{ fontFamily: wd.isToday ? F.sysB : F.sysM, fontSize: fs(15.5), color: wd.isToday ? '#16281c' : '#fff' }}>{wd.day}</Text>
+                </View>
+                <View style={{ width: 6, height: 6, borderRadius: 3, marginTop: 6, backgroundColor: wd.hasEvent ? '#8FB06B' : 'transparent' }} />
+              </TouchableOpacity>
+            ))}
+          </View>
           {/* 당일 체크인 카드 배너 — 박스가 많아 정신없어, 이용안내 띠 '자리'에 대신 노출(둘 다 안 띄움). 활성 아니면 이용안내 띠. */}
           {checkinActive ? (
             /* 그림자/elevation 제거 — 배경 없는 둥근 뷰에 elevation을 주면 안드서 그림자가 '네모난 짙은 박스'로
@@ -1284,114 +1308,15 @@ export function HomeScreen({ navigation, route }) {
             </View>
             <Text style={{ fontFamily: F.sys, fontSize: fs(15), color: 'rgba(255,255,255,0.6)', marginLeft: 2 }}>›</Text>
           </TouchableOpacity>
-          ) : (
-          /* 디어골프 스토어 띠 — 커머스라 흰 반투명 띠와 구분되는 골드(버터) 톤으로 특색(체크인 배너 계열).
-             아이콘=진한 블루 원 배지+흰 bag. URL 없는 동안 탭=준비 중 토스트, 승인 후 외부 브라우저로 스마트스토어. */
-          <TouchableOpacity onPress={() => (STORE_URL ? Linking.openURL(STORE_URL).catch(() => {}) : showAppAlert('', (
-            /* 준비 중 안내 — 하단 토스트는 위치가 낮고 커스텀 아이콘 불가 → 가운데 알럿에 스토어 띠와 같은 블루 배지+bag (사용자 2026-07-03) */
-            <View style={{ alignItems: 'center', paddingTop: 6 }}>
-              <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#4E86B4', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                <Icon name="bag" size={fs(28)} color="#fff" strokeWidth={2.1} />
-              </View>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>스토어 오픈 준비 중이에요</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
-                센스 있는 골프 아이템으로{'\n'}곧 찾아올게요
-              </Text>
-            </View>
-          ), [{ text: '기대할게요' }]))} activeOpacity={0.85}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: Platform.OS === 'android' ? 13 : 15,
-              backgroundColor: 'rgba(245,230,168,0.16)', borderWidth: 0.5, borderColor: 'rgba(245,230,168,0.5)',
-              borderRadius: 12,
-              paddingHorizontal: Platform.OS === 'android' ? 10 : 12,
-              // ★우측 레일(메시지·크루) 폭을 비워 확대모드에서 띠가 넓어져도 크루 버튼과 안 겹치게(사용자 2026-07-24).
-              maxWidth: winW - SIDE_PAD * 2 - RAIL_BTN - 10,
-              paddingVertical: Platform.OS === 'android' ? 6 : 8, alignSelf: 'flex-start' }}>
-            <View style={{ width: Platform.OS === 'android' ? 32 : 36, height: Platform.OS === 'android' ? 32 : 36, borderRadius: 18,
-              backgroundColor: '#4E86B4', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="bag" size={Platform.OS === 'android' ? fs(19) : fs(22)} color="#fff" strokeWidth={2.1} />
-            </View>
-            <View style={{ flexShrink: 1 }}>
-              {/* 라벨은 이름 중립 '스토어' — '디어골프 스토어'는 28류 상표 충돌([[ip-protection-backlog]] 2026-07-04)
-                  + 스토어명 미정. 앱 안이라 문맥 자명, 스토어 이름이 뭐가 되든 이 라벨은 유효(재빌드 불필요). */}
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter, includeFontPadding: false }}>스토어</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.8)', marginTop: 1.5, includeFontPadding: false }}>
-                센스 있는 골프 아이템 구경하기
-              </Text>
-            </View>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: C.butter, marginLeft: 3 }}>›</Text>
-          </TouchableOpacity>
-          )}
-          {/* ── 우측 버튼 레일: 메시지 → 크루. 둘 다 절대좌표 right:SIDE_PAD, top = RAIL_TOP + RAIL_STEP*n(간격 균일).
-                hdr 마지막 자식들(그리팅·배너 위에 렌더) + zIndex/elevation 20으로 iOS·안드 모두 맨 위라 터치 받음. ── */}
-          {/* 메시지(DM) — 레일 1번. 안읽음=버건디+숫자, 안읽음 시 좌우 진동. 평상시 은은한 호흡 펄스.
-              ★드롭섀도 제거(2026-06-18): 반투명 배경 그림자 투과로 'DM 뒤 뿌연 팔각형' 아티팩트 → 깔끔함 우선 제거. */}
-          <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.8}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP, zIndex: 20, elevation: 20, alignItems: 'center' }}>
-            <Animated.View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2,
-              alignItems: 'center', justifyContent: 'center',
-              transform: [{ translateX: dmShift }] }}>
-              <Animated.View style={{ opacity: dmIdleOpacity }}>
-                <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 1.5, borderColor: C.butter,
-                  backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                  <View style={{ width: RAIL_BTN - 8, height: RAIL_BTN - 8, borderRadius: (RAIL_BTN - 8) / 2, borderWidth: 1.2, borderColor: C.butter,
-                    backgroundColor: dmUnread > 0 ? C.burgundy : 'transparent',
-                    alignItems: 'center', justifyContent: 'center' }}>
-                    {dmUnread > 0 ? (
-                      <Text style={{ fontFamily: F.sysB,
-                        fontSize: fs(dmUnread > 99 ? 10 : 13), lineHeight: fs(13),
-                        color: C.butter, letterSpacing: 0.3, includeFontPadding: false,
-                        marginTop: Platform.OS === 'ios' ? 1 : 0 }}>
-                        {dmUnread > 99 ? '99+' : dmUnread}
-                      </Text>
-                    ) : (
-                      // 읽음 — 종이비행기(편지 날아가는) 드로잉
-                      <Icon name="send" size={fs(RAIL_SEND)} color={C.butter} strokeWidth={1.7} />
-                    )}
-                  </View>
-                </View>
-              </Animated.View>
-            </Animated.View>
-            {/* 아이콘 아래 한글 라벨 — 이모지만으론 뭔지 모를 수 있어 명시(사용자 2026-06-25). 사진 배경 위 가독성 위해 그림자 */}
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter, marginTop: 2, includeFontPadding: false,
-              textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>메시지</Text>
-          </TouchableOpacity>
-
-          {/* 크루 — 레일 2번. 초대 있을 때만 글로우(라디오 핑). */}
-          <TouchableOpacity onPress={() => { setCrewReturnId(null); setCrewModalAnim('slide'); setCrewOpen(true); }} activeOpacity={0.8}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP + RAIL_STEP, zIndex: 20, elevation: 20, alignItems: 'center' }}>
-            {/* 초대 글로우(라디오 핑) — 평상시 정적, 초대 있을 때만 울림 */}
-            {crewInvite > 0 && (
-              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2,
-                backgroundColor: '#8FB06B', opacity: crewHaloOpacity, transform: [{ scale: crewHaloScale }] }} />
-            )}
-            {/* 어두운 반투명 스크림 — 밝은(낮) 배경서도 또렷 */}
-            {/* 새 글이면 원을 세이지로 채우고 'NEW' + 은은한 맥동(DM 안읽음=원채움+숫자와 같은 맥락, 색·모션은 구분). 아니면 크루 아이콘 ([[crew-new-signal]]) */}
-            <Animated.View style={{ transform: [{ scale: crewNewScale }] }}>
-              <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: '#8FB06B',
-                backgroundColor: crewHasNew ? '#5E7E42' : 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
-                {crewHasNew ? (
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10.5), lineHeight: fs(12), color: '#fff', letterSpacing: 0.3,
-                    includeFontPadding: false, marginTop: Platform.OS === 'ios' ? 1 : 0 }}>NEW</Text>
-                ) : (
-                  <Icon name="crew" size={fs(RAIL_ICON)} color="#A8CC82" strokeWidth={2} />
-                )}
-              </View>
-            </Animated.View>
-            {/* 아이콘 아래 한글 라벨 — DM과 짝(사용자 2026-06-25). 사진 배경 위 가독성 위해 그림자 */}
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#A8CC82', marginTop: 2, includeFontPadding: false,
-              textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>크루</Text>
-          </TouchableOpacity>
-
-          {/* 알림 — 레일 3번(크루 아래). ★미확인이 있을 때만 나타나고 다 읽으면 사라짐(사용자 2026-07-21).
+          ) : null}
+          {/* 알림 — 우측 레일. ★미확인이 있을 때만 나타나고 다 읽으면 사라짐(사용자 2026-07-21).
               평상시 홈을 비워두고, 놓친 게 있을 때만 눈에 띄게 하는 게 목적. 다 읽은 뒤 지난 알림은
               라운지 종 아이콘에서 계속 볼 수 있다(진입점이 사라져도 알림함 자체는 그대로).
               절대좌표 슬롯이라 나타나고 사라져도 위의 메시지·크루 위치는 안 밀림. */}
           {notiUnread > 0 && (
             <TouchableOpacity onPress={() => navigation.navigate(ROUTES.LOUNGE, { openNoti: true })} activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP + RAIL_STEP * 2, zIndex: 20, elevation: 20, alignItems: 'center' }}>
+              style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP, zIndex: 20, elevation: 20, alignItems: 'center' }}>
               <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: '#E2C275',
                 backgroundColor: 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
                 <Icon name="bell" size={fs(RAIL_ICON)} color="#E2C275" strokeWidth={2} />
@@ -1474,34 +1399,16 @@ export function HomeScreen({ navigation, route }) {
 
         {next ? (
         <>
-        <View style={{ flex: 1 }} />
         <View style={[homeS.bottomArea, { paddingBottom: insets.bottom + 62 }]}>
           {/* 날짜 알약 + 「+ 추가」를 왼쪽에 나란히 — 전엔 space-between이라 「+ 추가」가 오른쪽 끝에 붙었는데,
               그 자리가 우측 버튼 레일 3번(알림 종) 아래라 알림이 뜨면 '알림' 라벨과 정면으로 겹쳤다(2026-07-22 캡처 확인).
               레일은 상시 요소이므로 오른쪽 끝을 비워두는 게 안전하다. */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: SIDE_PAD, marginBottom: 8 }}>
-            <TouchableOpacity
-              onPress={() => setShowScheduleScreen(true)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 5,
-                backgroundColor: 'rgba(255,255,255,0.14)',
-                borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.24)',
-                paddingHorizontal: 12, paddingVertical: 6,
-                borderRadius: 20,
-              }}>
-              {/* 캘린더 아이콘 살짝 흔들어 '탭하면 일정 캘린더 열림' 신호 강화 (사용자 2026-06-29)
-                  ★맥동(pulse) 대체 실험 → 19px 아이콘에선 눈에 안 띄어 shake 유지 결정, 코랄 계열은 명도 부족 (2026-07-03) */}
-              <AttentionMotion type="shake" distance={3}>
-                <Icon name="calendar" size={fs(19)} color={C.butter} />
-              </AttentionMotion>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: 'rgba(255,255,255,0.95)' }}>{todayLabel}</Text>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: '#fff' }}>›</Text>
-            </TouchableOpacity>
+          {/* ★날짜 버튼 제거(2026-08-24) — 캘린더 입구는 상단 주간 스트립이 대체. +추가만 우측에.
+              ★버튼 배경 없이 텍스트만(사용자: 버튼 남발 싫음, [[feedback-minimal-buttons]]). 중장년 발견성은 글씨 키움+butter색으로 */}
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: SIDE_PAD, marginTop: 14, marginBottom: 14 }}>
             {upcomingSchedules.length < 10 && (
-              <TouchableOpacity onPress={() => setShowAddModal(true)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(17), color: 'rgba(255,255,255,0.9)' }}>+ 추가</Text>
+              <TouchableOpacity onPress={() => setShowAddModal(true)} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.butter }}>+ 일정 추가</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1935,8 +1842,8 @@ export function HomeScreen({ navigation, route }) {
 
             // 미기록(첫 방문)도 항상 캐러셀 — 안내 메모 + 골퍼코멘트 2장(고정 시 빈 공간 해소 + 기록 유도, 사용자 2026-07-20)
             const slides = isFirstVisit
-              ? [firstVisitMemoCard, firstVisitCard, ...adCards]
-              : [(!myMemo ? noMemoCard : myMemoCard), ...(withGolfer ? [golferCard] : []), ...adCards];
+              ? [firstVisitMemoCard]
+              : [(!myMemo ? noMemoCard : myMemoCard)];
 
             if (slides.length === 1) return <View>{slides[0]}</View>;
 
@@ -1964,6 +1871,42 @@ export function HomeScreen({ navigation, route }) {
             );
           })()}
           </>)}
+          {/* ★내 피드 최신(2026-08-24) — 내 라운딩 기록 최근 4개. 사진 썸네일+구장+날짜+스코어/메모. 탭→MY 다이어리 상세 */}
+          {myFeed.length > 0 && (
+            <View style={{ marginTop: 24, paddingHorizontal: SIDE_PAD }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 12 }}>최근 기록</Text>
+              {myFeed.map((d) => {
+                const uri = resolvePhotoUri(firstPhotoUri(d.photos));
+                return (
+                  <TouchableOpacity key={d.id} activeOpacity={0.85}
+                    onPress={() => navigation.navigate(ROUTES.MY, { openDiaryId: d.id, returnToHome: true })}
+                    style={{ flexDirection: 'row', gap: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12, marginBottom: 12 }}>
+                    {uri ? (
+                      <ExpoImage source={{ uri }} contentFit="cover" transition={0} style={{ width: 74, height: 74, borderRadius: 10 }} />
+                    ) : (
+                      <View style={{ width: 74, height: 74, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                        <GreenFlag size={fs(26)} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1, justifyContent: 'center' }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: '#fff' }} numberOfLines={1}>{d.course}</Text>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.72)', marginTop: 3 }}>
+                        {d.date}{typeof d.score === 'number' ? ` · ${d.score}타` : ''}
+                      </Text>
+                      {d.memo ? <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: 'rgba(255,255,255,0.58)', marginTop: 4 }} numberOfLines={1}>"{d.memo}"</Text> : null}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+              {/* 더보기 → MY 다이어리 탭(전체 피드). 버튼 아닌 텍스트, 중장년 위해 뭘 보는지 명확하게 */}
+              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MY)} activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ alignItems: 'center', paddingVertical: 8, marginTop: 2 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: 'rgba(255,255,255,0.72)' }}>전체 기록 보기 ›</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {/* ★스코어 추이(2026-08-24) — 공용 ScoreBanner 재사용(스파크라인+평균/베스트/핸디+추세문구). 탭→상세 통계 */}
+          <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)} style={{ marginHorizontal: SIDE_PAD, marginTop: 8, marginBottom: 0 }} />
           {/* 하단 여백 22→8 — 캐러셀 점과 하단 탭 사이가 너무 벌어 보임(사용자 2026-07-03) */}
           <View style={{ height: 8 }} />
         </View>
@@ -2033,6 +1976,10 @@ export function HomeScreen({ navigation, route }) {
         )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* ★스코어 추이 상세 — 홈 배너 탭 시 통계 화면(추세·마일스톤·분포·구장별) */}
+      <ScoreStatsScreen visible={scoreStatsOpen} onClose={() => setScoreStatsOpen(false)}
+        diaries={diaries} schedules={schedules} userProfile={userProfile} />
 
       <ScheduleSheetModal
         visible={showScheduleModal}

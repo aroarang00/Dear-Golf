@@ -20,7 +20,7 @@ export const homeS = StyleSheet.create({
   // includeFontPadding:false — 안드로이드 Text 기본 폰트 위/아래 패딩 제거 (iOS 일관성)
   // fontSize/lineHeight를 iOS만 키움 — 안드로이드는 fs(40)/fs(54) 그대로 (화면 비율 차 보정 유지)
   hdrTitle:        { fontFamily: F.brand, fontSize: isAndroid ? fs(43) : fs(46), lineHeight: isAndroid ? fs(58) : fs(62), color: '#fff', paddingHorizontal: 4, marginBottom: 0, flexShrink: 0, includeFontPadding: false, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
-  hdrGreeting:     { fontFamily: F.sys, fontSize: fs(14), color: 'rgba(255,255,255,0.75)', marginTop: 6, includeFontPadding: false },
+  hdrGreeting:     { fontFamily: F.sys, fontSize: fs(17), color: 'rgba(255,255,255,0.88)', marginTop: 9, includeFontPadding: false },
   hdrGreetingName: { fontFamily: F.sysSb, color: C.butter },
   bottomArea:      { paddingBottom: 0 },
   secLabel:        { fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, paddingHorizontal: SIDE_PAD, marginBottom: 8 },
