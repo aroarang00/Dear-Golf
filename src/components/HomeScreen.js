@@ -849,7 +849,7 @@ export function HomeScreen({ navigation, route }) {
               <TouchableOpacity onPress={() => { setSelectedSchedule(s); setShowWeatherFull(true); }} activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 4 }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
-                <WeatherGlyph icon={info.icon || '⛅'} size={fs(21)} />
+                <WeatherGlyph icon={info.icon || '⛅'} size={fs(25)} />
                 <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>
                   {info.wx || '날씨'}<Text style={{ color: 'rgba(255,255,255,0.55)' }}> ›</Text>
                 </Text>
@@ -858,7 +858,7 @@ export function HomeScreen({ navigation, route }) {
               <TouchableOpacity onPress={() => { setSelectedSchedule(s); setShowTrafficFull(true); }} activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 4, right: 6 }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
-                <Icon name="car" size={fs(21)} color="#fff" strokeWidth={1.8} />
+                <Icon name="car" size={fs(25)} color="#fff" strokeWidth={1.8} />
                 <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>
                   {info.drive ? formatDriveMin(info.drive) : '가는 길'}<Text style={{ color: 'rgba(255,255,255,0.55)' }}> ›</Text>
                 </Text>
