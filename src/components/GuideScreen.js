@@ -12,7 +12,7 @@ import { ROUTES } from '../constants/routes';
 import { UserContext } from '../contexts/UserContext';
 
 // 헤더·버튼을 라운지(navy) 헤더 규격에 맞춰 안드 컴팩트 보정 (RoundupTab과 동일 패턴)
-const _and = Platform.OS === 'android';
+// (_and 안드 보정은 옛 큰 헤더 폐기(2026-08-26)로 더 안 씀 — 필요 시 Platform.OS로)
 
 import { C, F, fs } from '../constants/colors';
 import {
@@ -1613,28 +1613,10 @@ export function GuideScreen({ route, navigation }) {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
-      <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 7, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View>
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(61,57,53,0.72)', letterSpacing: 2, marginBottom: _and ? 2 : 4 }}>골퍼들의 코스 이야기</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{
-              fontFamily: F.sysSb,
-              fontSize: fs(_and ? 24 : 28),
-              color: C.charcoal,
-            }}>코스</Text>
-            {/* 안내 — 제목 옆. 구장 탭=코스·코멘트·맛집, 아래로 내 주변 스크린골프(사용자 2026-06-20).
-                '내 코스 모아보기'는 검색창 위 긴 바(CourseExploreTab)로 이동(헤더 버튼 제거, 중복 방지). */}
-            <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              onPress={() => showAppAlert('코스 둘러보기 안내',
-                '골프장을 검색해 탭하면\n코스 정보·골퍼 코멘트·주변 맛집을\n한눈에 볼 수 있어요.\n\n아래로 내리면 내 주변\n스크린골프장을 찾을 수 있어요.',
-                [{ text: '확인' }])}
-              style={{ padding: 4 }}>
-              <Icon name="book" size={fs(20)} color={C.charcoal} strokeWidth={1.8} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
+    /* 코스 랜딩 — 헤더는 CourseExploreTab이 모드별로 그린다(2026-08-26 간소화):
+       지도=헤더 없이 풀블리드(상태바 뒤까지, 검색·칩 오버레이) / 목록=컴팩트 한 줄 띠(코스·안내).
+       ★paddingTop 주지 말 것 — 상태바 영역에 베이지 띠가 생겨 어색(사용자 지적). */
+    <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingLeft: insets.left, paddingRight: insets.right }}>
       <CourseExploreTab
         ref={exploreRef}
         region={exploreRegion}

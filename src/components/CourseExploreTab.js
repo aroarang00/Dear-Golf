@@ -10,6 +10,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
+import { CourseMapExplore } from './CourseMapExplore';
+
+// ★코스 탭 지도 퍼스트(2026-08-26) — 기본이 지도, '목록'은 토글. 신규가 검색어 없이도 둘러보게.
+//   안드는 구글맵 키 없는 빌드면 MapView가 네이티브 크래시 → 키 없으면 지도 모드 자체를 막고 목록 고정(FoodMapView 가드와 동일).
+const MAP_OK = Platform.OS !== 'android' || !!process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+const VIEW_MODE_KEY = '@dg_course_view_mode';
+let viewModeCache = null; // 코스 상세를 열면 이 컴포넌트가 언마운트돼(GuideScreen early return) 모듈 변수로 유지
 import { searchNearbyScreenGolf, NON_COURSE_NAME_RE, HIDDEN_UMBRELLA_BASES } from '../utils/kakao';
 import { searchGolfCourses, getGolfCourses } from '../utils/golfCourses';
 import { getCurrentLocation, hasLocationPermission } from '../utils/location';
@@ -124,6 +131,15 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const [screenMsg, setScreenMsg] = useState('');
   const [screenExpanded, setScreenExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false); // 당겨서 새로고침 표시 (주변 시설 재시도)
+  // 지도/목록 모드 — 기본 지도. 선택은 디스크에 기억(모듈 캐시로 상세 복귀 시 깜빡임 없음).
+  const [viewMode, setViewModeState] = useState(MAP_OK ? (viewModeCache || 'map') : 'list');
+  useEffect(() => {
+    if (viewModeCache || !MAP_OK) return;
+    AsyncStorage.getItem(VIEW_MODE_KEY).then(v => {
+      if (v === 'list' || v === 'map') { viewModeCache = v; setViewModeState(v); }
+    }).catch(() => {});
+  }, []);
+  const setViewMode = (m) => { viewModeCache = m; setViewModeState(m); AsyncStorage.setItem(VIEW_MODE_KEY, m).catch(() => {}); };
   const [savedExpanded, setSavedExpanded] = useState(false); // 내 저장 골프장 더보기
   const [savedFav, setSavedFav] = useState([]); // 내 저장 골프장(위시리스트) — 코스 상세 ★ 저장분
   const [favEditMode, setFavEditMode] = useState(false); // 내 저장 골프장 순서 편집(↑/↓)
@@ -301,7 +317,30 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const visibleScreen = screenExpanded ? screen : screen.slice(0, 5);
   const moreScreen = screen.length - visibleScreen.length;
 
+  // ── 지도 모드(기본) — 전국 핀 둘러보기. 핀/검색 → 하단 카드 → 상세(openMasterCourse 기존 흐름 재사용) ──
+  if (viewMode === 'map') {
+    return (
+      <CourseMapExplore master={master} top100={top100} savedFav={savedFav}
+        onPressCourse={openMasterCourse} onOpenCourseLog={onOpenCourseLog}
+        onSwitchToList={() => setViewMode('list')} />
+    );
+  }
+
   return (
+    <View style={{ flex: 1 }}>
+    {/* 목록 모드 헤더 — 컴팩트 한 줄(코스·안내), 버터 띠를 상태바 뒤 상단 끝까지(친구·라운딩 모집과 동일 규격, 2026-08-26).
+        옛 큰 타이틀 헤더(GuideScreen)는 폐기 — 지도 모드는 헤더 없이 풀블리드. */}
+    <View style={{ backgroundColor: C.butter, paddingHorizontal: 12, paddingTop: insets.top + 6, paddingBottom: 6,
+      flexDirection: 'row', alignItems: 'center' }}>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, marginLeft: 4, marginRight: 4 }}>코스</Text>
+      <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+        onPress={() => showAppAlert('코스 둘러보기 안내',
+          '골프장을 검색해 탭하면\n코스 정보·골퍼 코멘트·주변 맛집을\n한눈에 볼 수 있어요.\n\n아래로 내리면 내 주변\n스크린골프장을 찾을 수 있어요.',
+          [{ text: '확인' }])}
+        style={{ padding: 4 }}>
+        <Icon name="book" size={fs(20)} color={C.charcoal} strokeWidth={1.8} />
+      </TouchableOpacity>
+    </View>
     <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshNearby} tintColor={C.warmGray} />}>
       {/* 1. 검색창 — 위키 진입점(맨 위). 어느 골프장이든 검색해 평점·후기를 본다. '내 코스 모아보기'는 검색 아래로(솔로 신규는 검색 먼저). */}
@@ -709,5 +748,18 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
           (사용자 2026-07-22). 다른 탭 화면과 같은 값으로 통일. */}
       <View style={{ height: insets.bottom + 92 }} />
     </ScrollView>
+
+    {/* 지도로 돌아가기 — 목록 모드 우하단 플로팅(탭바 위). 안드 키 없는 빌드에선 숨김 */}
+    {MAP_OK && (
+      <TouchableOpacity onPress={() => setViewMode('map')} activeOpacity={0.85}
+        style={{ position: 'absolute', right: 14, bottom: insets.bottom + 78,
+          flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.charcoal,
+          borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10,
+          shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 5 }}>
+        <Icon name="pin" size={fs(15)} color={C.butter} strokeWidth={1.9} />
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: C.butter }}>지도</Text>
+      </TouchableOpacity>
+    )}
+    </View>
   );
 });
