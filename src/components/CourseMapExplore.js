@@ -169,8 +169,17 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
         provider={PROVIDER_DEFAULT}
         initialRegion={REGION_CAM.전체}
         maxZoomLevel={16}
+        minZoomLevel={5.5}      // 대한민국 전도보다 더 못 빠지게 — 전세계가 보이던 것(사용자 2026-08-27)
         rotateEnabled={false}   // 북쪽 고정 — 확대 중 실수로 돌아간 지도를 못 되돌려 헤매는 것 방지(사용자 문의 2026-08-26)
         pitchEnabled={false}    // 기울이기도 잠금 — 탐색 지도는 평면이 명확
+        // 팬으로 한반도를 벗어나면 중심을 국내로 되돌림 — state 없이 animate만(핀 리렌더 0 유지)
+        onRegionChangeComplete={(r) => {
+          const lat = Math.min(Math.max(r.latitude, 32.8), 38.9);
+          const lng = Math.min(Math.max(r.longitude, 124.8), 130.5);
+          if (Math.abs(lat - r.latitude) > 0.001 || Math.abs(lng - r.longitude) > 0.001) {
+            mapRef.current?.animateToRegion({ ...r, latitude: lat, longitude: lng }, 250);
+          }
+        }}
         onMarkerPress={(e) => { const c = pinIndex.get(String(e?.nativeEvent?.id)); if (c) setSel(c); }}
         onPress={(e) => { if (e?.nativeEvent?.action === 'marker-press') return; setSel(null); }}
         showsUserLocation={!!myLoc}
