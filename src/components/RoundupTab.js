@@ -264,8 +264,9 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
   );
 });
 
-// embedded — 모임 탭(MeetScreen) 안에 얹힐 때 true: 상단 인셋은 MeetScreen 스트립이 이미 처리(2026-08-26 탭 재편)
-export function RoundupTab({ visible, onClose, asScreen = false, embedded = false, navigation, route }) {
+// embedded — 모임 탭(MeetScreen) 안에 얹힐 때 true: 스트립+헤더 두 줄이 두꺼워 한 줄로 합침(2026-08-26).
+//   ‹ 모임(onBack)·라운딩 모집·안내·알림함이 한 줄 — 상단 인셋도 여기서 처리(MeetScreen은 스트립 생략)
+export function RoundupTab({ visible, onClose, asScreen = false, embedded = false, navigation, route, onBack }) {
   const insets = useSafeAreaInsets(); // asScreen(라운지 탭) 루트는 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=점프 방지, 2026-06-15). 모달 분기는 SafeAreaView 유지
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, addSchedule, editSchedule, removeSchedule } = useContext(SchedulesContext);
@@ -1929,11 +1930,12 @@ export function RoundupTab({ visible, onClose, asScreen = false, embedded = fals
   const body = (
     <>
       {/* 헤더 — 정식 메뉴이므로 친구 화면과 동일한 네이비 헤더 (큰 타이틀 + 서브).
-          ★embedded(모임 탭)에선 타이틀·서브 생략 — 위 세그먼트가 이미 '라운딩 모집'이라 중복(사용자 2026-08-26).
-            안내(book)는 우측 버튼 줄로 이동, 헤더는 얇은 버튼 줄만 남는다. */}
-      <View style={{ backgroundColor: C.navy, paddingHorizontal: 20, paddingVertical: embedded ? 4 : 7,
+          ★embedded(모임 탭)에선 ‹ 모임·라운딩 모집·안내를 한 줄로(두 줄 헤더가 두꺼워 합침, 2026-08-26).
+            네이비 띠는 top 인셋까지 채워 상태바 뒤로 이어짐. */}
+      <View style={{ backgroundColor: C.navy, paddingHorizontal: embedded ? 12 : 20,
+        paddingTop: embedded ? insets.top + 6 : 7, paddingBottom: embedded ? 6 : 7,
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: embedded ? 0 : 12, flex: 1 }}>
           {!asScreen && (
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: fs(22), color: C.butter }}>←</Text>
@@ -1952,10 +1954,19 @@ export function RoundupTab({ visible, onClose, asScreen = false, embedded = fals
           </View>
           )}
           {embedded && (
-            <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={{ padding: 4 }}>
-              <Icon name="book" size={fs(21)} color={C.bgPrimary} strokeWidth={1.8} />
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity onPress={onBack} activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 2, padding: 4 }}>
+                <Text style={{ fontSize: fs(21), color: C.bgPrimary, fontWeight: '600', marginTop: -2 }}>‹</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(13.5), color: C.bgPrimary, opacity: 0.85 }}>모임</Text>
+              </TouchableOpacity>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.bgPrimary, marginLeft: 6, marginRight: 4 }}>라운딩 모집</Text>
+              <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                style={{ padding: 4 }}>
+                <Icon name="book" size={fs(21)} color={C.bgPrimary} strokeWidth={1.8} />
+              </TouchableOpacity>
+            </>
           )}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
