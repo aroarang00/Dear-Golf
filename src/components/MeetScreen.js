@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, TouchableOpacity, Modal, Platform } from 'react-native';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Modal, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
@@ -8,6 +8,10 @@ import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { loadMyFriends } from '../utils/friends';
 import { subscribeMyCrews, subscribeCrewInvites } from '../utils/crews';
+import { loadAllRoundups } from '../utils/roundup'; // 대문 하단 '지금 모집 중' 미리보기(2026-08-27)
+import { SchedulesContext } from '../contexts/SchedulesContext'; // 대문 '함께하는 다음 라운딩'(2026-08-27)
+import { DiariesContext } from '../contexts/DiariesContext';     // 대문 '자주 함께한 골프 친구' 집계(2026-08-27)
+import { isRoundDiary } from '../utils/diaryKind';
 import { Icon } from './common/Icon';
 import { RoundupTab } from './RoundupTab';
 import { FriendsScreen } from './FriendsScreen';
@@ -94,10 +98,28 @@ export function MeetScreen({ navigation, route }) {
   const [friendCount, setFriendCount] = useState(null);
   const [crewCount, setCrewCount] = useState(null);
   const [crewInviteCount, setCrewInviteCount] = useState(0);
+  const [hubPosts, setHubPosts] = useState([]);
   useEffect(() => {
     if (seg !== 'hub') return undefined;
     let alive = true;
     loadMyFriends().then(fs => { if (alive) setFriendCount((fs || []).length); }).catch(() => {});
+    // '지금 모집 중인 라운딩' 미리보기 — 대문 하단이 휑하다는 지적(2026-08-27, A안). 전체공개 글만(가볍게),
+    //   티오프+5h 지난 글 제외, 가까운 날짜순(오픈형=일정 미정은 뒤), 최대 3개.
+    loadAllRoundups().then(list => {
+      if (!alive) return;
+      const now = Date.now();
+      const within = (p) => {
+        if (!p.date) return true;
+        const [y, m, d] = String(p.date).split('.').map(Number);
+        const [hh, mm] = String(p.time || '07:00').split(':').map(Number);
+        const tee = new Date(y, m - 1, d, hh, mm).getTime();
+        return Number.isNaN(tee) ? true : now <= tee + 5 * 3600 * 1000;
+      };
+      const live = (list || []).filter(within);
+      const dated = live.filter(p => p.date).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+      const open = live.filter(p => !p.date);
+      setHubPosts([...dated, ...open].slice(0, 3));
+    }).catch(() => {});
     return () => { alive = false; };
   }, [seg]);
   useEffect(() => {
@@ -106,6 +128,32 @@ export function MeetScreen({ navigation, route }) {
     const un2 = subscribeCrewInvites(currentUid, (list) => setCrewInviteCount((list || []).length));
     return () => { un1 && un1(); un2 && un2(); };
   }, [currentUid]);
+
+  // ── 대문 채움 콘텐츠(2026-08-27, "허전하다" ①+②) ──
+  // ① 함께하는 다음 라운딩 — 동반자 있는 다가오는 일정 최대 2건(가까운 순)
+  const { schedules } = useContext(SchedulesContext);
+  const togetherNext = useMemo(() => {
+    const today = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const todayKey = `${today.getFullYear()}.${pad(today.getMonth() + 1)}.${pad(today.getDate())}`;
+    return (schedules || [])
+      .filter(s => s?.date && s.date >= todayKey && (s.companions || []).filter(c => !(typeof c === 'object' && c?.isMe)).length > 0)
+      .sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
+      .slice(0, 2);
+  }, [schedules]);
+  // ② 자주 함께한 골프 친구 — 라운딩 기록의 동반자 이름 빈도 상위 5명(이니셜 원 + 횟수)
+  const { diaries } = useContext(DiariesContext);
+  const topPartners = useMemo(() => {
+    const cnt = new Map();
+    (diaries || []).filter(isRoundDiary).forEach(d => {
+      (d.companions || []).forEach(c => {
+        if (typeof c === 'object' && c?.isMe) return;
+        const name = (typeof c === 'string' ? c : (c?.name || '')).trim();
+        if (name) cnt.set(name, (cnt.get(name) || 0) + 1);
+      });
+    });
+    return [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  }, [diaries]);
 
   const hubSub = {
     friends: friendCount == null ? '' : `${friendCount}명`,
@@ -144,9 +192,13 @@ export function MeetScreen({ navigation, route }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
       {seg === 'hub' ? (
-        /* ── 대문 — 방 고르기. 카드에 살아있는 숫자(명수·개수·신청·초대)로 들어올 이유를 보여준다 ── */
+        /* ── 대문 — 방 고르기. 카드에 살아있는 숫자(명수·개수·신청·초대)로 들어올 이유를 보여준다.
+            하단이 휑해 '지금 모집 중인 라운딩' 미리보기 추가(2026-08-27, A안) — 대문을 살아있는 입구로 ── */
         <View style={{ flex: 1, paddingTop: insets.top }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(24), color: C.charcoal, paddingHorizontal: 20, marginTop: 16 }}>모임</Text>
+          {/* 콘텐츠가 늘어(사람·약속·모집) 작은 폰에서 넘칠 수 있어 스크롤로 */}
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
           <View style={{ paddingHorizontal: 16, marginTop: 18, gap: 12 }}>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               {hubCard('friends')}
@@ -157,6 +209,97 @@ export function MeetScreen({ navigation, route }) {
               {hubCard('settle')}
             </View>
           </View>
+
+          {/* ② 자주 함께한 골프 친구 — 라운딩 기록 동반자 빈도 상위 5명(이니셜 원+횟수). 탭→친구 화면(2026-08-27) */}
+          {topPartners.length > 0 && (
+            <View style={{ marginTop: 24 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20 }}>자주 함께한 골프 친구</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 14, paddingHorizontal: 20, paddingTop: 11 }}>
+                {topPartners.map(([name, n]) => (
+                  <TouchableOpacity key={name} onPress={() => go('friends')} activeOpacity={0.8} style={{ alignItems: 'center', width: 58 }}>
+                    <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.navy }}>{name.slice(0, 1)}</Text>
+                    </View>
+                    <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.charcoal, marginTop: 5 }}>{name}</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 1 }}>{n}회</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* ① 함께하는 다음 라운딩 — 동반자 있는 다가오는 일정 최대 2건. 탭→홈(히어로 카드에서 상세)(2026-08-27) */}
+          {togetherNext.length > 0 && (
+            <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 4 }}>함께하는 다음 라운딩</Text>
+              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14, marginTop: 10 }}>
+                {togetherNext.map((s, i) => {
+                  const names = (s.companions || [])
+                    .filter(c => !(typeof c === 'object' && c?.isMe))
+                    .map(c => (typeof c === 'string' ? c : (c?.name || '')).trim()).filter(Boolean);
+                  const label = names.slice(0, 3).join(', ') + (names.length > 3 ? ` 외 ${names.length - 3}명` : '');
+                  return (
+                    <TouchableOpacity key={s.id || i} activeOpacity={0.7} onPress={() => navigation.navigate(ROUTES.HOME)}
+                      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
+                        borderBottomWidth: i < togetherNext.length - 1 ? 0.5 : 0, borderBottomColor: C.hairline }}>
+                      <Icon name="calendar" size={fs(18)} color={C.navy} strokeWidth={1.8} />
+                      <View style={{ flex: 1, marginLeft: 10, minWidth: 0 }}>
+                        <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: C.charcoal }}>{s.course || '라운딩'}</Text>
+                        <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>
+                          {s.date?.slice(5)}{s.time ? ' ' + s.time : ''}{label ? ` · ${label}와` : ''}
+                        </Text>
+                      </View>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(18), color: C.warmGray }}>›</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* 지금 모집 중인 라운딩 — 최신 전체공개 글 최대 3개. 탭=그 글로 직행(openPostId, 크루→모집과 같은 경로) */}
+          <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 4 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>지금 모집 중인 라운딩</Text>
+              {hubPosts.length > 0 && (
+                <TouchableOpacity onPress={() => go('roundup')} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.warmGray }}>전체보기 ›</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {hubPosts.length === 0 ? (
+              <TouchableOpacity onPress={() => go('roundup')} activeOpacity={0.8}
+                style={{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingVertical: 20, alignItems: 'center' }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray }}>
+                  아직 모집 중인 글이 없어요
+                </Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.navy, marginTop: 6 }}>첫 모집글을 올려보세요 ›</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14 }}>
+                {hubPosts.map((p, i) => (
+                  <TouchableOpacity key={p.id} activeOpacity={0.7}
+                    onPress={() => navigation.navigate(ROUTES.MEET, { openPostId: p.id, openPostHost: p.authorUid || undefined })}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
+                      borderBottomWidth: i < hubPosts.length - 1 ? 0.5 : 0, borderBottomColor: C.hairline }}>
+                    <Icon name="clubhouse" size={fs(19)} color={C.navy} strokeWidth={1.8} />
+                    <View style={{ flex: 1, marginLeft: 10, minWidth: 0 }}>
+                      <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: C.charcoal }}>{p.course || '라운딩 모집'}</Text>
+                      <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>
+                        {p.date ? `${p.date.slice(5)}${p.time ? ' ' + p.time : ''}` : '일정 미정'}
+                      </Text>
+                    </View>
+                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.navy, marginRight: 4 }}>
+                      {(p.joined || 1)}/{p.capacity || 4}명
+                    </Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(18), color: C.warmGray }}>›</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+          </ScrollView>
         </View>
       ) : !th ? null : (
         /* ── 섹션 상단 바 — ‹ 모임(대문 복귀) + 섹션 이름. 배경은 아래 화면 헤더 색과 이어지게 ── */
