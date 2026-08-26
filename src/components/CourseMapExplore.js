@@ -201,7 +201,7 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
       </MapView>
 
       {/* ── 상단 오버레이: 검색 + 안내 + 목록 토글 — 지도가 상태바 뒤까지 풀블리드라 insets.top 아래에 띄움 ── */}
-      <View style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12 }}>
+      <View style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12, zIndex: 20, elevation: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.97)',
             borderRadius: 12, paddingHorizontal: 12,
@@ -278,8 +278,9 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
         )}
       </View>
 
-      {/* ── 하단 오버레이 — 플로팅 탭바(≈insets+66) 위 ── */}
-      <View style={{ position: 'absolute', left: 12, right: 12, bottom: insets.bottom + 78 }}>
+      {/* ── 하단 오버레이 — 플로팅 탭바(≈insets+66) 위. zIndex/elevation — 지도(네이티브 뷰) 위에서
+          탭이 지도로 새 카드만 닫히던 것 방지("상세 보기 작동 안 함" 2026-08-26) ── */}
+      <View style={{ position: 'absolute', left: 12, right: 12, bottom: insets.bottom + 78, zIndex: 20, elevation: 20 }}>
         {/* 선택 카드 — 핀 탭 시. 카드 전체 탭=상세 */}
         {sel ? (
           <TouchableOpacity onPress={() => onPressCourse?.(sel)} activeOpacity={0.9}
@@ -291,9 +292,12 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
                 <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>{sel.name}</Text>
                 {!!sel.loc && <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{sel.loc}</Text>}
               </View>
-              <View style={{ backgroundColor: C.burgundy, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 8, marginLeft: 8 }}>
+              {/* 상세 보기 — 카드 전체 탭과 별개로 자체 버튼(중첩 터치 안전망). hitSlop 넉넉히 */}
+              <TouchableOpacity onPress={() => onPressCourse?.(sel)} activeOpacity={0.8}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                style={{ backgroundColor: C.burgundy, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 8, marginLeft: 8 }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }}>상세 보기</Text>
-              </View>
+              </TouchableOpacity>
             </View>
             {(selRank || selDist != null || savedIds.has(String(sel.kakaoId))) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9 }}>

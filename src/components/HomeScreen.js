@@ -72,6 +72,8 @@ import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
 import { MealDecisionBar } from './MealDecisionBar';
 import { showAppAlert } from './AppAlert';
 import { showToast } from './AppToast'; // 순수 성공 알림('초대를 보냈어요')은 차단형 대신 토스트로
+import { getGolfCourses } from '../utils/golfCourses'; // 코스 지도 프리페치 — 탭 열기 전 마스터 477곳 준비(핀 2~3초 지연 해소, 2026-08-26)
+import { getTop100Courses } from '../utils/top100';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -137,6 +139,9 @@ export function HomeScreen({ navigation, route }) {
   const [friendsFeed, setFriendsFeed] = useState([]); // 친구 최신 라운딩(홈 백그라운드 로드)
   const [feedViewer, setFeedViewer] = useState(null); // 친구 소식 카드 사진 전체화면 { photos, index } — PhotoViewer(자체 Modal)
   useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
+  // 코스 지도 프리페치 — 마스터(477곳)·100대를 홈에서 미리 당겨 모듈 캐시에 적재(fire-and-forget).
+  //   코스 탭은 lazy 마운트라 탭 연 뒤에야 로드가 시작돼 핀이 2~3초 늦게 뜨던 것(사용자 2026-08-26).
+  useEffect(() => { getGolfCourses().catch(() => {}); getTop100Courses().catch(() => {}); }, []);
   // 빈 상태 '친구 추가' CTA 노출 판별 — 진짜 친구 수(accepted)로만. friendMeta는 별명·그룹 지정분만이라 0명 판별엔 부정확.
   //   null=미확정(로드 전엔 CTA 숨겨 깜빡임 방지), false=친구 0명일 때만 보조 CTA 노출.
   const [hasFriends, setHasFriends] = useState(null);
@@ -834,19 +839,33 @@ export function HomeScreen({ navigation, route }) {
             <Text style={{ fontFamily: F.sysB, color: C.butter }}>{total}명</Text> 라운딩
           </Text>
         </View>
-        {/* 날씨·교통 칩 2개 — 나란히. 탭→상세(이모지 대신 앱 커스텀 아이콘) */}
-        <View style={{ flexDirection: 'row', gap: 9, marginTop: 14 }}>
-          <TouchableOpacity onPress={() => { setSelectedSchedule(s); setShowWeatherFull(true); }} activeOpacity={0.8}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingVertical: 10 }}>
-            <WeatherGlyph icon="⛅" size={fs(19)} />
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#fff' }}>날씨</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setSelectedSchedule(s); setShowTrafficFull(true); }} activeOpacity={0.8}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingVertical: 10 }}>
-            <Icon name="car" size={fs(19)} color="#fff" strokeWidth={1.8} />
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#fff' }}>가는 길</Text>
-          </TouchableOpacity>
-        </View>
+        {/* 날씨·교통 — 박스 버튼 2개 → 실제 정보 텍스트 한 줄('박스 안에 또 버튼' 지적, 2026-08-26).
+            정보 있으면 '맑음 24°'·'1시간 10분', 없으면 '날씨'·'가는 길' 라벨. 탭→상세는 그대로.
+            [[feedback-minimal-buttons]] 이동=진한 글씨, 버튼 아님 */}
+        {(() => {
+          const info = nextCardsInfo[s.id] || {};
+          return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 15 }}>
+              <TouchableOpacity onPress={() => { setSelectedSchedule(s); setShowWeatherFull(true); }} activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 4 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                <WeatherGlyph icon={info.icon || '⛅'} size={fs(21)} />
+                <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>
+                  {info.wx || '날씨'}<Text style={{ color: 'rgba(255,255,255,0.55)' }}> ›</Text>
+                </Text>
+              </TouchableOpacity>
+              <View style={{ width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 13 }} />
+              <TouchableOpacity onPress={() => { setSelectedSchedule(s); setShowTrafficFull(true); }} activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 4, right: 6 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                <Icon name="car" size={fs(21)} color="#fff" strokeWidth={1.8} />
+                <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>
+                  {info.drive ? formatDriveMin(info.drive) : '가는 길'}<Text style={{ color: 'rgba(255,255,255,0.55)' }}> ›</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
       </TouchableOpacity>
     );
   };
@@ -889,6 +908,31 @@ export function HomeScreen({ navigation, route }) {
     }
     return () => { alive = false; };
   }, [isD0, roundEnded, next?.id, next?.course, userProfile?.departureCoord?.x, userProfile?.departureCoord?.y]);
+
+  // ★D-N 카드 날씨·교통 인라인(2026-08-26) — '박스 안에 또 버튼 2개'가 별로라는 지적 → 실제 정보 텍스트로.
+  //   날씨=단기예보 범위(D-0~3)만, 교통=출발지 저장 시 소요시간. 없으면 '날씨 ›'·'가는 길 ›' 글씨 폴백.
+  //   캐러셀 앞 3장만 조회(비용 절제). {[일정id]: {wx, icon, drive}}
+  const [nextCardsInfo, setNextCardsInfo] = useState({});
+  const upcomingIdsKey = upcomingSchedules.slice(0, 3).map(s => s.id).join(',');
+  useEffect(() => {
+    let alive = true;
+    upcomingSchedules.slice(0, 3).forEach(s => {
+      const dd = freshDDay(s);
+      if (dd >= 0 && dd <= 3) {
+        getScheduleWxSummary(s).then(w => {
+          if (alive && w?.summary) setNextCardsInfo(p => ({ ...p, [s.id]: { ...p[s.id], wx: w.summary, icon: w.icon || '' } }));
+        }).catch(() => {});
+      }
+      const home = userProfile?.departureCoord;
+      if (home && Number.isFinite(home.x) && Number.isFinite(home.y)) {
+        getScheduleDriveMin(s, home).then(m => {
+          if (alive && m) setNextCardsInfo(p => ({ ...p, [s.id]: { ...p[s.id], drive: m } }));
+        }).catch(() => {});
+      }
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upcomingIdsKey, userProfile?.departureCoord?.x, userProfile?.departureCoord?.y]);
 
   // d0Info(날씨·교통)가 채워지면 일정별로 캐시 저장 — 다음 앱 시작 시 즉시 표시용(위 stagger 완화)
   useEffect(() => {
