@@ -12,7 +12,7 @@ import { sumHoles, reconcileScoreRow } from '../utils/scorecardOcr';
 //  onConfirm({ holeScores:number[18], total })
 //
 // 자동 확정 X — 추출값을 사용자가 반드시 확인·수정 후 확정 ([[project_scorecard_ocr]]).
-export function ScorecardReviewModal({ visible, rows = [], holePars = null, photos = [], parSumTarget = 0, failed = false, failedReason = '', lowConfidence = false, lowReasons = [], rotating = false, onRotate = null, onConfirm, onClose }) {
+export function ScorecardReviewModal({ visible, rows = [], holePars = null, photos = [], parSumTarget = 0, parNineTarget = [0, 0], failed = false, failedReason = '', lowConfidence = false, lowReasons = [], rotating = false, onRotate = null, onConfirm, onClose }) {
   const { width: winW } = useWindowDimensions();
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
@@ -144,7 +144,11 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
     const parSum = pars.slice(start, start + 9).reduce((s, p) => s + (Number.isFinite(p) ? p : 0), 0);
     // 한 나인의 파 합은 34~37을 벗어나지 않는다 — 33 같은 값이면 그 아홉 홀의 파를 잘못 읽은 것.
     //   어느 쪽이 깨졌는지 여기서 바로 짚어주면 사용자가 18홀이 아니라 9홀만 보면 된다.
-    const parOdd = parSum > 0 && (parSum < 34 || parSum > 37);
+    // + 나인별 역산값(CF parNineTarget, 조각 카드의 나인 소계에서 나옴)과도 대조 — 표식(holeMarks)
+    //   오독은 파 합을 1만 움직여 범위검사에 안 걸린다(없는 점을 dot으로 → 36이 35, 2026-08-26).
+    //   파를 탭해 고치면 parSum이 역산값과 같아져 빨간 표시가 저절로 꺼진다.
+    const nineTarget = Number(parNineTarget?.[start === 0 ? 0 : 1]) || 0;
+    const parOdd = parSum > 0 && (parSum < 34 || parSum > 37 || (nineTarget > 0 && parSum !== nineTarget));
     return (
     <View style={{ marginBottom: 12 }}
       onLayout={e => { nineY.current[start === 0 ? 0 : 1] = e.nativeEvent.layout.y; }}>

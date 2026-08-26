@@ -153,6 +153,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
   const [scLowConf, setScLowConf] = useState(false); // OCR 저신뢰(인쇄 합계와 안 맞음) → 확인·수정 강조
   const [scNotes, setScNotes] = useState([]);        // 저신뢰 사유(order=전/후반 순서 미확정, par/total/half) — 안내 문구 분기
   const [scParTarget, setScParTarget] = useState(0); // 카드에서 역산한 파 합(파 행을 안 읽고 나온 값)
+  const [scParNineTarget, setScParNineTarget] = useState([0, 0]); // 나인별 역산 파 합 — 표식 오독 9홀 지목용
   const [scReview, setScReview] = useState(false);
   const [scBusy, setScBusy] = useState(false);
   const [scPreviewUris, setScPreviewUris] = useState(null); // 읽기 전 방향 확인 대상 사진(있으면 미리보기 모달)
@@ -437,6 +438,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
       setScLowConf(!!res.lowConfidence);
       setScNotes(res.notes || []);
       setScParTarget(res.parSumTarget || 0);   // 카드에서 역산한 '맞는 파 합' — 파 행 오독 판정용
+      setScParNineTarget(res.parNineTarget || [0, 0]);
       setScReview(true);
     } catch (e) {
       if (__DEV__) console.warn('[DiaryAdd] scorecard AI fail', e?.message);
@@ -616,7 +618,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
     setSpecial(null); setSpecialHole(''); setSpecialPar('3');
     setSpecialDist(''); setSpecialBall(''); setSpecialMemo('');
     setHoleScores(null); setHolePars(null); setScRows([]); setShareRows([]); setScReview(false); setScFailed(false); setScFailReason(''); setScLowConf(false);
-    setScNotes([]); setScShotUris([]); setScParTarget(0);   // 다른 기록을 열었을 때 지난 카드 사진·경고가 남지 않게
+    setScNotes([]); setScShotUris([]); setScParTarget(0); setScParNineTarget([0, 0]);   // 다른 기록을 열었을 때 지난 카드 사진·경고가 남지 않게
     setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' }); setBetWon(false);
     setAddPhotos([]);
     setStarRating(0); setSelectedTags([]);
@@ -1880,6 +1882,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
           holePars={holePars}
           photos={scShotUris}
           parSumTarget={scParTarget}
+          parNineTarget={scParNineTarget}
           failed={scFailed}
           failedReason={scFailReason}
           lowConfidence={scLowConf}

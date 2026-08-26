@@ -75,6 +75,9 @@ export async function extractScorecardAI(uris) {
       lowConfidence: !!d.lowConfidence,
       notes: Array.isArray(d.notes) ? d.notes : [],
       parSumTarget: Number(d.parSumTarget) || 0,
+      // 나인별 '맞는' 파 합(조각 카드의 나인 소계에서 역산, 0=역산 불가) — 표식(holeMarks) 오독처럼
+      //   파 합이 1만 어긋나 범위검사(34~37)에 안 걸리는 오독도 어느 9홀인지 짚어준다.
+      parNineTarget: Array.isArray(d.parNineTarget) ? d.parNineTarget.slice(0, 2).map(n => Number(n) || 0) : [0, 0],
     };
   } catch (e) {
     if (__DEV__) console.warn('[scorecardAI]', e?.code || '', e?.message);

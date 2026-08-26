@@ -275,9 +275,11 @@ const SCORECARD_SCHEMA = {
           },
           holeMarks: {
             type: 'ARRAY',
-            description: 'PAR 행이 없는 스마트스코어 요약 화면 전용 — 홀 칸 숫자 "위"에 붙은 표식을 '
-              + 'holeNumbers와 같은 순서·같은 개수로 담아라. 숫자 위에 가로 바(¯, 위쪽 줄)면 "bar", '
-              + '점(˙)이면 "dot", 아무 표식도 없으면 "none". (이 표식으로 파를 판단한다: bar=파5, dot=파3, none=파4 — 계산은 내가 한다.) '
+            description: 'PAR 행이 없는 스마트스코어 요약 화면 전용 — 홀 번호 숫자 "바로 위 중앙"에 붙은 표식을 '
+              + 'holeNumbers와 같은 순서·같은 개수로 담아라. 숫자 위에 짧은 가로 바(¯)면 "bar", '
+              + '또렷한 작은 점(˙)이면 "dot", 아무것도 없으면 "none". '
+              + '★점수 칸의 마이너스(−) 기호·화면 얼룩·압축 노이즈를 표식으로 착각하지 마라. 표식이 또렷이 보이지 않으면 "none"으로 적어라. '
+              + '(이 표식으로 파를 판단한다: bar=파5, dot=파3, none=파4 — 계산은 내가 한다.) '
               + 'PAR 행이 이미 있으면 빈 배열 [].',
             items: { type: 'STRING' },
           },
@@ -316,6 +318,13 @@ const SUB_TOL = 1;                             // 소계/총계 대조 허용 �
 
 const sumFinite = (arr) => (arr || []).reduce((s, n) => s + (Number.isFinite(n) ? n : 0), 0);
 const countFinite = (arr) => (arr || []).filter(n => Number.isFinite(n)).length;
+// 여러 사람에게서 역산한 값 중 최빈값 — 한 사람 오독에 흔들리지 않게. 빈 목록이면 0.
+const mostCommon = (list) => {
+  if (!list.length) return 0;
+  const cnt = new Map();
+  for (const t of list) cnt.set(t, (cnt.get(t) || 0) + 1);
+  return [...cnt.entries()].sort((a, b) => b[1] - a[1])[0][0];
+};
 const padTo = (arr, n) => { const o = new Array(n).fill(null); (arr || []).forEach((v, i) => { if (i < n) o[i] = v; }); return o; };
 const normName = (s) => (s || '').toString().replace(/\s+/g, '').toLowerCase();
 
@@ -457,6 +466,7 @@ function assembleScorecard(rawCards) {
         pars: padTo(a.pars, HOLES),
         entries: a.players.map(p => ({
           name: p.name, cells: padTo(p.cells, HOLES), printedTotal: p.total, subTotal: p.frontSub || p.backSub || 0,
+          nineTotals: { front: p.total || 0, back: 0 },   // 한 장뿐 — 읽은 나인(앞에 채움)의 합계칸
         })),
       });
       continue;
@@ -474,6 +484,9 @@ function assembleScorecard(rawCards) {
       printedTotal: pr.f?.total || pr.b?.total || 0,
       subTotal: 0,
       subs: { front: pr.f?.frontSub || pr.b?.frontSub || 0, back: pr.f?.backSub || pr.b?.backSub || 0 },
+      // ★나인별 '합계' 칸을 따로 보존 — 두 소계의 합(47+49=96)은 파 행·표식과 무관하게 인쇄된
+      //   '라운드 총타'고, 각 소계에서 그 나인 파합도 역산된다(아래 검산 참고, 2026-08-26).
+      nineTotals: { front: pr.f?.total || 0, back: pr.b?.total || 0 },
     }));
     blocks.push({ frag: true, pars: pars18, entries });
   }
@@ -492,17 +505,40 @@ function assembleScorecard(rawCards) {
 
   const players = [];
   const parTargets = [];   // 카드에서 산술로 역산한 '진짜 파 합' — 파 행을 안 믿고 검산하는 기준
+  const nineTargets = [[], []];   // 나인별(전반/후반) 파 합 역산값 — 조각 카드의 '합계'(나인 소계)에서 나옴
   for (const bl of blocks) {
     for (const e of bl.entries) {
       const pars = bl.pars.map((p, i) => (Number.isFinite(p) ? p : pars18[i]));
       const subTotal = e.subTotal || ((e.subs?.front && e.subs?.back) ? e.subs.front + e.subs.back : 0);
       const { mode, sure } = decideMode(e.cells, pars, e.printedTotal, subTotal);
       if (!sure) low = true;
+      // ★조각 카드의 나인별 '합계' 칸(그 나인 실타수 소계) — 두 소계의 합은 인쇄된 '라운드 총타'다.
+      //   (전반 47 + 후반 49 = 96. 파 행·표식을 한 글자도 안 읽고 나오는 값.)
+      const nf = bl.frag ? (e.nineTotals?.front || 0) : 0;
+      const nb = bl.frag ? (e.nineTotals?.back || 0) : 0;
+      const roundPrinted = (nf > 0 && nb > 0) ? nf + nb : 0;
       // 파대비 카드는 printedTotal = 파대비합 + 파합 → 파 행을 한 글자도 안 읽고 '파 합'을 역산할 수 있다.
       //   파 행이 통째로 깨져도 이 값은 멀쩡하다(합계·홀 칸은 크게 인쇄돼 잘 읽히므로).
-      if (mode === 'relative' && e.printedTotal > 0 && countFinite(e.cells) === HOLES) {
-        const t = e.printedTotal - sumFinite(e.cells);
-        if (t >= 60 && t <= 80) parTargets.push(t);
+      //   조각 병합 블록은 printedTotal이 나인 소계(47)라 역산이 60~80 밖으로 나가 조용히 버려지고 있었다
+      //   → 두 소계의 합(96)로 역산한다(표식 오독이 'parsum' 검산을 영영 피해가던 구멍, 2026-08-26).
+      if (mode === 'relative' && countFinite(e.cells) === HOLES) {
+        const base = bl.frag ? roundPrinted : e.printedTotal;
+        if (base > 0) {
+          const t = base - sumFinite(e.cells);
+          if (t >= 60 && t <= 80) parTargets.push(t);
+        }
+      }
+      // ★나인별 파합 역산 — 나인 소계 = 그 나인 파대비합 + 그 나인 파합. 표식(holeMarks) 오독(없는 점을
+      //   dot으로)은 파합을 1만 움직여 범위검사(34~37)에 안 걸린다 — 이 역산이 잡는다(2026-08-26).
+      //   합계칸이 소계가 아닌 카드(라운드 총타 등)면 역산이 30~40 밖으로 나가 자연히 무시된다.
+      if (mode === 'relative') {
+        [[0, nf], [1, nb]].forEach(([k, printed]) => {
+          if (!printed) return;
+          const seg = e.cells.slice(k * 9, k * 9 + 9);
+          if (countFinite(seg) !== 9) return;
+          const t = printed - sumFinite(seg);
+          if (t >= 30 && t <= 40) nineTargets[k].push(t);
+        });
       }
       const scores = e.cells.map((c, i) => {
         if (!Number.isFinite(c)) return 0;                       // 못 읽은 홀 = 0(클라 검토표에서 직접 입력)
@@ -516,40 +552,58 @@ function assembleScorecard(rawCards) {
       //   예전엔 total을 홀 합으로 계산해서, 파 한 칸을 잘못 읽으면 그 파를 쓰는 전원의 총타가
       //   똑같이 어긋났다(사용자 제보 2026-07-31). 가장 못 믿을 값에 가장 중요한 결과를 매달고 있던 셈.
       //   홀별은 여전히 파가 필요하지만, 그건 홀별만의 문제로 격리된다.
-      // ★조각(전/후반) 병합 블록은 '합계' 칸이 나인 소계일 수 있어 총타로 못 믿는다 → 18홀을 다 읽었으면
-      //   홀 합(scoreSum)을 총타로 쓴다(96타가 47타로 박히던 버그, 2026-08-24). 못 읽은 홀이 있으면
-      //   scoreSum이 부족하므로 인쇄 합계로 폴백(소계일 수 있으나 어차피 검토표에서 수정).
+      // ★조각(전/후반) 병합 블록 — 개별 '합계' 칸(나인 소계 47)은 총타로 못 믿지만(96→47 버그, 2026-08-24),
+      //   두 소계의 '합'(47+49=96)은 파 행·표식과 무관하게 인쇄된 라운드 총타다. 파대비 카드의 scoreSum은
+      //   파를 더해 만든 값이라 표식(holeMarks) 한 칸 오독이 총타를 1타 틀리게 한다 → 인쇄값이 있고
+      //   홀 합과 오차 3 이내면 인쇄값을 총타로 신뢰(2026-08-26). ('총타는 인쇄 합계 최우선' 교훈을 조각에도.)
+      //   두 화면 다 라운드 총타가 찍힌 카드(합이 2배)면 오차 가드에 걸러져 종전대로 scoreSum.
       //   완결 카드(18홀 한 화면)는 종전대로 printedTotal 우선 — 파 오독이 총타로 번지는 걸 막는 교훈 유지.
-      const total = (bl.frag && full)
-        ? scoreSum
-        : (e.printedTotal > 0 ? e.printedTotal : scoreSum);
-      // 인쇄 총계와 홀 합의 불일치 경고는 완결 카드에서만 — 조각은 소계라 다른 게 '정상'이라 경고하면 오탐.
-      if (!bl.frag && full && e.printedTotal > 0 && scoreSum !== e.printedTotal) { low = true; notes.push('total'); }
+      let total, outPrinted;
+      if (bl.frag) {
+        if (full) {
+          const printedOk = roundPrinted > 0 && Math.abs(roundPrinted - scoreSum) <= 3;
+          total = printedOk ? roundPrinted : scoreSum;
+          // 검산 기준(printedTotal) — 인쇄값을 믿을 때만 내려보내 검토화면이 "카드엔 96타, 홀 합은 95타"로
+          //   짚어주게 한다. 못 믿는 값(나인 소계 47 등)을 보내면 "카드엔 47타" 오해가 되살아난다.
+          outPrinted = printedOk ? roundPrinted : 0;
+          if (printedOk && roundPrinted !== scoreSum) { low = true; notes.push('total'); }
+        } else {
+          // 못 읽은 홀이 있으면 홀 합이 부족 — 인쇄된 라운드 총타(범위 그럴듯하면)로, 없으면 종전 폴백.
+          total = (roundPrinted >= 54 && roundPrinted <= 160) ? roundPrinted
+            : (e.printedTotal > 0 ? e.printedTotal : scoreSum);
+          outPrinted = 0;
+        }
+      } else {
+        total = e.printedTotal > 0 ? e.printedTotal : scoreSum;
+        // ★printedTotal(카드에 인쇄된 총타)을 함께 내려보낸다 — 홀 합과 어긋날 때 검토 화면이
+        //   "카드엔 100타인데 홀 합은 99타"라고 숫자로 짚어주기 위함(사용자 제보 2026-07-31, 힐마루 안드).
+        outPrinted = e.printedTotal > 0 ? e.printedTotal : 0;
+        // 인쇄 총계와 홀 합의 불일치 경고 — 완결 카드는 합계칸이 곧 총타라 다르면 진짜 문제.
+        if (full && e.printedTotal > 0 && scoreSum !== e.printedTotal) { low = true; notes.push('total'); }
+      }
       if (!full) low = true;
-      // ★printedTotal(카드에 인쇄된 총타)을 함께 내려보낸다 — 홀 합과 어긋날 때 검토 화면이
-      //   "카드엔 100타인데 홀 합은 99타"라고 숫자로 짚어주기 위함.
-      //   파대비 카드에서 PAR 한 칸을 1 잘못 읽으면 그 par를 쓰는 전원이 똑같이 1타씩 어긋나는데,
-      //   예전엔 이 값이 없어 사용자에게 그냥 99타로 보였다(사용자 제보 2026-07-31, 힐마루 안드).
-      //   ※조각+full은 인쇄 합계가 '나인 소계'라 총타와 다른 게 정상 → 검토화면이 "카드엔 47타"라고
-      //     오해시키지 않도록 검산 기준(printedTotal)을 0으로 내려보낸다(총타는 위 total=scoreSum이 이미 맞다).
-      const outPrinted = (bl.frag && full) ? 0 : (e.printedTotal > 0 ? e.printedTotal : 0);
       players.push({ name: e.name, scores, total, printedTotal: outPrinted });
     }
   }
 
   // 역산한 파 합 — 여러 사람에게서 나온 값 중 최빈값(한 사람 오독에 흔들리지 않게)
-  let parSumTarget = 0;
-  if (parTargets.length) {
-    const cnt = new Map();
-    for (const t of parTargets) cnt.set(t, (cnt.get(t) || 0) + 1);
-    parSumTarget = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0][0];
-  }
+  const parSumTarget = mostCommon(parTargets);
   const parSumRead = sumFinite(pars18);
   // 읽은 파 합이 역산값과 다르면 파 행이 틀린 것 — 총타는 이미 카드 합계를 쓰므로 홀별만의 문제다.
   if (parSumTarget && countFinite(pars18) === HOLES && parSumRead !== parSumTarget) {
     if (!notes.includes('par9')) notes.push('parsum');
     low = true;
   }
+  // ★나인별 역산값과 대조 — 표식(holeMarks) 오독은 파합을 1만 움직여 34~37 범위검사에 안 걸린다.
+  //   틀린 나인을 짚을 수 있으면 사용자는 18홀이 아니라 9홀만 보면 된다(2026-08-26).
+  //   어느 '홀'이 틀렸는지는 산술로 특정 불가 — 자동 교정 금지(폐기된 '홀 생김새 추측' 함정), 짚어만 준다.
+  const parNineTarget = [mostCommon(nineTargets[0]), mostCommon(nineTargets[1])];
+  parNineTarget.forEach((t, k) => {
+    if (t > 0 && countFinite(pars18.slice(k * 9, k * 9 + 9)) === 9 && parNine[k] !== t) {
+      notes.push('par9');
+      low = true;
+    }
+  });
 
   return {
     pars: pars18.map(p => (Number.isFinite(p) ? p : 0)),
@@ -557,6 +611,7 @@ function assembleScorecard(rawCards) {
     parSum: parSumRead,          // 카드에서 읽어낸 파 합
     parSumTarget,                // 산술로 역산한 '맞는' 파 합(0=역산 불가)
     parNine,                     // [전반, 후반] 파 합 — 어느 아홉 홀이 깨졌는지 짚어주기 위해
+    parNineTarget,               // [전반, 후반] 나인별 '맞는' 파 합(0=역산 불가) — 표식 오독 지목용
   };
 }
 
@@ -597,7 +652,7 @@ exports.extractScorecard = onCall(
       `- label: 표 왼쪽 위 코스명/제목(예: 선샤인, 네스트, OUT, IN). 없으면 ''.\n` +
       `- holeNumbers: 점수 칸 위에 적힌 홀 번호를 왼쪽부터 그대로(예: 1~9만 있으면 [1,…,9]). 화면에 1~9로 적혀 있으면 그게 후반 같아 보여도 [1,…,9]로 적어라 — 순서는 내가 정한다.\n` +
       `- pars: PAR(파) 행을 holeNumbers와 같은 개수로. "4/7"처럼 par/HDCP가 붙어 있으면 앞의 par만(4). PAR 행은 대부분 있으니 꼭 찾아라. 정말 없으면 [].\n` +
-      `- holeMarks: PAR 행이 없는 스마트스코어 요약 화면이면, 홀 숫자 "위"의 표식을 홀 순서대로 담아라 — 가로 바(¯)="bar", 점(˙)="dot", 표식 없음="none". (이 표식이 파를 뜻한다: bar=파5·dot=파3·none=파4. 판단은 내가 한다.) PAR 행이 있으면 [].\n` +
+      `- holeMarks: PAR 행이 없는 스마트스코어 요약 화면이면, 홀 번호 숫자 "바로 위 중앙"의 표식을 홀 순서대로 담아라 — 짧은 가로 바(¯)="bar", 또렷한 작은 점(˙)="dot", 아무것도 없으면 "none". ★점수 칸의 마이너스(−)·화면 얼룩을 점으로 착각하지 마라. 표식이 또렷하지 않으면 "none". (이 표식이 파를 뜻한다: bar=파5·dot=파3·none=파4. 판단은 내가 한다.) PAR 행이 있으면 [].\n` +
       `[각 사람(점수 행)에서 읽을 것]\n` +
       `- cells: 홀 칸의 숫자를 계산 없이 그대로. 파 대비 표기(파=0, 언더 −1, 오버 +2)면 0·-1·2를 그대로 담아라. ★절대 파를 더하지 마라.\n` +
       `- 빈칸이거나 손·그림자·반사에 가려 확신할 수 없는 칸은 추측하지 말고 99를 넣어라(99 = 못 읽음).\n` +
@@ -618,14 +673,15 @@ exports.extractScorecard = onCall(
     const out = await callGemini({ key: (GEMINI_API_KEY.value() || '').trim(), parts, schema: SCORECARD_SCHEMA, model: SCORECARD_MODEL, thinkingLevel: SCORECARD_THINK_LEVEL, label: 'scorecard' });
 
     // ★조립 — 여기서 전/후반 순서와 파대비/실타수를 '산술'로 결정한다(위 assembleScorecard 주석 참고).
-    const { pars, players, lowConfidence, notes, parSum, parSumTarget, parNine } = assembleScorecard(out?.cards);
+    const { pars, players, lowConfidence, notes, parSum, parSumTarget, parNine, parNineTarget } = assembleScorecard(out?.cards);
 
     logger.info('[gemini] scorecard ok', {
       uid, found: !!out?.found, cards: (out?.cards || []).length,
       players: players.length, low: lowConfidence, notes: notes.join(','),
       parSum, parSumTarget, parNine: (parNine || []).join('/'),
+      parNineTarget: (parNineTarget || []).join('/'),
     });
-    return { ok: true, found: !!out?.found, pars, players, lowConfidence, notes, parSum, parSumTarget, parNine };
+    return { ok: true, found: !!out?.found, pars, players, lowConfidence, notes, parSum, parSumTarget, parNine, parNineTarget };
   }
 );
 
