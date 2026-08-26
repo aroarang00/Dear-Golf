@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Keyboard } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,7 +61,7 @@ const distKm = (a, b) => {
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 };
 
-export function CourseMapExplore({ master = [], top100 = [], savedFav = [], onPressCourse, onOpenCourseLog, onSwitchToList }) {
+export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = [], top100 = [], savedFav = [], onPressCourse, onOpenCourseLog, onSwitchToList }, ref) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
   const [sel, setSel] = useState(null);          // 핀 탭 선택 골프장 → 하단 카드
@@ -70,6 +70,14 @@ export function CourseMapExplore({ master = [], top100 = [], savedFav = [], onPr
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+
+  // 탭 재탭·복귀 시 '지도 처음'(전국 뷰·선택 해제·검색 비움)으로 — GuideScreen resetView가 호출(2026-08-26)
+  useImperativeHandle(ref, () => ({
+    reset: () => {
+      setSel(null); setSearch(''); setResults([]); setRegionChip('전체');
+      mapRef.current?.animateToRegion(REGION_CAM.전체, 400);
+    },
+  }), []);
 
   // 100대 매칭 — 정규화 이름 → 순위 (마스터 핀에 금색·뱃지)
   const rankMap = useMemo(() => {
@@ -326,4 +334,4 @@ export function CourseMapExplore({ master = [], top100 = [], savedFav = [], onPr
       </View>
     </View>
   );
-}
+});

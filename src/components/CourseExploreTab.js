@@ -97,9 +97,16 @@ function MoreButton({ moreCount, expanded, onPress }) {
 // forwardRef — 코스 탭 재탭(tabPress) 시 부모(GuideScreen)가 scrollToTop()을 호출해 목록을 맨 위로 올림.
 export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectCourse, onOpenPreview, onOpenCourseLog, region: regionProp, onRegionChange, top100: top100Prop, master: masterProp }, ref) {
   const scrollRef = useRef(null);   // 메인 목록 ScrollView — 스크롤 톱 복귀용
+  const mapExpRef = useRef(null);   // 지도(CourseMapExplore) — 탭 재탭 시 전국 뷰 리셋용
   useImperativeHandle(ref, () => ({
     scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
     refresh: () => { refreshSaved(); refreshRecent(); refreshFav(); }, // 코스 상세에서 저장/해제 후 '내 저장 골프장' 즉시 갱신
+    // 탭 재탭·복귀 → '지도 처음'(지도 모드 + 전국 뷰)으로. 목록 모드였어도 지도로 돌아온다(사용자 2026-08-26).
+    resetHome: () => {
+      if (!MAP_OK) return;
+      viewModeCache = 'map'; setViewModeState('map'); AsyncStorage.setItem(VIEW_MODE_KEY, 'map').catch(() => {});
+      mapExpRef.current?.reset();
+    },
   }), [refreshSaved, refreshRecent, refreshFav]);
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -320,7 +327,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   // ── 지도 모드(기본) — 전국 핀 둘러보기. 핀/검색 → 하단 카드 → 상세(openMasterCourse 기존 흐름 재사용) ──
   if (viewMode === 'map') {
     return (
-      <CourseMapExplore master={master} top100={top100} savedFav={savedFav}
+      <CourseMapExplore ref={mapExpRef} master={master} top100={top100} savedFav={savedFav}
         onPressCourse={openMasterCourse} onOpenCourseLog={onOpenCourseLog}
         onSwitchToList={() => setViewMode('list')} />
     );

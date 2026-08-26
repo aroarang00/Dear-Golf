@@ -79,6 +79,16 @@ export function MeetScreen({ navigation, route }) {
   //   각자 나중에 등록한 핸들러가 먼저 받으므로(LIFO) 여기까지 안 내려온다 — 한 단계씩 자연스럽게 벗겨진다.
   useAndroidBack(seg !== 'hub', () => go('hub'));
 
+  // 하단 탭 '모임' 재탭 → 대문 복귀(사용자 2026-08-26). 다른 탭에서 눌러 들어올 땐(미포커스) 그대로 —
+  //   섹션 상태 유지(위 파라미터 직행 로직과 충돌 안 함). GuideScreen tabPress 패턴과 동일.
+  useEffect(() => {
+    if (!navigation?.addListener) return undefined;
+    const un = navigation.addListener('tabPress', () => {
+      if (navigation.isFocused?.()) setSeg('hub');
+    });
+    return un;
+  }, [navigation]);
+
   // 대문 숫자 — 친구 수(대문에 돌아올 때마다 재조회)·크루 수/초대(실시간)·친구 신청(공용 컨텍스트)
   const { friendReqCount } = useContext(FriendBadgeContext);
   const [friendCount, setFriendCount] = useState(null);

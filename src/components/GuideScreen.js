@@ -145,6 +145,7 @@ export function GuideScreen({ route, navigation }) {
       setShowAllNearby(false);
       Object.values(scrollRefs.current).forEach(r => r?.scrollTo?.({ y: 0, animated: false }));
       exploreRef.current?.scrollToTop();   // 코스 목록(랜딩)은 별도 컴포넌트라 위 scrollRefs로 안 잡힘 → 직접 호출
+      exploreRef.current?.resetHome?.();   // 지도 퍼스트 — 재탭·복귀 시 지도 모드 + 전국 뷰로(사용자 2026-08-26)
     };
     // 탭 재탭(focused 중) + 탭을 떠날 때(blur) 모두 초기화 — 다른 탭처럼 '나갔다 오면 코스 목록'으로.
     //   ★blur 리셋이 핵심: 코스 상세는 인라인 state라, 안드 뒤로가기로 다른 탭 갔다 돌아오면(focus 복귀=tabPress 아님)
