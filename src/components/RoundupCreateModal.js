@@ -513,7 +513,9 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleRequestClose}>
       <View style={[mS.mask, kbHeight ? { paddingBottom: kbHeight } : null]}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={close} />
-        <View style={[mS.sheet, { paddingBottom: 20 + insets.bottom }]}>
+        {/* ★시트 판의 paddingBottom 제거 — 판 패딩(20+insets)+스크롤 패딩(40)이 겹쳐 등록 버튼 아래
+            ~90px 빈 벽(사용자 2026-08-26). 하단 여백은 스크롤 콘텐츠 쪽으로 일원화 */}
+        <View style={[mS.sheet, { paddingBottom: 0 }]}>
           {/* handle 영역 자체를 탭 가능한 닫기로 — 마스크 영역이 좁아 안 닫히는 문제 해결 */}
           <TouchableOpacity onPress={close} activeOpacity={0.7}
             hitSlop={{ top: 12, bottom: 12, left: 60, right: 60 }}
@@ -521,7 +523,7 @@ export function RoundupCreateModal({ visible, onClose, onCreate, initialPost = n
             <View style={mS.handle} />
           </TouchableOpacity>
           <ScrollView style={{ flexShrink: 1 }}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 0, paddingBottom: insets.bottom + 28 }}
             showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
             automaticallyAdjustKeyboardInsets>
             {/* 타이틀 줄 — 우측에 명시적 ✕ 닫기 버튼 */}

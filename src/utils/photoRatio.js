@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resolvePhotoUri } from './photoStorage';
 
 // 사진 실제 비율(가로/세로) 세션 캐시 + 피드 카드 '틀' 결정.
@@ -11,10 +12,41 @@ import { resolvePhotoUri } from './photoStorage';
 
 const _cache = new Map();   // 해석된 uri → 가로/세로
 
+// ★디스크 영속(2026-08-26) — 캐시가 메모리뿐이라 앱을 켤 때마다 비율을 잊고, 카드가 기본 4:3으로
+//   그려졌다가 사진 로드 후 틀이 바뀌며 '작았다가 확 커지는' 점프가 매번 재발(사용자 지적).
+//   시작 시 1회 하이드레이션 + 새 비율은 디바운스 저장 → 한 번 본 사진은 다음부터 처음부터 맞는 크기.
+const STORE_KEY = '@dg_photo_ratio_v1';
+const MAX_ENTRIES = 600; // 오래된 것부터 버림 — 저장 파일 무한 성장 방지
+let saveTimer = null;
+// 하이드레이션 완료 신호 — ①카드가 캐시 로드보다 먼저 마운트되는 경쟁(끝나면 재조회용)
+//   ②로드 완료 전 persist가 '이 세션 몇 장'만으로 디스크를 덮어써 기존 비율을 지우던 사고, 둘 다 차단.
+let _resolveReady;
+export const ratiosReady = new Promise(res => { _resolveReady = res; });
+(async () => {
+  try {
+    const raw = await AsyncStorage.getItem(STORE_KEY);
+    if (raw) {
+      const obj = JSON.parse(raw);
+      // 이번 세션에서 이미 배운 값이 우선(덮어쓰지 않음)
+      Object.entries(obj).forEach(([k, v]) => { if (!_cache.has(k) && Number.isFinite(v)) _cache.set(k, v); });
+    }
+  } catch {} finally { _resolveReady(); }
+})();
+function persistSoon() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    saveTimer = null;
+    await ratiosReady; // ★하이드레이션 전 저장 금지 — 디스크의 기존 항목을 세션 캐시가 삼킨 뒤에만 쓴다
+    let entries = [..._cache.entries()];
+    if (entries.length > MAX_ENTRIES) entries = entries.slice(entries.length - MAX_ENTRIES);
+    AsyncStorage.setItem(STORE_KEY, JSON.stringify(Object.fromEntries(entries))).catch(() => {});
+  }, 800);
+}
+
 export function setPhotoRatio(uri, ratio) {
   if (!uri || !ratio || !Number.isFinite(ratio)) return;
   const u = resolvePhotoUri(uri);
-  if (u) _cache.set(u, ratio);
+  if (u && _cache.get(u) !== ratio) { _cache.set(u, ratio); persistSoon(); }
 }
 
 export function getPhotoRatio(uri) {

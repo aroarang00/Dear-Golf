@@ -10,7 +10,7 @@ import { Icon } from './common/Icon'; // 좋아요 = 하트 아이콘(엄지 대
 import { WhoLikedModal } from './common/WhoLikedModal';
 import { toggleRoundLike } from '../utils/round';
 import { ownerVisibilityLabel } from '../utils/friendGroups';
-import { getPhotoRatio, feedFrameAspect, firstPhotoUri } from '../utils/photoRatio';   // 사진에 맞는 카드 틀(4:3·1:1·4:5)
+import { getPhotoRatio, feedFrameAspect, firstPhotoUri, ratiosReady } from '../utils/photoRatio';   // 사진에 맞는 카드 틀(4:3·1:1·4:5)
 
 // 라운딩 기록 카드.
 //  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
@@ -28,6 +28,20 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
   //   처음 보는 사진만 로드 후 한 번 확정된다(그 뒤로는 캐시).
   const [photoAr, setPhotoAr] = useState(() => getPhotoRatio(firstPhotoUri(item.photos)));
   const frameAspect = feedFrameAspect(photoAr);
+  // ★캐시 하이드레이션 경쟁 보정(2026-08-26) — 카드가 디스크 캐시 로드보다 먼저 마운트되면 초기값이 null이라
+  //   기본 4:3으로 그렸다가 사진 로드 후 틀이 바뀌며 '작았다가 확 커지는' 점프가 남는다. 로드 완료 직후
+  //   (사진 로드보다 훨씬 빠름) 캐시를 한 번 재조회해 이미지가 뜨기 전에 틀을 확정한다.
+  useEffect(() => {
+    if (photoAr) return undefined;
+    let alive = true;
+    ratiosReady.then(() => {
+      if (!alive) return;
+      const r = getPhotoRatio(firstPhotoUri(item.photos));
+      if (r) setPhotoAr(r);
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // 펼침 원위치 — 화면을 떠났다 돌아오면 접힌 상태로(사용자 2026-07-22). 내 기록 탭·친구 프로필 모두
   //   화면이 언마운트되지 않고 유지돼서, 안 하면 예전에 펼쳐둔 카드가 그대로 펼쳐진 채 남는다.
   //   부모가 떠날 때 collapseSignal을 올리면 카드들이 일제히 접힌다.
