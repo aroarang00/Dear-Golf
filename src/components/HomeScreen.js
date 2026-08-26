@@ -1494,9 +1494,12 @@ export function HomeScreen({ navigation, route }) {
           </View>
         )}
 
+        <View style={[homeS.bottomArea, { paddingBottom: insets.bottom + 62 }]}>
+        {/* ── 히어로 — 다음 라운딩 캐러셀 / 예정 없으면 CTA 카드 / 로드 전 중립 여백.
+            ★최근 기록·스코어·가계부·친구 소식 섹션은 이 분기 '밖' — 예정 라운딩이 없어도 홈 정보가 보여야 한다
+            (OTA 후 "예정 없으면 홈이 텅 빈다" 사용자 2026-08-26. 전엔 전부 next 분기 안이었음) ── */}
         {next ? (
         <>
-        <View style={[homeS.bottomArea, { paddingBottom: insets.bottom + 62 }]}>
           {/* 날짜 알약 + 「+ 추가」를 왼쪽에 나란히 — 전엔 space-between이라 「+ 추가」가 오른쪽 끝에 붙었는데,
               그 자리가 우측 버튼 레일 3번(알림 종) 아래라 알림이 뜨면 '알림' 라벨과 정면으로 겹쳤다(2026-07-22 캡처 확인).
               레일은 상시 요소이므로 오른쪽 끝을 비워두는 게 안전하다. */}
@@ -1883,6 +1886,58 @@ export function HomeScreen({ navigation, route }) {
             );
           })()}
           </>)}
+        </>
+        ) : !(hydrated && diariesHydrated) ? (
+          // 일정·기록 로드 중 — 빈 CTA 대신 중립 여백(잘못된 빈 상태 깜빡임 차단, [[home-empty-state-flash]])
+          <View style={{ height: 30 }} />
+        ) : (loadFailed || diariesLoadFailed) ? (
+          // 오프라인/로드 실패 — 빈 화면이 '데이터 날아감'으로 오해되지 않게([[read-failure-disguise]]). 컴팩트 카드版
+          <View style={{ marginTop: 14, marginHorizontal: SIDE_PAD, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: 24, alignItems: 'center' }}>
+            <Text style={{ fontSize: fs(28), marginBottom: 12 }}>{"📡"}</Text>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(15), color: '#fff', marginBottom: 7, textAlign: 'center' }}>인터넷 연결을 확인해주세요</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: 'rgba(255,255,255,0.5)', lineHeight: fs(18), textAlign: 'center' }}>
+              내 기록·일정을 불러오지 못했어요{'\n'}데이터가 사라진 게 아니에요 — 연결되면 다시 나타나요
+            </Text>
+            <TouchableOpacity onPress={() => { reloadDiaries?.(); }} activeOpacity={0.8}
+              style={{ marginTop: 16, borderWidth: 1.2, borderColor: C.butter, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>다시 시도</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          // 예정 라운딩 없음 — 히어로 자리에 CTA 카드(전엔 이 상태가 홈 전체를 비웠음). 아래 섹션은 그대로 이어진다
+          <View style={{ marginTop: 14, marginHorizontal: SIDE_PAD, backgroundColor: 'rgba(20,45,64,0.62)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 16, padding: 24 }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.75)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
+            {/* '첫'은 진짜 신규(라운딩 기록·일정 둘 다 없음)에게만 — 기존 사용자가 예정 없을 땐 '첫' 제외 (사용자 2026-06-22) */}
+            <Text style={{ fontFamily: F.en, fontSize: fs(22), color: '#fff', marginBottom: 8, lineHeight: 30 }}>
+              Dear Golf 에서{'\n'}{((diaries || []).some(isRoundDiary) || (schedules || []).length > 0) ? '다음 ' : '첫 '}라운딩을 시작해보세요
+            </Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.7)', lineHeight: 18, marginBottom: 20 }}>
+              날씨 · 교통 · 코스 정보를{'\n'}한눈에 확인할 수 있어요
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: C.butter, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}
+              activeOpacity={0.8}
+              onPress={() => setShowAddModal(true)}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, letterSpacing: 0.5 }}>+ 라운딩 추가하기</Text>
+            </TouchableOpacity>
+            {/* 친구 0명 신규에게만 '친구 추가' 보조 동선 ([[first-entry-friend-path]]) */}
+            {hasFriends === false && (
+              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MEET, { openFinder: 'kakao' })} activeOpacity={0.85}
+                style={{ marginTop: 10, borderWidth: 1.2, borderColor: C.butter, borderRadius: 12, paddingVertical: 12,
+                  flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
+                <Icon name="personAdd" size={fs(18)} color={C.butter} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter, letterSpacing: 0.3 }}>골프 친구 추가하기</Text>
+              </TouchableOpacity>
+            )}
+            {/* 일정 없어도 캘린더(과거 일정·기록) 진입 */}
+            <TouchableOpacity onPress={() => setShowScheduleScreen(true)} activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+              <Icon name="calendar" size={fs(15)} color="rgba(255,255,255,0.7)" />
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: 'rgba(255,255,255,0.7)' }}>일정 캘린더 보기 ›</Text>
+            </TouchableOpacity>
+          </View>
+        )}
           {/* ★내 피드 최신(2026-08-26 개편) — 글래시 행 4개가 사진 배경에 묻혀 안 읽힘(사용자) →
               솔리드 카드 하나로 묶음. 색은 크림(C.bgPrimary=앱 바탕색): 네이비는 "이 색 말고" 반려(2026-08-26),
               친구 흰 카드·스코어 네이비와도 구분되는 따뜻한 톤. 타이틀·'전체보기 ›'는 카드 안 헤더로.
@@ -2018,70 +2073,6 @@ export function HomeScreen({ navigation, route }) {
           {/* 하단 여백 22→8 — 캐러셀 점과 하단 탭 사이가 너무 벌어 보임(사용자 2026-07-03) */}
           <View style={{ height: 8 }} />
         </View>
-        </>
-        ) : (hydrated && diariesHydrated) ? (
-        // 일정·기록 둘 다 로드 완료 후에만 빈 상태 노출 — 로드 전 깜빡임 방지 ([[home-empty-state-flash]])
-        (loadFailed || diariesLoadFailed) ? (
-        // 오프라인/로드 실패 — 빈 화면이 '데이터 날아감'으로 오해되던 것([[read-failure-disguise]]).
-        //   다른 앱은 에러 메시지가 뜨니 네트워크 문제인 걸 알지만, 이름만 뜨고 나머지 빈 화면은 공포를 줌.
-        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: SIDE_PAD }}>
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: 28, alignItems: 'center' }}>
-            <Text style={{ fontSize: fs(32), marginBottom: 14 }}>{"📡"}</Text>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(16), color: '#fff', marginBottom: 8, textAlign: 'center' }}>
-              인터넷 연결을 확인해주세요
-            </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.5)', lineHeight: fs(19), textAlign: 'center' }}>
-              내 기록·일정을 불러오지 못했어요{'\n'}데이터가 사라진 게 아니에요 — 연결되면 다시 나타나요
-            </Text>
-            {/* 자동 재시도(Context 백오프·포그라운드 복귀)만으론 '가만히 기다리는' 느낌이라, 직접 누를 수 있는 액션을 준다 */}
-            <TouchableOpacity onPress={() => { reloadDiaries?.(); }} activeOpacity={0.8}
-              style={{ marginTop: 18, borderWidth: 1.2, borderColor: C.butter, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 26 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }}>다시 시도</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        ) : (
-        <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: tabBarHeight + 24 }}>
-          {/* 배경(밝은 골프장 사진) 위에서 글씨가 묻히지 않게 어두운 네이비 스크림 박스 + 흰 글씨(2026-07-24) */}
-          <View style={{ marginHorizontal: SIDE_PAD, backgroundColor: 'rgba(20,45,64,0.62)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 16, padding: 24 }}>
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.75)', letterSpacing: 2, marginBottom: 12 }}>예정 라운딩</Text>
-            {/* '첫'은 진짜 신규(라운딩 기록·일정 둘 다 없음)에게만 — 기존 사용자가 예정 없을 땐 '첫' 제외 (사용자 2026-06-22) */}
-            <Text style={{ fontFamily: F.en, fontSize: fs(22), color: '#fff', marginBottom: 8, lineHeight: 30 }}>
-              Dear Golf 에서{'\n'}{((diaries || []).some(isRoundDiary) || (schedules || []).length > 0) ? '다음 ' : '첫 '}라운딩을 시작해보세요
-            </Text>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.7)', lineHeight: 18, marginBottom: 20 }}>
-              날씨 · 교통 · 코스 정보를{'\n'}한눈에 확인할 수 있어요
-            </Text>
-            <TouchableOpacity
-              style={{ backgroundColor: C.butter, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}
-              activeOpacity={0.8}
-              onPress={() => setShowAddModal(true)}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, letterSpacing: 0.5 }}>+ 라운딩 추가하기</Text>
-            </TouchableOpacity>
-            {/* 친구 0명 신규에게만 '친구 추가' 보조 동선 — 이 앱의 핵심 가치(함께 모집·기록·공유)는 친구 연결로 열림.
-                홈 빈 상태가 '라운딩 추가'(혼자)만 가리키던 빈틈 보강. 친구 생기면 자동으로 사라짐 ([[first-entry-friend-path]]) */}
-            {hasFriends === false && (
-              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MEET, { openFinder: 'kakao' })} activeOpacity={0.85}
-                style={{ marginTop: 10, borderWidth: 1.2, borderColor: C.butter, borderRadius: 12, paddingVertical: 12,
-                  flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
-                <Icon name="personAdd" size={fs(18)} color={C.butter} />
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter, letterSpacing: 0.3 }}>골프 친구 추가하기</Text>
-              </TouchableOpacity>
-            )}
-            {/* 일정 없어도 캘린더(과거 일정·기록) 진입 — 빈 상태에서도 접근 가능하게 */}
-            <TouchableOpacity onPress={() => setShowScheduleScreen(true)} activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
-              <Icon name="calendar" size={fs(15)} color="rgba(255,255,255,0.7)" />
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: 'rgba(255,255,255,0.7)' }}>일정 캘린더 보기 ›</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        )
-        ) : (
-        // 일정 로드 중 — 빈 CTA 대신 중립 여백(잘못된 빈 상태 깜빡임 차단)
-        <View style={{ flex: 1 }} />
-        )}
         </ScrollView>
       </SafeAreaView>
 

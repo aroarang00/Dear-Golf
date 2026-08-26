@@ -8,7 +8,8 @@ import { hofBgColor } from './HallOfFameCard';
 import { MediaCarousel } from './common/MediaCarousel';
 import { Icon } from './common/Icon'; // 좋아요 = 하트 아이콘(엄지 대체)
 import { WhoLikedModal } from './common/WhoLikedModal';
-import { toggleRoundLike } from '../utils/round';
+import { toggleRoundLike, getRoundLikeState } from '../utils/round';
+import { showAppAlert } from './AppAlert'; // 좋아요 실패 안내 — 조용한 롤백이 '안 눌림'으로 보이던 것(2026-08-26)
 import { ownerVisibilityLabel } from '../utils/friendGroups';
 import { getPhotoRatio, feedFrameAspect, firstPhotoUri, ratiosReady } from '../utils/photoRatio';   // 사진에 맞는 카드 틀(4:3·1:1·4:5)
 
@@ -65,9 +66,26 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   const onToggleLike = () => {
     const next = !liked;
     setLiked(next);
-    toggleRoundLike(item.id, next).catch((e) => {
+    toggleRoundLike(item.id, next).catch(async (e) => {
       if (__DEV__) console.warn('[like] toggle fail', item?.id, e?.code, e?.message); // 진단 — permission-denied면 규칙/데이터(visibility·친구관계)
-      setLiked(!next); // 실패 시 롤백
+      // ★자가 치유(2026-08-26) — 규칙이 '변화 없는 토글'을 거부하므로, 낡은 스냅샷(홈 친구소식 등)에서
+      //   서버엔 이미 좋아요가 있는데 화면은 빈 하트인 글은 누를 때마다 거부→롤백돼 '안 눌리는' 것처럼 보였다.
+      //   실패하면 서버 진실을 다시 읽어 하트를 맞춘다. 서버가 이미 원하던 상태면 조용히 끝(팝업 없음).
+      const fresh = await getRoundLikeState(item.id);
+      if (fresh) {
+        const serverLiked = fresh.likes.includes(fresh.myUid);
+        setLiked(serverLiked);
+        if (serverLiked === next) return; // 서버가 이미 원하던 상태 — 어긋남만 바로잡고 조용히 종료
+      } else {
+        setLiked(!next); // 재조회도 실패 — 롤백
+      }
+      // 진짜 실패(권한·삭제·네트워크)만 안내 — 조용한 롤백은 '안 눌림'으로 보인다(사용자 2026-08-26)
+      const code = e?.code || '';
+      showAppAlert('좋아요를 남길 수 없어요',
+        code.includes('permission') ? '이 글에는 좋아요 권한이 없어요.\n(공개 범위 제한 글이거나 오래된 글일 수 있어요)'
+          : code.includes('not-found') ? '원본 글을 찾을 수 없어요.'
+          : '네트워크 상태를 확인하고 다시 시도해주세요.',
+        [{ text: '확인' }]);
     });
   };
 

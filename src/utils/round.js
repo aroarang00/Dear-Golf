@@ -1,5 +1,5 @@
 import {
-  collection, query, where, orderBy, getDocs,
+  collection, query, where, orderBy, getDocs, getDoc,
   addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
   arrayUnion, arrayRemove, writeBatch,
 } from 'firebase/firestore';
@@ -303,4 +303,18 @@ export async function toggleRoundLike(roundId, like) {
     likes: like ? arrayUnion(uid) : arrayRemove(uid),
     updatedAt: serverTimestamp(),
   });
+}
+
+// 좋아요 서버 상태 재조회 — 토글 실패(permission-denied) 시 화면-서버 어긋남 자가 치유용(2026-08-26).
+//   ★규칙이 '변화 없는 토글'을 거부하므로(selfMembershipToggled), 홈 친구소식처럼 한 번만 불러온 스냅샷이
+//   낡으면(다른 화면에서 이미 좋아요) 누를 때마다 거부→롤백돼 '안 눌리는' 것처럼 보인다.
+//   실패 시 이걸로 서버 진실을 읽어 하트를 맞추면 조용히 해소된다. 반환: { likes: string[], myUid } | null(읽기 실패).
+export async function getRoundLikeState(roundId) {
+  const uid = await getUid();
+  if (!uid || !roundId) return null;
+  try {
+    const snap = await getDoc(doc(db, COLLECTION, roundId));
+    if (!snap.exists()) return null;
+    return { likes: snap.data().likes || [], myUid: uid };
+  } catch { return null; }
 }

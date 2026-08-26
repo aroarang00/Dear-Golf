@@ -169,6 +169,8 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
         provider={PROVIDER_DEFAULT}
         initialRegion={REGION_CAM.전체}
         maxZoomLevel={16}
+        rotateEnabled={false}   // 북쪽 고정 — 확대 중 실수로 돌아간 지도를 못 되돌려 헤매는 것 방지(사용자 문의 2026-08-26)
+        pitchEnabled={false}    // 기울이기도 잠금 — 탐색 지도는 평면이 명확
         onMarkerPress={(e) => { const c = pinIndex.get(String(e?.nativeEvent?.id)); if (c) setSel(c); }}
         onPress={(e) => { if (e?.nativeEvent?.action === 'marker-press') return; setSel(null); }}
         showsUserLocation={!!myLoc}
