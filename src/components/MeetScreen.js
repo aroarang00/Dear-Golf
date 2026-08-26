@@ -152,7 +152,7 @@ export function MeetScreen({ navigation, route }) {
         if (name) cnt.set(name, (cnt.get(name) || 0) + 1);
       });
     });
-    return [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    return [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10); // 5→10명(사용자 2026-08-27, 가로 스크롤이라 부담 없음)
   }, [diaries]);
 
   const hubSub = {

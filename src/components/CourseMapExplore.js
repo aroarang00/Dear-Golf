@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppTextInput from './common/AppTextInput';
 import { Icon, GreenFlag } from './common/Icon';
 import { showAppAlert } from './AppAlert'; // 안내(책) — 헤더 없는 풀블리드라 오버레이 버튼으로
+import { Spinner } from './common/Spinner'; // 핀 로딩 표시(공용 스피너, [[feedback-loading-spinner]])
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { normalizeCourseName } from '../utils/top100';
@@ -112,6 +113,16 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
   }, [master.length]);
   const trackPins = _and ? tracks : true;
 
+  // 핀 로딩 표시(2026-08-27) — 첫 진입 시 마스터 로드+마커 477개 네이티브 생성에 2~3초 걸려
+  //   그동안 빈 지도만 보이던 것(사용자). 데이터 없거나 마커가 그려지는 동안 스피너 필을 띄운다.
+  //   마커 완료 콜백은 없어 시간 기반: 핀 데이터가 생기고 잠시 뒤(생성 소요 어림) 내림.
+  const [pinsShown, setPinsShown] = useState(false);
+  useEffect(() => {
+    if (!allPins.length) { setPinsShown(false); return undefined; }
+    const t = setTimeout(() => setPinsShown(true), _and ? 1800 : 1000);
+    return () => clearTimeout(t);
+  }, [allPins.length]);
+
   // 핀 키 → 골프장 — MapView onMarkerPress(identifier)에서 역참조
   const pinIndex = useMemo(() => {
     const m = new Map();
@@ -183,6 +194,8 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
         onMarkerPress={(e) => { const c = pinIndex.get(String(e?.nativeEvent?.id)); if (c) setSel(c); }}
         onPress={(e) => { if (e?.nativeEvent?.action === 'marker-press') return; setSel(null); }}
         showsUserLocation={!!myLoc}
+        showsMyLocationButton={false} // 기본 내위치 버튼 — 우리 '내 위치' 필과 중복이라 제거(우상단 겹침 지적 2026-08-27)
+        showsCompass={false}          // 나침반 — 회전을 잠갔으니(rotateEnabled false) 무의미, 안내 버튼 아래 겹치던 것 제거
         toolbarEnabled={false}
       >
         {visiblePins.map(c => {
@@ -208,6 +221,18 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
           </Marker>
         )}
       </MapView>
+
+      {/* 핀 로딩 — 마스터 로드+마커 생성 동안 중앙 필(2~3초 빈 지도 지적, 2026-08-27). 탭 방해 없음 */}
+      {!pinsShown && (
+        <View pointerEvents="none" style={{ position: 'absolute', top: '44%', left: 0, right: 0, alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.96)',
+            borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10,
+            shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
+            <Spinner size={18} color={C.navy} />
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal }}>골프장을 불러오는 중…</Text>
+          </View>
+        </View>
+      )}
 
       {/* ── 상단 오버레이: 검색 + 안내 + 목록 토글 — 지도가 상태바 뒤까지 풀블리드라 insets.top 아래에 띄움 ── */}
       <View style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12, zIndex: 20, elevation: 20 }}>
