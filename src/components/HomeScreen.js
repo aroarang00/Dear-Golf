@@ -142,6 +142,16 @@ export function HomeScreen({ navigation, route }) {
   // 코스 지도 프리페치 — 마스터(477곳)·100대를 홈에서 미리 당겨 모듈 캐시에 적재(fire-and-forget).
   //   코스 탭은 lazy 마운트라 탭 연 뒤에야 로드가 시작돼 핀이 2~3초 늦게 뜨던 것(사용자 2026-08-26).
   useEffect(() => { getGolfCourses().catch(() => {}); getTop100Courses().catch(() => {}); }, []);
+  // 홈 스크롤 원위치 — 다른 탭 갔다 오면 맨 위부터(사용자 2026-08-27, 코스 탭 blur 리셋과 동일 컨벤션).
+  //   blur에서 애니메이션 없이 올려 돌아올 때 이미 맨 위 상태로 보인다. 재탭(tabPress)도 동일.
+  const homeScrollRef = useRef(null);
+  useEffect(() => {
+    if (!navigation?.addListener) return undefined;
+    const toTop = () => homeScrollRef.current?.scrollTo({ y: 0, animated: false });
+    const un1 = navigation.addListener('blur', toTop);
+    const un2 = navigation.addListener('tabPress', () => { if (navigation.isFocused?.()) homeScrollRef.current?.scrollTo({ y: 0, animated: true }); });
+    return () => { un1(); un2(); };
+  }, [navigation]);
   // 빈 상태 '친구 추가' CTA 노출 판별 — 진짜 친구 수(accepted)로만. friendMeta는 별명·그룹 지정분만이라 0명 판별엔 부정확.
   //   null=미확정(로드 전엔 CTA 숨겨 깜빡임 방지), false=친구 0명일 때만 보조 CTA 노출.
   const [hasFriends, setHasFriends] = useState(null);
@@ -1363,6 +1373,7 @@ export function HomeScreen({ navigation, route }) {
             흡수해 화면 최상단부터 콘텐츠 전체가 스크롤되게. 배경(HomeBgSlider)은 그대로 고정 배경.
             하단은 SafeArea 안 함 — 탭바가 자체 처리하고 안드로이드 navigation bar는 bottomArea가 처리 */}
         <ScrollView
+          ref={homeScrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, paddingBottom: tabBarHeight + 24 }}
           showsVerticalScrollIndicator={false}>
