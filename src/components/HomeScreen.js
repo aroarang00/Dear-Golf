@@ -41,6 +41,8 @@ import { isRoundDiary } from '../utils/diaryKind';
 import { firstPhotoUri } from '../utils/photoRatio';
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { ScoreBanner, ScoreStatsScreen } from './ScoreStatsScreen';
+import { DiaryCard } from './DiaryCard';                   // 친구 소식 미리보기 카드 — 친구 피드와 같은 카드 그대로(2026-08-26)
+import { PhotoViewer } from './common/PhotoViewer';        // 친구 소식 카드 사진 탭 → 전체화면(핀치줌)
 import { loadFriendData } from '../utils/friendGroups';
 import { DMListScreen } from './DMListScreen';
 import { DMChatScreen } from './DMChatScreen';
@@ -130,6 +132,7 @@ export function HomeScreen({ navigation, route }) {
   // 동반자 별명(customName) 해석용 owner-only 메타 — 일정 시트에서 별명 표시 ([[friend_groups]])
   const [friendMeta, setFriendMeta] = useState({});
   const [friendsFeed, setFriendsFeed] = useState([]); // 친구 최신 라운딩(홈 백그라운드 로드)
+  const [feedViewer, setFeedViewer] = useState(null); // 친구 소식 카드 사진 전체화면 { photos, index } — PhotoViewer(자체 Modal)
   useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
   // 빈 상태 '친구 추가' CTA 노출 판별 — 진짜 친구 수(accepted)로만. friendMeta는 별명·그룹 지정분만이라 0명 판별엔 부정확.
   //   null=미확정(로드 전엔 CTA 숨겨 깜빡임 방지), false=친구 0명일 때만 보조 CTA 노출.
@@ -1870,76 +1873,77 @@ export function HomeScreen({ navigation, route }) {
             );
           })()}
           </>)}
-          {/* ★내 피드 최신(2026-08-24) — 내 라운딩 기록 최근 4개. 사진 썸네일+구장+날짜+스코어/메모. 탭→MY 다이어리 상세 */}
+          {/* ★내 피드 최신(2026-08-26 개편) — 글래시 행 4개가 사진 배경에 묻혀 안 읽힘(사용자) →
+              솔리드 카드 하나로 묶음. 색은 크림(C.bgPrimary=앱 바탕색): 네이비는 "이 색 말고" 반려(2026-08-26),
+              친구 흰 카드·스코어 네이비와도 구분되는 따뜻한 톤. 타이틀·'전체보기 ›'는 카드 안 헤더로.
+              테두리 없이 채움+여백만. */}
           {myFeed.length > 0 && (
-            <View style={{ marginTop: 34, paddingHorizontal: SIDE_PAD }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 12 }}>최근 기록</Text>
+            <View style={{ marginTop: 60, paddingHorizontal: SIDE_PAD }}>
+              {/* ★섹션 타이틀(2026-08-26) — fs15로는 사진 배경에 묻혀 약함(사용자) → fs21+옅은 그림자로 통일(18도 작다 피드백).
+                  섹션 간격도 44→60(사용자 "간격 더"). '전체보기 ›'는 타이틀 줄 우측(카드 밖) — 타이틀=구분자, 카드=내용물로 역할 분리 */}
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 14 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>최근 기록</Text>
+                <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MY)} activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: 'rgba(255,255,255,0.72)' }}>전체보기 ›</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 2 }}>
               {myFeed.map((d) => {
                 const uri = resolvePhotoUri(firstPhotoUri(d.photos));
                 return (
                   <TouchableOpacity key={d.id} activeOpacity={0.85}
                     onPress={() => navigation.navigate(ROUTES.MY, { openDiaryId: d.id, returnToHome: true })}
-                    style={{ flexDirection: 'row', gap: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12, marginBottom: 12 }}>
+                    style={{ flexDirection: 'row', gap: 14, marginBottom: 16 }}>
                     {uri ? (
-                      <ExpoImage source={{ uri }} contentFit="cover" transition={0} style={{ width: 74, height: 74, borderRadius: 10 }} />
+                      <ExpoImage source={{ uri }} contentFit="cover" transition={0} style={{ width: 64, height: 64, borderRadius: 10 }} />
                     ) : (
-                      <View style={{ width: 74, height: 74, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
-                        <GreenFlag size={fs(26)} />
+                      <View style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: 'rgba(61,57,53,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                        <GreenFlag size={fs(24)} />
                       </View>
                     )}
                     <View style={{ flex: 1, justifyContent: 'center' }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(15.5), color: '#fff' }} numberOfLines={1}>{d.course}</Text>
-                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.72)', marginTop: 3 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{d.course}</Text>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, marginTop: 3 }}>
                         {d.date}{typeof d.score === 'number' ? ` · ${d.score}타` : ''}
                       </Text>
-                      {d.memo ? <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: 'rgba(255,255,255,0.58)', marginTop: 4 }} numberOfLines={1}>"{d.memo}"</Text> : null}
+                      {d.memo ? <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGrayLight, marginTop: 4 }} numberOfLines={1}>"{d.memo}"</Text> : null}
                     </View>
                   </TouchableOpacity>
                 );
               })}
-              {/* 더보기 → MY 다이어리 탭(전체 피드). 버튼 아닌 텍스트, 중장년 위해 뭘 보는지 명확하게 */}
-              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MY)} activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ alignItems: 'center', paddingVertical: 8, marginTop: 2 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: 'rgba(255,255,255,0.72)' }}>전체 기록 보기 ›</Text>
-              </TouchableOpacity>
+              </View>
             </View>
           )}
-          {/* ★스코어 추이(2026-08-24) — 공용 ScoreBanner 재사용(스파크라인+평균/베스트/핸디+추세문구). 탭→상세 통계 */}
-          <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)} style={{ marginHorizontal: SIDE_PAD, marginTop: 26, marginBottom: 0 }} />
-          {/* ★친구 소식(2026-08-24) — 친구 최신 라운딩 4개. 사진+친구이름(아바타)+구장+날짜/스코어. 탭→친구 탭 */}
+          {/* ★스코어 추이(2026-08-24) — 공용 ScoreBanner 재사용(스파크라인+평균/베스트/핸디+추세문구). 탭→상세 통계.
+              2026-08-26: 다른 섹션과 같은 리듬(강한 타이틀→카드)으로 타이틀 신설 + 섹션 간격 44 통일 */}
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, marginTop: 60, marginBottom: 14, paddingHorizontal: SIDE_PAD }}>스코어 추이</Text>
+          <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)} style={{ marginHorizontal: SIDE_PAD, marginTop: 0, marginBottom: 0 }} />
+          {/* ★친구 소식(2026-08-26 개편) — 친구 피드와 같은 미리보기 카드(DiaryCard variant='friend') 그대로 최근 2개.
+              사진 크게 + 홈에서 바로 좋아요. 카드 위에 친구 이름(아바타) 한 줄로 누구 소식인지 표시.
+              4개 컴팩트 행 → 2개 풀카드: 홈 주인공(다음 라운딩)과 안 겨루게 개수는 줄임. 나머지는 더보기로. */}
           {friendsFeed.length > 0 && (
-            <View style={{ marginTop: 34, paddingHorizontal: SIDE_PAD }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: '#fff', marginBottom: 12 }}>친구 소식</Text>
-              {friendsFeed.map((d) => {
-                const uri = resolvePhotoUri(firstPhotoUri(d.photos));
+            <View style={{ marginTop: 60, paddingHorizontal: SIDE_PAD }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, marginBottom: 14 }}>친구 소식</Text>
+              {friendsFeed.slice(0, 2).map((d) => {
                 const avatar = /^https?:/.test(d._friendAvatar || '') ? d._friendAvatar : null;
                 return (
-                  <TouchableOpacity key={d.id} activeOpacity={0.85} onPress={() => navigation.navigate(ROUTES.FRIENDS)}
-                    style={{ flexDirection: 'row', gap: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12, marginBottom: 12, alignItems: 'center' }}>
-                    {uri ? (
-                      <ExpoImage source={{ uri }} contentFit="cover" transition={0} style={{ width: 74, height: 74, borderRadius: 10 }} />
-                    ) : (
-                      <View style={{ width: 74, height: 74, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' }}>
-                        <GreenFlag size={fs(26)} />
-                      </View>
-                    )}
-                    <View style={{ flex: 1, justifyContent: 'center' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                        {avatar ? (
-                          <ExpoImage source={{ uri: avatar }} style={{ width: 22, height: 22, borderRadius: 11 }} />
-                        ) : (
-                          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(245,230,168,0.25)', alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter }}>{(d._friendName || '친').slice(0, 1)}</Text>
-                          </View>
-                        )}
-                        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }} numberOfLines={1}>{d._friendName}</Text>
-                      </View>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: '#fff' }} numberOfLines={1}>{d.course}</Text>
-                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
-                        {d.date}{typeof d.score === 'number' ? ` · ${d.score}타` : ''}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+                  <View key={d.id} style={{ marginBottom: 18 }}>
+                    {/* 누구 소식인지 — 카드 자체(친구 프로필 안에서 쓰던 것)엔 주인 표시가 없어 홈에선 이 줄이 필요 */}
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate(ROUTES.FRIENDS)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                      {avatar ? (
+                        <ExpoImage source={{ uri: avatar }} style={{ width: 22, height: 22, borderRadius: 11 }} />
+                      ) : (
+                        <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(245,230,168,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter }}>{(d._friendName || '친').slice(0, 1)}</Text>
+                        </View>
+                      )}
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }} numberOfLines={1}>{d._friendName}</Text>
+                    </TouchableOpacity>
+                    <DiaryCard item={d} variant="friend" myUid={currentUid}
+                      onOpenPhoto={(photos, index) => setFeedViewer({ photos, index })} />
+                  </View>
                 );
               })}
               {/* 더보기 → 친구 탭. 최근 기록의 '전체 기록 보기'와 동일 패턴 */}
@@ -2107,6 +2111,11 @@ export function HomeScreen({ navigation, route }) {
 
       {/* 단체팀 화면 — 시트 닫은 뒤 열림(형제 Modal 회피, [[ios-modal-stacking]]) */}
       <RoundupTeamScreen visible={!!teamScheduleRid} roundupId={teamScheduleRid} onClose={() => setTeamScheduleRid(null)} />
+
+      {/* 친구 소식 카드 사진 전체화면 — 친구 프로필 피드와 같은 PhotoViewer(자체 Modal, 핀치줌) */}
+      {feedViewer && (
+        <PhotoViewer photos={feedViewer.photos} startIndex={feedViewer.index} onClose={() => setFeedViewer(null)} />
+      )}
 
       <WeatherTransportPopup
         visible={showWeatherFull || showTrafficFull || showWeatherPopup}
