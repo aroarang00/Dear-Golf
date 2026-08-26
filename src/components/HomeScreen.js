@@ -8,6 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'; // 확대 시 콘텐츠가 탭바 덮는 것 방지(하단 여백)
 import * as Notifications from 'expo-notifications'; // DM 푸시 포그라운드 수신 → 안읽음 뱃지 즉시 갱신
 import { Image as ExpoImage } from 'expo-image'; // 스토어 광고 카드 상품 사진(storeAds[].img)
+import { LinearGradient } from 'expo-linear-gradient'; // 최근 기록 히어로 카드 하단 그라데이션(2026-08-26) ※Animated.View 안에 넣지 말 것(런타임 에러, 853줄 참고)
 import { loadStoreAds } from '../utils/storeConfig'; // 홈 캐러셀 광고 원격 로드(config/storeAds)
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
@@ -1880,7 +1881,19 @@ export function HomeScreen({ navigation, route }) {
               솔리드 카드 하나로 묶음. 색은 크림(C.bgPrimary=앱 바탕색): 네이비는 "이 색 말고" 반려(2026-08-26),
               친구 흰 카드·스코어 네이비와도 구분되는 따뜻한 톤. 타이틀·'전체보기 ›'는 카드 안 헤더로.
               테두리 없이 채움+여백만. */}
-          {myFeed.length > 0 && (
+          {myFeed.length > 0 && (() => {
+            /* ★최근 기록 v2(2026-08-26, 1안) — 최신 라운딩 1건을 사진 히어로 카드(그라데이션+타수 뱃지)로,
+               이전 2건은 기존 컴팩트 행. 최신이 주인공이라는 정보 위계 + 사진 감성. 사진 없으면 크림 카드 폴백 */
+            const hero = myFeed[0];
+            const rest = myFeed.slice(1, 3);
+            const heroUri = resolvePhotoUri(firstPhotoUri(hero.photos));
+            const openDiary = (d) => navigation.navigate(ROUTES.MY, { openDiaryId: d.id, returnToHome: true });
+            const scoreBadge = (score, big) => (typeof score === 'number' ? (
+              <View style={{ backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: big ? 12 : 10, paddingVertical: big ? 7 : 5 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(big ? 17 : 14), color: C.butter }}>{score}타</Text>
+              </View>
+            ) : null);
+            return (
             <View style={{ marginTop: 60, paddingHorizontal: SIDE_PAD }}>
               {/* ★섹션 타이틀(2026-08-26) — fs15로는 사진 배경에 묻혀 약함(사용자) → fs21+옅은 그림자로 통일(18도 작다 피드백).
                   섹션 간격도 44→60(사용자 "간격 더"). '전체보기 ›'는 타이틀 줄 우측(카드 밖) — 타이틀=구분자, 카드=내용물로 역할 분리 */}
@@ -1891,33 +1904,69 @@ export function HomeScreen({ navigation, route }) {
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: 'rgba(255,255,255,0.72)' }}>전체보기 ›</Text>
                 </TouchableOpacity>
               </View>
-              <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 2 }}>
-              {myFeed.map((d) => {
-                const uri = resolvePhotoUri(firstPhotoUri(d.photos));
-                return (
-                  <TouchableOpacity key={d.id} activeOpacity={0.85}
-                    onPress={() => navigation.navigate(ROUTES.MY, { openDiaryId: d.id, returnToHome: true })}
-                    style={{ flexDirection: 'row', gap: 14, marginBottom: 16 }}>
-                    {uri ? (
-                      <ExpoImage source={{ uri }} contentFit="cover" transition={0} style={{ width: 64, height: 64, borderRadius: 10 }} />
-                    ) : (
-                      <View style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: 'rgba(61,57,53,0.06)', alignItems: 'center', justifyContent: 'center' }}>
-                        <GreenFlag size={fs(24)} />
+
+              {/* 히어로 — 최신 라운딩 */}
+              <TouchableOpacity onPress={() => openDiary(hero)} activeOpacity={0.9}
+                style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: C.bgPrimary }}>
+                {heroUri ? (
+                  <View>
+                    <ExpoImage source={{ uri: heroUri }} contentFit="cover" transition={0} style={{ width: '100%', height: 230 }} />
+                    <LinearGradient colors={['transparent', 'rgba(0,0,0,0.62)']}
+                      style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110 }} />
+                    <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12,
+                      flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                      <View style={{ flex: 1, marginRight: 10, minWidth: 0 }}>
+                        {hero.memo ? <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 4 }}>"{hero.memo}"</Text> : null}
+                        <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(17), color: '#fff' }}>{hero.course}</Text>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>{hero.date}</Text>
                       </View>
-                    )}
-                    <View style={{ flex: 1, justifyContent: 'center' }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{d.course}</Text>
-                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, marginTop: 3 }}>
-                        {d.date}{typeof d.score === 'number' ? ` · ${d.score}타` : ''}
-                      </Text>
-                      {d.memo ? <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGrayLight, marginTop: 4 }} numberOfLines={1}>"{d.memo}"</Text> : null}
+                      {scoreBadge(hero.score, true)}
                     </View>
-                  </TouchableOpacity>
-                );
-              })}
-              </View>
+                  </View>
+                ) : (
+                  /* 사진 없는 최신 기록 — 크림 카드 폴백(큰 깃발 + 타수 뱃지) */
+                  <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 }}>
+                    <View style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: 'rgba(61,57,53,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                      <GreenFlag size={fs(28)} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>{hero.course}</Text>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginTop: 3 }}>{hero.date}</Text>
+                      {hero.memo ? <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, marginTop: 3 }}>"{hero.memo}"</Text> : null}
+                    </View>
+                    {scoreBadge(hero.score, true)}
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* 이전 기록 — 컴팩트 행(기존 스타일), 타수는 우측 뱃지로 */}
+              {rest.length > 0 && (
+                <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 2, marginTop: 10 }}>
+                {rest.map((d) => {
+                  const uri = resolvePhotoUri(firstPhotoUri(d.photos));
+                  return (
+                    <TouchableOpacity key={d.id} activeOpacity={0.85} onPress={() => openDiary(d)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                      {uri ? (
+                        <ExpoImage source={{ uri }} contentFit="cover" transition={0} style={{ width: 56, height: 56, borderRadius: 10 }} />
+                      ) : (
+                        <View style={{ width: 56, height: 56, borderRadius: 10, backgroundColor: 'rgba(61,57,53,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                          <GreenFlag size={fs(22)} />
+                        </View>
+                      )}
+                      <View style={{ flex: 1, justifyContent: 'center', minWidth: 0 }}>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }} numberOfLines={1}>{d.course}</Text>
+                        <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.warmGray, marginTop: 3 }}>{d.date}</Text>
+                      </View>
+                      {scoreBadge(d.score, false)}
+                    </TouchableOpacity>
+                  );
+                })}
+                </View>
+              )}
             </View>
-          )}
+            );
+          })()}
           {/* ★스코어 추이(2026-08-24) — 공용 ScoreBanner 재사용(스파크라인+평균/베스트/핸디+추세문구). 탭→상세 통계.
               2026-08-26: 다른 섹션과 같은 리듬(강한 타이틀→카드)으로 타이틀 신설 + 섹션 간격 44 통일 */}
           <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, marginTop: 60, marginBottom: 14, paddingHorizontal: SIDE_PAD }}>스코어 추이</Text>
