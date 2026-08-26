@@ -40,7 +40,9 @@ export function CourseLogModal({ visible, onClose, navigation }) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} onDismiss={handleDismiss}>
       <SafeAreaProvider>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
+        {/* ★bottom edge 제외 — SafeAreaView가 하단 인셋을 바탕색 '벽'으로 깔던 것(사용자 2026-08-26).
+            하단 여백은 CourseLogTab 스크롤 콘텐츠 paddingBottom(insets)으로 이관(FriendProfile과 동일 처방) */}
+        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
           {/* 헤더 — 골프 그린(#6B8B5E, 지역색 강원과 동일) + 흰 글씨. 네이비는 라운지 전용 ([[navy-lounge-color]]) */}
           <View style={{ backgroundColor: '#6B8B5E', paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>

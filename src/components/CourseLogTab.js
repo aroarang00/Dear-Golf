@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Modal, Platform } from 'react-native';
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
 import { COURSE_LOG, getCountryFlag } from '../constants/data';
@@ -121,6 +121,7 @@ function UnrecordedCard({ c, rs, onAdd }) {
 }
 
 export function CourseLogTab({ avgRating, navigation }) {
+  const insets = useSafeAreaInsets(); // 하단 벽 방지 — SafeAreaView bottom edge 대신 스크롤 콘텐츠 패딩(2026-08-26)
   const { schedules } = React.useContext(SchedulesContext);
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
   const { diaries } = React.useContext(DiariesContext);
@@ -356,7 +357,8 @@ export function CourseLogTab({ avgRating, navigation }) {
 
   return (
     <>
-    <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} style={{ flex: 1, backgroundColor: C.bgPrimary }} showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
       {/* 100대 코스 도전하기 — 딥그린(앱 세이지 짙은 버전) 바탕 + 골드 포인트로 프리미엄 톤(채도 높은 골드 채움이
           촌스럽다는 피드백, 2026-06-29). 컴팩트 한 줄 유지. 탭하면 전체 목록 */}
       <TouchableOpacity
@@ -484,10 +486,11 @@ export function CourseLogTab({ avgRating, navigation }) {
       <View style={{ height: 32 }} />
     </ScrollView>
 
-    {/* 100대 코스 전체 목록 모달 */}
+    {/* 100대 코스 전체 목록 모달 — ★bottom edge 제외: 하단 인셋이 바탕색 '벽'으로 깔림(사용자 2026-08-26).
+        하단 여백은 아래 ScrollView 콘텐츠 paddingBottom(insets)으로(내 코스 모아보기와 동일 처방) */}
     <Modal visible={top100Open} animationType="slide" onRequestClose={() => setTop100Open(false)}>
       <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
         <View style={{ backgroundColor: C.charcoal, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
@@ -514,7 +517,7 @@ export function CourseLogTab({ avgRating, navigation }) {
         <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, paddingHorizontal: 18, paddingTop: 10, lineHeight: 16 }}>
           완료한 라운딩은 자동 체크 · 다녀온 곳은 오른쪽 ○를 탭해 직접 체크할 수 있어요
         </Text>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, paddingBottom: 24 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8, paddingBottom: insets.bottom + 24 }}>
           {top100.length === 0 ? (
             <View style={{ paddingVertical: 60, alignItems: 'center' }}>
               <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray }}>목록을 불러오는 중…</Text>

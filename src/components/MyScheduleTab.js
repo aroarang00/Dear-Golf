@@ -718,7 +718,8 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
-      <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom }}>{/* 하단 벽 방지 — SafeAreaView bottom edge 대신 콘텐츠 패딩(2026-08-26, 마지막 섹션이 자체 paddingBottom 32 보유) */}
         {/* 캘린더 영역 (좌우 스와이프 → 전달/다음달) */}
         <GestureDetector gesture={monthSwipe}>
         <View>

@@ -54,7 +54,9 @@ export function ScheduleScreen({ navigation, asModal = false, visible: modalVisi
   }, [modalVisible, jumpTo]);
 
   const content = (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={asModal ? ['top', 'bottom', 'left', 'right'] : ['top', 'left', 'right']}>
+    /* ★asModal도 bottom edge 제외 — 하단 인셋이 바탕색 '벽'으로 깔림(사용자 2026-08-26).
+       하단 여백은 MyScheduleTab 스크롤 콘텐츠 paddingBottom(insets)으로(내 코스 모아보기와 동일 처방) */
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
       <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 16, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ flex: 1 }}>
           {/* 윗줄(eyebrow) — 친구·라운지 헤더와 동일 컨벤션. 큰 글자만 덜렁 있어 단조롭던 것 보강(2026-06-15 사용자) */}
