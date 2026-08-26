@@ -47,7 +47,11 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   const roundRefs = useRef([]);                          // 라운딩 카드 4종 캐러셀 — 각 ViewShot ref
   const [roundStyleIdx, setRoundStyleIdx] = useState(0); // 선택된 라운딩 카드 스타일(0 매거진/1 스코어카드/2 기념/3 폴라로이드)
   const [coverIdx, setCoverIdx] = useState(0);           // 카드 배경에 쓸 사진 인덱스 — 대표(0) 외 다른 업로드 사진도 선택 가능(공유 때만 일시 적용)
-  useEffect(() => { setCoverIdx(0); }, [moment?.id]);    // 다른 기록 열면 대표(0)로 초기화
+  // 글상자 위치(2026-08-26) — 진짜 문제는 사진 미세이동이 아니라 '하단 고정 글상자가 인물(하단)을 가리는 것'(사용자).
+  //   글상자를 위/아래로 옮기는 토글 하나로 해결 — 인물이 아래면 글상자를 위로.
+  //   ★히스토리: 사진 드래그(제스처 안 잡힘)→◀▲▼▶ 미세이동(불편·유명무실) 모두 폐기. 매거진·기념 카드에 적용.
+  const [panelPos, setPanelPos] = useState('bottom'); // 'bottom'(기본) | 'top'
+  useEffect(() => { setCoverIdx(0); setPanelPos('bottom'); }, [moment?.id]);    // 다른 기록 열면 대표(0)·글상자 위치 초기화
   // DM 공유 — 친구 다중선택해 카드 이미지를 DM으로 한 번에 전송([[dm-design]] 사진공유)
   const [dmPickerOpen, setDmPickerOpen] = useState(false);
   const [friends, setFriends] = useState([]);
@@ -90,9 +94,12 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   // 라운딩 카드 배경 사진 — 카드는 photos[0]을 배경으로 쓰므로, 고른 사진을 맨 앞으로 재정렬해 넘긴다.
   //   원본 moment.photos(대표 순서)는 그대로 두고 공유 카드 렌더에만 일시 적용. 스코어카드는 사진 미사용.
   const roundPhotos = (isRound && Array.isArray(moment.photos)) ? moment.photos : [];
-  const roundMoment = (coverIdx > 0 && roundPhotos.length > coverIdx)
+  const roundBase = (coverIdx > 0 && roundPhotos.length > coverIdx)
     ? { ...moment, photos: [roundPhotos[coverIdx], ...roundPhotos.filter((_, i) => i !== coverIdx)] }
     : moment;
+  // panelPos — 글상자 위/아래 위치를 카드에 전달(매거진·기념이 반영. 폴라로이드는 사진·글이 안 겹쳐 불필요)
+  const roundMoment = isRound ? { ...roundBase, panelPos } : roundBase;
+  const panelAdjustable = isRound && roundPhotos.length > 0 && (roundStyleIdx === 0 || roundStyleIdx === 2);
 
   const handleSave = async () => {
     if (saving) return;
@@ -259,7 +266,8 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom', 'left', 'right']}>
+        {/* ★bottom edge 제외 — 하단 인셋이 바탕색 '벽'으로 깔림(사용자 2026-08-26). 스크롤 콘텐츠 패딩으로 이관 */}
+        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
           {/* 헤더 */}
           <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 20, paddingVertical: 13,
             flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
@@ -269,7 +277,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>{titleText}</Text>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 36 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>
               공유 미리보기
             </Text>
@@ -297,6 +305,22 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 7 }}>
                   넘겨서 카드 스타일을 골라보세요 · {ROUND_NAMES[roundStyleIdx]}
                 </Text>
+                {/* 글상자 위치 — 아래(기본)/위 토글. 인물이 사진 하단에 있으면 '위'로 올려 안 가리게(사용자 2026-08-26) */}
+                {panelAdjustable && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+                    <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginRight: 2 }}>글상자 위치</Text>
+                    {[['bottom', '아래'], ['top', '위']].map(([pos, label]) => {
+                      const on = panelPos === pos;
+                      return (
+                        <TouchableOpacity key={pos} onPress={() => setPanelPos(pos)} activeOpacity={0.75}
+                          style={{ borderRadius: 12, paddingHorizontal: 16, paddingVertical: 7,
+                            backgroundColor: on ? C.charcoal : C.bgSecondary }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: on ? C.butter : C.charcoal }}>{label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
             ) : (
               <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH, alignSelf: 'center' }}>

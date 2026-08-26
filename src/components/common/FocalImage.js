@@ -27,8 +27,12 @@ function isCenter(focus) {
   return Math.abs(focus.x - 0.5) < 0.001 && Math.abs(focus.y - 0.5) < 0.001;
 }
 
-export function FocalImage({ uri, focus, width, height, style, onRatio }) {
-  const explicit = !isCenter(focus);   // 사용자가 크롭·초점을 직접 지정한 사진
+// sharp — 공유 카드 캡처용(2026-08-26): allowDownscaling을 꺼 원본 해상도로 디코드(pixelRatio 3 캡처 선명도).
+//   피드에선 기본 false(다운스케일 허용) 유지 — 전역으로 끄면 피드 메모리가 치솟는다.
+// forceFocus — 공유 카드 '사진 위치 조정'용(2026-08-26): focus가 정중앙이어도 명시 초점으로 취급해
+//   자동 상단초점·fitWhole(블러+통짜) 분기를 건너뛴다 → 조정 전엔 기존과 동일한 중앙 크롭, 드래그하면 평행이동.
+export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = false, forceFocus = false }) {
+  const explicit = forceFocus ? !!focus : !isCenter(focus);   // 사용자가 크롭·초점을 직접 지정한 사진
   const [src, setSrc] = useState(() => _sizeCache.get(uri) || null);
   // 캐시에 치수가 있으면 이미 로드된 사진 → 스피너 없이 시작(재스크롤 시 스피너 깜빡임 제거).
   const [loading, setLoading] = useState(() => !_sizeCache.get(uri));
@@ -94,8 +98,8 @@ export function FocalImage({ uri, focus, width, height, style, onRatio }) {
         {/* ★흐린 배경과 선명한 앞 레이어의 recyclingKey를 분리(#bg) — 같은 키면 첫 로드 때 앞 레이어가
             안 덮이고 흐린 배경만 남아 '첫 사진 흐림'이 재마운트 전까지 지속되던 것 수정. 앞 레이어는 전환 없이 즉시. */}
         <Image source={uri} style={{ position: 'absolute', left: 0, top: 0, width, height }} contentFit="cover"
-          blurRadius={18} cachePolicy="memory-disk" recyclingKey={`${uri}#bg`} />
-        <Image source={uri} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk"
+          blurRadius={18} cachePolicy="memory-disk" allowDownscaling={!sharp} recyclingKey={`${uri}#bg`} />
+        <Image source={uri} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk" allowDownscaling={!sharp}
           transition={0}
           onLoad={onLoad} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
         {overlay}
@@ -107,7 +111,7 @@ export function FocalImage({ uri, focus, width, height, style, onRatio }) {
   if (!eff || !src || !width || !height) {
     return (
       <View style={[{ width, height, backgroundColor: '#15171A' }, style]}>
-        <Image source={uri} style={{ width, height }} contentFit="cover" cachePolicy="memory-disk" transition={Platform.OS === 'android' ? 0 : 150}
+        <Image source={uri} style={{ width, height }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={!sharp} transition={Platform.OS === 'android' ? 0 : 150}
           onLoad={onLoad} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
         {overlay}
       </View>
@@ -123,7 +127,7 @@ export function FocalImage({ uri, focus, width, height, style, onRatio }) {
 
   return (
     <View style={[{ width, height, overflow: 'hidden', backgroundColor: '#15171A' }, style]}>
-      <Image source={uri} style={{ position: 'absolute', left, top, width: dispW, height: dispH }} contentFit="cover" cachePolicy="memory-disk"
+      <Image source={uri} style={{ position: 'absolute', left, top, width: dispW, height: dispH }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={!sharp}
         onLoad={onLoad} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
       {overlay}
     </View>

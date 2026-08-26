@@ -578,6 +578,37 @@ export function DiaryScreen({ route, navigation }) {
   // 카드 onPress 안정화 — DiaryCard memo가 유지되도록 매 렌더 새 함수 생성 방지
   const openDiary = React.useCallback((it) => setSelected(it), []);
 
+  // 자랑 헤드라인(2026-08-26) — 평범한 날에도 공유할 '서사'를 기록 데이터에서 자동으로 뽑는다(공유 유명무실 진단 ①).
+  //   우선순위: n개월 만의 라운딩(희소) > 구장 첫/다회 방문 > 올해 n번째. 최대 2개를 ' · '로 잇는다.
+  //   날짜는 'YYYY.MM.DD' 문자열이라 사전순 비교가 곧 시간순.
+  const buildBragLine = React.useCallback((round) => {
+    const rounds = (diaries || []).filter(isRoundDiary);
+    const d0 = round.date || '';
+    if (!d0) return '';
+    const ym = (s) => { const [y, m] = s.split('.').map(Number); return (y || 0) * 12 + (m || 0); };
+    const parts = [];
+    const prevDates = rounds.filter(r => r.id !== round.id && (r.date || '') && r.date < d0).map(r => r.date).sort();
+    const prev = prevDates[prevDates.length - 1];
+    if (prev) {
+      const gap = ym(d0) - ym(prev);
+      if (gap >= 2) parts.push(`${gap}개월 만의 라운딩`);
+    }
+    if (round.course) {
+      const visits = rounds.filter(r => r.id !== round.id && r.course === round.course && (r.date || '') < d0).length;
+      if (visits === 0 && prev) parts.push('첫 방문 구장'); // 기록 1호(prev 없음)까지 '첫 방문'이라 하면 전부 붙어 무의미
+      else if (visits >= 2) parts.push(`이 구장 ${visits + 1}번째 방문`);
+    }
+    const nthYear = rounds.filter(r => (r.date || '').startsWith(d0.slice(0, 4)) && r.date <= d0).length;
+    if (nthYear >= 2) parts.push(`올해 ${nthYear}번째 라운딩`);
+    return parts.slice(0, 2).join(' · ');
+  }, [diaries]);
+
+  // 라운딩 자랑 카드 열기 — 상세 헤더·피드 카드 공유 버튼 공용(피드 한 탭 진입, 진단 ②)
+  const openShareRound = React.useCallback((round) => {
+    setShareMoment({ ...round, shareKind: 'round', bragLine: buildBragLine(round),
+      playerName: (userProfile.realName || userProfile.nickname || '').trim() });
+  }, [buildBragLine, userProfile.realName, userProfile.nickname]);
+
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
 
@@ -606,7 +637,7 @@ export function DiaryScreen({ route, navigation }) {
   if (selected) return (
     <>
       <DiaryDetail item={selected} isFirstSingle={!!firstSingleId && selected.id === firstSingleId} friendGroups={friendGroups} friendMeta={friendMeta} onClose={handleCloseDetail}
-        onShare={selected.kind === 'moment' ? undefined : (round) => setShareMoment({ ...round, shareKind: 'round', playerName: (userProfile.realName || userProfile.nickname || '').trim() })}
+        onShare={selected.kind === 'moment' ? undefined : openShareRound}
         onUpdate={async (updated) => {
           // handleSave('diary-edit')를 거쳐야 명예의 전당(특별한 순간)까지 함께 동기화됨.
           //   ★실패(false) 시 낙관 반영·모달 닫기를 하지 않고 false를 그대로 전파 —
@@ -1034,7 +1065,7 @@ export function DiaryScreen({ route, navigation }) {
                                   <View style={{ marginTop: 2, marginBottom: 12 }}>
                                     <DiaryCard item={item} avgScore={avgScore} isFirstSingle={!!firstSingleId && item.id === firstSingleId}
                                       friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={openDiary}
-                                      collapseSignal={collapseSignal} />
+                                      onShare={openShareRound} collapseSignal={collapseSignal} />
                                   </View>
                                 )}
                               </React.Fragment>
@@ -1050,7 +1081,7 @@ export function DiaryScreen({ route, navigation }) {
                       {idx < arr.length - 1 && <View style={dS.tlLine} />}
                       {/* 일상 점은 paleSky(카드 오른쪽 띠·친구 피드 점과 통일). 베스트/버디/특별은 라운딩 전용이라 충돌 없음 ([[moment-feed-extension]]) */}
                       <View style={[dS.tlDot, item.badge === '베스트' && dS.tlDotBest, item.badge === '버디' && dS.tlDotBirdie, (item.special || isFS) && dS.tlDotSpecial, item.kind === 'moment' && { backgroundColor: C.paleSky, borderWidth: 0 }]} />
-                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={openDiary} collapseSignal={collapseSignal} />
+                      <DiaryCard item={item} avgScore={avgScore} isFirstSingle={isFS} friendNameByUid={friendNameByUid} friendGroups={friendGroups} onPress={openDiary} onShare={openShareRound} collapseSignal={collapseSignal} />
                     </View>
                     );
                   })}

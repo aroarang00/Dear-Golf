@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { Image } from 'expo-image';
+import { FocalImage } from './common/FocalImage'; // 사진 위치 조정 — 초점 평행이동(2026-08-26)
 import { LinearGradient } from 'expo-linear-gradient';
 import { F, fs } from '../constants/colors';
 import { resolvePhotoUri } from '../utils/photoStorage';
@@ -46,20 +46,26 @@ export function RoundCardMemory({ item, width = 320 }) {
   const special = item.special || null;
   const sideBadge = isBest ? 'BEST' : isSingle ? 'SINGLE' : null;
   const memo = (item.memo || '').trim(); // 한줄메모 — 사진 없을 때만 하단에(허전함 보완)
+  const panelTop = !!photoUri && item.panelPos === 'top'; // 글상자 위치(공유 모달 토글) — 인물이 하단이면 위로(2026-08-26)
 
   return (
     <View style={{ width, height, borderRadius: 16, overflow: 'hidden', backgroundColor: '#2A2622' }}>
       {/* 배경 — 대표사진 풀블리드 (없으면 차콜 그라데이션) */}
       {photoUri ? (
-        <Image source={{ uri: photoUri }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={false} />
+        // 사진 위치 조정(2026-08-26) — contentPosition은 네이티브 cover에서 안 먹어 FocalImage(초점 평행이동)로
+        <FocalImage uri={photoUri} sharp forceFocus focus={{ x: item.photoFocusX ?? 0.5, y: item.photoFocusY ?? 0.5 }}
+          width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }} />
       ) : (
         // 사진 없을 때 네이비 그라데이션 — 매거진(차콜)과 구분되는 기념카드 정체성(사용자 2026-06-14, 라운지색이지만 차별화용). 골드·샴페인 글자와 어울림
         <LinearGradient colors={['#27506B', '#11212F']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
       )}
 
-      {/* 상단/하단 그라데이션 — 사진 위주로 슬림하게(정보 최소화와 함께, 사용자 2026-06-14) */}
-      <LinearGradient colors={['rgba(0,0,0,0.42)', 'transparent']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(height * 0.20) }} />
-      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.55)']} locations={[0.32, 1]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * 0.52) }} />
+      {/* 상단/하단 그라데이션 — 사진 위주로 슬림하게(정보 최소화와 함께, 사용자 2026-06-14).
+          ★panelTop(글상자 위, 2026-08-26)이면 진한 쪽이 위로 따라간다 */}
+      <LinearGradient colors={[`rgba(0,0,0,${panelTop ? 0.55 : 0.42})`, 'transparent']} locations={panelTop ? [0.4, 1] : [0, 1]}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(height * (panelTop ? 0.52 : 0.20)) }} />
+      <LinearGradient colors={['transparent', `rgba(0,0,0,${panelTop ? 0.42 : 0.55})`]} locations={panelTop ? [0, 1] : [0.32, 1]}
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * (panelTop ? 0.20 : 0.52)) }} />
       {/* 얇은 내부 프레임 — 럭셔리 액자 느낌 */}
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }} />
 
@@ -76,8 +82,8 @@ export function RoundCardMemory({ item, width = 320 }) {
         <Text style={[{ fontFamily: F.brand, fontSize: fs(15), color: WHITE }, SHADOW]}>Dear Golf</Text>
       </View>
 
-      {/* 하단 — special(있으면 기록박스 밖 위·좌측) + 정보 패널(사진 있을 때만 반투명 박스). 타수 대신 WITH 동반자 + 메모 */}
-      <View style={{ position: 'absolute', left: 14, right: 14, bottom: 14 }}>
+      {/* 정보 패널(사진 있을 때만 반투명 박스) — 타수 대신 WITH 동반자 + 메모. panelTop이면 워터마크 아래(top 48)로 */}
+      <View style={[{ position: 'absolute', left: 14, right: 14 }, panelTop ? { top: 48 } : { bottom: 14 }]}>
         {/* 영예칩(베스트/싱글) — special은 워터마크 자리로 올려 여기선 제외. 스코어 없는 기념카드는 보통 미표시 */}
         {sideBadge ? (
           <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: GOLD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.42)', marginBottom: 7 }}>
@@ -90,6 +96,12 @@ export function RoundCardMemory({ item, width = 320 }) {
           photoUri && { backgroundColor: 'rgba(18,16,14,0.48)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(201,168,76,0.45)' },
         ]}>
         {/* 골드 헤어라인 */}
+        {/* 자랑 헤드라인 — 기록에서 자동 생성(2026-08-26) */}
+        {item.bragLine ? (
+          <Text numberOfLines={1} style={[{ fontFamily: F.sysSb, fontSize: fs(10.5), color: GOLD, letterSpacing: 1, marginBottom: photoUri ? 4 : 6 }, SHADOW]}>
+            {item.bragLine}
+          </Text>
+        ) : null}
         <View style={{ height: 1.5, width: 30, backgroundColor: GOLD_DEEP, marginBottom: photoUri ? 4 : 9 }} />
         <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: photoUri ? fs(18) : fs(22), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
           {flag ? flag + ' ' : ''}{item.course || '라운딩'}

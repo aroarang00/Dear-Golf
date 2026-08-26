@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { Image } from 'expo-image';
+import { FocalImage } from './common/FocalImage'; // 사진 위치 조정 — 초점 평행이동(2026-08-26)
 import { LinearGradient } from 'expo-linear-gradient';
 import { F, fs } from '../constants/colors';
 import { resolvePhotoUri } from '../utils/photoStorage';
@@ -56,7 +56,9 @@ export function RoundCardPolaroid({ item, width = 320 }) {
         {/* A — 사진 마운팅: 안쪽 헤어라인 + 상/하 미세 음영(깊이·갤러리 프린트 느낌) */}
         <View style={{ width: '100%', height: photoH, borderRadius: 3, overflow: 'hidden', backgroundColor: '#E7E0D2', borderWidth: 1, borderColor: 'rgba(0,0,0,0.14)' }}>
           {photoUri ? (
-            <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={false} />
+            // 사진 위치 조정(2026-08-26) — contentPosition은 네이티브 cover에서 안 먹어 FocalImage(초점 평행이동)로
+            <FocalImage uri={photoUri} sharp forceFocus focus={{ x: item.photoFocusX ?? 0.5, y: item.photoFocusY ?? 0.5 }}
+              width={width - FRAME * 2 - 2} height={photoH - 2} />
           ) : (
             <LinearGradient colors={['#EFEADD', '#E0D8C5']} style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.brand, fontSize: fs(22), color: 'rgba(42,38,34,0.35)' }}>Dear Golf</Text>

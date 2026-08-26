@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { FocalImage } from './common/FocalImage'; // 사진 위치 조정 — 초점 평행이동(2026-08-26)
 import { F, fs } from '../constants/colors';
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { getCountryFlag } from '../constants/data';
@@ -47,18 +47,18 @@ export function RoundCard({ item, width = 320 }) {
   const flag = item.overseas && item.country ? getCountryFlag(item.country) : '';
   const playerName = (item.playerName || '').trim();
   const metaLine = `${playerName ? playerName + '   ·   ' : ''}${item.date || ''}${item.weather ? '   ·   ' + item.weather : ''}`;
+  const panelTop = item.panelPos === 'top'; // 글상자 위치(공유 모달 토글) — 인물이 하단이면 위로(2026-08-26)
 
   return (
     <View style={{ width, height, borderRadius: 16, overflow: 'hidden', backgroundColor: '#2A2622' }}>
       {/* 배경 — 대표사진 풀블리드 (없으면 차콜 그라데이션). allowDownscaling=false로 캡처 선명도 유지 */}
       {photoUri ? (
-        <Image
-          source={{ uri: photoUri }}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          allowDownscaling={false}
-        />
+        // 사진 위치 조정(2026-08-26) — contentPosition은 네이티브 cover에서 안 먹어 FocalImage(초점 평행이동)로.
+        //   forceFocus: 조정 전(0.5)엔 기존과 같은 중앙 크롭, 드래그하면 focusY만큼 이동. sharp: 캡처 선명도(allowDownscaling off)
+        <FocalImage uri={photoUri} sharp forceFocus
+          focus={{ x: item.photoFocusX ?? 0.5, y: item.photoFocusY ?? 0.5 }}
+          width={width} height={height}
+          style={{ position: 'absolute', top: 0, left: 0 }} />
       ) : (
         // 사진 없음 — 풍부한 차콜 그라데이션(3색 깊이). 아래 분기의 광원·비네팅 레이어와 합쳐 사진 같은 질감
         <LinearGradient
@@ -76,17 +76,20 @@ export function RoundCard({ item, width = 320 }) {
       />
 
       {photoUri ? (
-        // ───────────────── 사진 있음 — 풀블리드 + 하단 정보 패널(현행) ─────────────────
+        // ───────────────── 사진 있음 — 풀블리드 + 정보 패널(기본 하단, panelPos==='top'이면 상단) ─────────────────
+        //   ★글상자 위/아래 이동(2026-08-26) — 인물이 사진 하단에 있으면 글상자가 몸통을 가리던 것(사용자).
+        //     그라데이션도 글상자 있는 쪽이 진하게 따라간다.
         <>
           {/* 상단/하단 그라데이션 — 사진 위주로 슬림하게(가림 최소화, 사용자 2026-06-14) */}
           <LinearGradient
-            colors={['rgba(0,0,0,0.42)', 'transparent']}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(height * 0.20) }}
+            colors={[`rgba(0,0,0,${panelTop ? 0.58 : 0.42})`, 'transparent']}
+            locations={panelTop ? [0.42, 1] : [0, 1]}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.round(height * (panelTop ? 0.52 : 0.20)) }}
           />
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.55)']}
-            locations={[0.35, 1]}
-            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * 0.46) }}
+            colors={['transparent', `rgba(0,0,0,${panelTop ? 0.42 : 0.55})`]}
+            locations={panelTop ? [0, 1] : [0.35, 1]}
+            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * (panelTop ? 0.20 : 0.46)) }}
           />
 
           {/* 상단 — 좌측: special 있으면 에메랄드 채움 박스(홀인원 등), 없으면 ROUND RECAP / 우측: Dear Golf 워터마크.
@@ -103,8 +106,9 @@ export function RoundCard({ item, width = 320 }) {
             <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }, SHADOW]}>Dear Golf</Text>
           </View>
 
-          {/* 하단 — 영예칩(베스트/싱글, 골드 테두리) + 정보 박스. special은 좌상단으로 올려 여기선 중복 표시 안 함. */}
-          <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12 }}>
+          {/* 정보 패널 — 영예칩(베스트/싱글, 골드 테두리) + 정보 박스. special은 상단 줄로 올려 여기선 중복 표시 안 함.
+              panelTop이면 워터마크 줄 바로 아래(top 46)로 이동 */}
+          <View style={[{ position: 'absolute', left: 14, right: 14 }, panelTop ? { top: 46 } : { bottom: 12 }]}>
             {sideBadge ? (
               <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: GOLD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.42)', marginBottom: 8 }}>
                 <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 2 }, SHADOW]}>{sideBadge}</Text>
@@ -112,6 +116,12 @@ export function RoundCard({ item, width = 320 }) {
             ) : null}
             <View style={{ paddingTop: 9, paddingBottom: 10, paddingHorizontal: 13,
               backgroundColor: 'rgba(18,16,14,0.46)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(201,168,76,0.42)' }}>
+              {/* 자랑 헤드라인 — 기록에서 자동 생성("올해 12번째" 등, 2026-08-26). 평범한 날에도 공유할 서사 */}
+              {item.bragLine ? (
+                <Text numberOfLines={1} style={[{ fontFamily: F.sysSb, fontSize: fs(10.5), color: GOLD, letterSpacing: 1, marginBottom: 5 }, SHADOW]}>
+                  {item.bragLine}
+                </Text>
+              ) : null}
               <View style={{ height: 1.5, width: 28, backgroundColor: GOLD_DEEP, marginBottom: 6 }} />
               <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(17), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>
                 {flag ? flag + ' ' : ''}{item.course || '라운딩'}
@@ -161,6 +171,11 @@ export function RoundCard({ item, width = 320 }) {
             {/* 영예칩(베스트/싱글) — special은 상단 ROUND RECAP 자리로 올려 여기선 BEST/SINGLE만(중복 방지) */}
             {sideBadge ? (
               <Text style={[{ fontFamily: F.en, fontSize: fs(18), color: GOLD, letterSpacing: 3, marginBottom: 9 }, SHADOW]}>{sideBadge}</Text>
+            ) : null}
+            {item.bragLine ? (
+              <Text numberOfLines={1} style={[{ fontFamily: F.sysSb, fontSize: fs(11.5), color: GOLD, letterSpacing: 1, marginBottom: 7 }, SHADOW]}>
+                {item.bragLine}
+              </Text>
             ) : null}
             <View style={{ height: 1.5, width: 34, backgroundColor: GOLD_DEEP, marginBottom: 10 }} />
             <Text numberOfLines={1} style={[{ fontFamily: F.sysB, fontSize: fs(22), color: CHAMPAGNE, letterSpacing: 0.2 }, SHADOW]}>

@@ -18,7 +18,7 @@ import { getPhotoRatio, feedFrameAspect, firstPhotoUri, ratiosReady } from '../u
 //                          탭→PhotoViewer(onOpenPhoto), 정보는 항상 노출(접기 없음) ([[friend-feed-design]])
 // React.memo — 부모(DiaryScreen) 리렌더(스크롤 feedLimit·검색·선택)마다 props 안 바뀐 카드는 건너뜀.
 //   onPress는 부모에서 useCallback으로 안정화, friendGroups·friendNameByUid는 state(로드 후 안정), avgScore는 숫자.
-function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups, collapseSignal = 0 }) {
+function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups, collapseSignal = 0 }) {
   const [expanded, setExpanded] = useState(false);
   const [showLikers, setShowLikers] = useState(false); // 내 글 — 누가 좋아요 눌렀나 팝업
   const isFriend = variant === 'friend';
@@ -174,6 +174,17 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
     </TouchableOpacity>
   );
 
+  // 카드 공유 — 내 라운딩 카드에 한 탭 진입(2026-08-26). 전엔 상세를 열어야만 보여 유명무실(사용자 진단).
+  //   자랑 카드(ShareMomentModal)는 부모(DiaryScreen)의 openShareRound가 연다. 친구 카드·일상엔 없음.
+  const shareBtn = (!isFriend && onShare) ? (
+    <TouchableOpacity onPress={() => onShare(item)} activeOpacity={0.7}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 9 }}>
+      <Icon name="share" size={fs(15)} color={C.warmGray} strokeWidth={1.8} />
+      <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.warmGray }}>공유</Text>
+    </TouchableOpacity>
+  ) : null;
+
   // ── 카드 본문 (내 기록·친구 피드 공통) ──
   const body = (
     <View style={dS.cardBody}>
@@ -192,7 +203,7 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
       {memoBlock}
       {/* 하단 줄 — 좌: 태그(스크롤) / 우: 내 기록의 좋아요. 친구 카드 좋아요는 위 날짜 줄로 올라가 여기 없음.
           사진 카드 좋아요는 '기록 보기' 토글줄에서 따로 표시(!hasPhoto 조건) */}
-      {((item.tags && item.tags.length > 0) || (!hasPhoto && !isFriend && mineLikeRow)) ? (
+      {((item.tags && item.tags.length > 0) || (!hasPhoto && !isFriend && (mineLikeRow || shareBtn))) ? (
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 8 }}>
           {/* 태그 — ★개수를 자르지 않고 전부, 줄바꿈 허용(사용자 2026-07-22 결정). 카드가 한 줄 길어지는 대신
               '어떤 건 +N이 보이고 어떤 건 태그가 잘리고' 제각각이던 문제가 사라진다(규칙 하나: 태그는 다 보인다).
@@ -208,7 +219,9 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
               );
             })}
           </View>
-          {!hasPhoto && !isFriend && mineLikeRow ? <View style={{ marginLeft: 8 }}>{mineLikeRow}</View> : null}
+          {!hasPhoto && !isFriend && (mineLikeRow || shareBtn) ? (
+            <View style={{ marginLeft: 8, flexDirection: 'row', alignItems: 'center' }}>{shareBtn}{mineLikeRow}</View>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -377,11 +390,15 @@ function DiaryCardBase({ item, onPress, avgScore, isFirstSingle, variant = 'mine
           {photoHero(isFriend
             ? (i => onOpenPhoto && onOpenPhoto(item.photos, i))
             : (() => onPress(item)))}
-          {/* 기록보기 토글 줄 — 좋아요를 같은 줄 우측에 절대배치(토글 텍스트는 가운데 유지). 한 줄 아래가 아니라 '기록 보기' 줄에(사용자 2026-06-13) */}
+          {/* 기록보기 토글 줄 — 좋아요를 같은 줄 우측에 절대배치(토글 텍스트는 가운데 유지). 한 줄 아래가 아니라 '기록 보기' 줄에(사용자 2026-06-13).
+              내 카드는 같은 줄 좌측에 공유(자랑 카드) — 상세 안 열고 한 탭(2026-08-26) */}
           <View style={{ justifyContent: 'center' }}>
             <TouchableOpacity onPress={() => setExpanded(e => !e)} activeOpacity={0.7} style={dS.toggleBtn}>
               <Text style={dS.toggleBtnTxt}>{expanded ? '접기 ∧' : '기록 보기 ∨'}</Text>
             </TouchableOpacity>
+            {shareBtn ? (
+              <View style={{ position: 'absolute', left: 4, top: 0, bottom: 0, justifyContent: 'center' }}>{shareBtn}</View>
+            ) : null}
             {likeNode ? (
               <View style={{ position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center' }}>{likeNode}</View>
             ) : null}
