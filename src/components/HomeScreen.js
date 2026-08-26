@@ -1401,7 +1401,7 @@ export function HomeScreen({ navigation, route }) {
               라운지 종 아이콘에서 계속 볼 수 있다(진입점이 사라져도 알림함 자체는 그대로).
               절대좌표 슬롯이라 나타나고 사라져도 위의 메시지·크루 위치는 안 밀림. */}
           {notiUnread > 0 && (
-            <TouchableOpacity onPress={() => navigation.navigate(ROUTES.LOUNGE, { openNoti: true })} activeOpacity={0.8}
+            <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MEET,{ openNoti: true })} activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP, zIndex: 20, elevation: 20, alignItems: 'center' }}>
               <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: '#E2C275',
@@ -1434,7 +1434,7 @@ export function HomeScreen({ navigation, route }) {
         <View style={topBanner === 'roundupInvite' ? undefined : { height: 0, overflow: 'hidden' }}>
           <RoundupInviteInbox
             onActiveChange={setRoundupInviteActive}
-            onOpen={() => navigation.navigate(ROUTES.LOUNGE, { openView: 'mine' })} />
+            onOpen={() => navigation.navigate(ROUTES.MEET,{ openView: 'mine' })} />
         </View>
 
         {/* 동반자 스코어 공유 수신 — 기록화면에서 홈으로 이동(2026-07-23). 기록 잘 안 하는 유저도 홈에서 바로 인지.
@@ -1452,7 +1452,7 @@ export function HomeScreen({ navigation, route }) {
         <View style={topBanner === 'friendReq' ? undefined : { height: 0, overflow: 'hidden' }}>
           <FriendRequestInbox
             onActiveChange={setFriendReqActive}
-            onOpen={() => navigation.navigate(ROUTES.FRIENDS, { openFinder: 'received' })} />
+            onOpen={() => navigation.navigate(ROUTES.MEET, { openFinder: 'received' })} />
         </View>
 
         {/* 전파 일정 변경 반영 — 다른 멤버가 바꾼 시간·인원·예약자·세부코스. 초대처럼 눈에 띄게 + 맥동(중요한 부분).
@@ -1930,7 +1930,7 @@ export function HomeScreen({ navigation, route }) {
                 return (
                   <View key={d.id} style={{ marginBottom: 18 }}>
                     {/* 누구 소식인지 — 카드 자체(친구 프로필 안에서 쓰던 것)엔 주인 표시가 없어 홈에선 이 줄이 필요 */}
-                    <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate(ROUTES.FRIENDS)}
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate(ROUTES.MEET, { view: 'friends' })}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                       {avatar ? (
                         <ExpoImage source={{ uri: avatar }} style={{ width: 22, height: 22, borderRadius: 11 }} />
@@ -1947,7 +1947,7 @@ export function HomeScreen({ navigation, route }) {
                 );
               })}
               {/* 더보기 → 친구 탭. 최근 기록의 '전체 기록 보기'와 동일 패턴 */}
-              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.FRIENDS)} activeOpacity={0.7}
+              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MEET, { view: 'friends' })} activeOpacity={0.7}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ alignItems: 'center', paddingVertical: 8, marginTop: 2 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: 'rgba(255,255,255,0.72)' }}>친구 소식 더보기 ›</Text>
               </TouchableOpacity>
@@ -1999,7 +1999,7 @@ export function HomeScreen({ navigation, route }) {
             {/* 친구 0명 신규에게만 '친구 추가' 보조 동선 — 이 앱의 핵심 가치(함께 모집·기록·공유)는 친구 연결로 열림.
                 홈 빈 상태가 '라운딩 추가'(혼자)만 가리키던 빈틈 보강. 친구 생기면 자동으로 사라짐 ([[first-entry-friend-path]]) */}
             {hasFriends === false && (
-              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.FRIENDS, { openFinder: 'kakao' })} activeOpacity={0.85}
+              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MEET, { openFinder: 'kakao' })} activeOpacity={0.85}
                 style={{ marginTop: 10, borderWidth: 1.2, borderColor: C.butter, borderRadius: 12, paddingVertical: 12,
                   flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
                 <Icon name="personAdd" size={fs(18)} color={C.butter} />
@@ -2047,7 +2047,7 @@ export function HomeScreen({ navigation, route }) {
           // 모집 연동 예정 일정 — 일정수정이 막혀 원본 모집글(라운지 상세)로 직행해 관리 ([[roundup-schedule-delete-policy]])
           const rid = selectedSchedule?.roundupId;
           setShowScheduleModal(false);
-          if (rid) navigation.navigate(ROUTES.LOUNGE, { openPostId: rid });
+          if (rid) navigation.navigate(ROUTES.MEET,{ openPostId: rid });
         }}
         onEdit={() => handleEditSchedule(selectedSchedule)}
         onSaveMemo={handleSaveMemo}
@@ -2210,8 +2210,8 @@ export function HomeScreen({ navigation, route }) {
             onOpenRoundup={(postId, hostUid, scope) => {
               setDmChat(null); setDmOpen(false);
               // 친구지정(select)=내 참여 초대장(openView:'mine'), 그 외(친구모집 등)=모집 상세(openPostId)
-              if (scope === 'select') navigation.navigate(ROUTES.LOUNGE, { openView: 'mine' });
-              else navigation.navigate(ROUTES.LOUNGE, { openPostId: postId, openPostHost: hostUid });
+              if (scope === 'select') navigation.navigate(ROUTES.MEET,{ openView: 'mine' });
+              else navigation.navigate(ROUTES.MEET,{ openPostId: postId, openPostHost: hostUid });
             }} />
         ) : (
           <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name, avatar) => setDmChat({ uid, name, avatar })} />
@@ -2231,11 +2231,11 @@ export function HomeScreen({ navigation, route }) {
               if (Platform.OS === 'android') {
                 // 안드: 크루 모달을 '연 채로' 라운지로 전환 → 무거운 라운지 렌더가 크루 모달 뒤(비노출)서 끝나고,
                 //   모집 상세가 크루 위로 stack돼 '모달 하나 떠오름'처럼 보인다(탭 점프 비노출). 닫으면 밑의 크루가 바로 보임. [[rn-modal-android-jank]]
-                navigation.navigate(ROUTES.LOUNGE, { openPostId: id, openPostHost: hostUid || undefined, openPostReturn: 'crewKept', openPostCrewId: crewId || undefined });
+                navigation.navigate(ROUTES.MEET,{ openPostId: id, openPostHost: hostUid || undefined, openPostReturn: 'crewKept', openPostCrewId: crewId || undefined });
               } else {
                 // iOS: 형제 풀스크린 Modal 2개 동시표시 불가([[ios-modal-stacking]]) → 크루 닫고 점프(iOS는 이미 부드러움).
                 setCrewModalAnim('slide'); setCrewOpen(false);
-                navigation.navigate(ROUTES.LOUNGE, { openPostId: id, openPostHost: hostUid || undefined, openPostReturn: 'crew', openPostCrewId: crewId || undefined });
+                navigation.navigate(ROUTES.MEET,{ openPostId: id, openPostHost: hostUid || undefined, openPostReturn: 'crew', openPostCrewId: crewId || undefined });
               }
             }} />
         </ModalBackContext.Provider>
@@ -2253,8 +2253,8 @@ export function HomeScreen({ navigation, route }) {
               onClose={() => setCrewDmChat(null)}
               onOpenRoundup={(postId, hostUid, scope) => {
                 setCrewDmChat(null); setCrewOpen(false);
-                if (scope === 'select') navigation.navigate(ROUTES.LOUNGE, { openView: 'mine' });
-                else navigation.navigate(ROUTES.LOUNGE, { openPostId: postId, openPostHost: hostUid });
+                if (scope === 'select') navigation.navigate(ROUTES.MEET,{ openView: 'mine' });
+                else navigation.navigate(ROUTES.MEET,{ openPostId: postId, openPostHost: hostUid });
               }} />
           )}
           </View>

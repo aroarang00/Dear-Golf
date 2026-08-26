@@ -48,7 +48,8 @@ function FriendGuideContent() {
 }
 
 // 친구 화면 — 내 프로필·설정은 MY 탭으로 이관, 친구 목록 전용.
-export function FriendsScreen({ navigation, route }) {
+// embedded — 모임 탭(MeetScreen) 안에 얹힐 때 true: 상단 인셋은 MeetScreen 스트립이 이미 처리(2026-08-26 탭 재편)
+export function FriendsScreen({ navigation, route, embedded = false }) {
   const _and = Platform.OS === 'android'; // 헤더 안드 컴팩트 보정 — 다른 탭 헤더(코스·라운지)와 동일 규격
   // 친구 첫 진입 1회 안내는 FriendsTab 상단 인라인 카드로 이관(접이식, friendCoachDone 재사용) ([[friend_groups]])
   const openFinderRef = useRef(null); // FriendsTab의 친구 찾기(finder)를 헤더 버튼에서 열기 위한 핸들
@@ -74,16 +75,18 @@ export function FriendsScreen({ navigation, route }) {
   // DM(메시지) 진입점은 홈 우상단 💬로 이관·일원화(테스터 '친구 탭은 불편' 피드백, 2026-06-17). HomeScreen 참조.
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-      {/* 헤더 — Friends 타이틀(+우상단 💬 메시지) + 친구 찾기·초대 */}
-      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 16, paddingVertical: 7,
-        flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={embedded ? ['left', 'right'] : ['top', 'left', 'right']}>
+      {/* 헤더 — Friends 타이틀(+우상단 💬 메시지) + 친구 찾기·초대.
+          ★embedded(모임 탭)에선 타이틀·서브 생략 — 위 세그먼트가 이미 '친구'라 중복(라운지와 같은 정리, 2026-08-26).
+            안내(book)는 좌측에 남고 헤더는 얇은 버튼 줄이 된다. */}
+      <View style={{ backgroundColor: C.paleSky, paddingHorizontal: 16, paddingVertical: embedded ? 5 : 7,
+        flexDirection: 'row', alignItems: embedded ? 'center' : 'flex-end', justifyContent: 'space-between' }}>
         {/* flex:1 + minWidth:0 — 확대(디스플레이 줌) 시 좌측 타이틀이 공간을 양보해 우측 버튼(친구찾기·초대)이
             안 잘리게. Friends는 adjustsFontSizeToFit으로 축소(iOS 잘림 방지, 2026-06-24). */}
         <View style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: _and ? 2 : 4 }}>나의 골프 파트너</Text>
+          {!embedded && <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(26,61,82,0.72)', letterSpacing: 2, marginBottom: _and ? 2 : 4 }}>나의 골프 파트너</Text>}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontFamily: F.en, fontSize: fs(_and ? 24 : 28), color: C.navy, flexShrink: 1 }}>Friends</Text>
+            {!embedded && <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontFamily: F.en, fontSize: fs(_and ? 24 : 28), color: C.navy, flexShrink: 1 }}>Friends</Text>}
             {/* 안내(!) — 코스 헤더와 동일 패턴. 그룹·별명·친구찾기(카카오)·NEW·스와이프·끊기/차단 안내(사용자 2026-06-20) */}
             <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
               onPress={() => showAppAlert('', <FriendGuideContent />, [{ text: '확인' }])}

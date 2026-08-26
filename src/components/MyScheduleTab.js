@@ -522,7 +522,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
     if (!s?.roundupId || !navigation) return;
     setSheet({ visible: false, schedule: null });
     onCloseSchedule?.();   // 일정 캘린더 Modal 닫기(탭 화면이면 no-op)
-    navigation.navigate(ROUTES.LOUNGE, { openPostId: s.roundupId });
+    navigation.navigate(ROUTES.MEET, { openPostId: s.roundupId });
   };
 
   // 바텀시트 → 동반자에게 공유: 이미지 카드(ShareMomentModal) — 홈과 동일. 시트 닫고 카드 열기(3중 Modal 회피).

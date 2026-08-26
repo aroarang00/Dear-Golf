@@ -10,13 +10,13 @@ import { visibleScheduleInvites } from '../utils/scheduleShares';
 import { AttentionMotion } from './common/AttentionMotion';
 import { Icon } from './common/Icon';
 
-// 탭별 커스텀 SVG 아이콘 — 홈·라운지(클럽하우스)·MY(다이어리)·친구·코스(골프 깃발). 라벨 없이 아이콘만.
+// 탭별 커스텀 SVG 아이콘 — 홈·모임(사람들)·코스(골프 깃발)·MY(다이어리). 라벨 없이 아이콘만.
+// ★탭 5→4 재편(2026-08-26): 라운지+친구 → 모임 한 칸.
 const TAB_ICONS = {
   [ROUTES.HOME]: 'home',
-  [ROUTES.LOUNGE]: 'clubhouse',
-  [ROUTES.MY]: 'book',
-  [ROUTES.FRIENDS]: 'people',
+  [ROUTES.MEET]: 'people',
   [ROUTES.COURSE]: 'flag',
+  [ROUTES.MY]: 'book',
 };
 
 // 화면 배경에 맞춘 바 테마 — 홈(어두운 이미지)은 밝은 유리+흰 아이콘, 그 외(밝은 배경)는 밝은 유리+어두운 아이콘.
@@ -30,10 +30,9 @@ const THEME_HOME = { bg: 'rgba(20,34,26,0.94)', border: 'rgba(255,255,255,0.14)'
 const THEME_LIGHT = { bg: 'rgba(255,255,255,0.94)', border: 'rgba(26,61,82,0.14)', chip: 'rgba(61,57,53,0.1)', on: C.charcoal, off: 'rgba(61,57,53,0.5)', alert: C.burgundy };
 // 밝은 화면에서 '선택된 탭' 아이콘 색 = 그 화면 대표색(없으면 차콜).
 const SCREEN_ACCENT = {
-  [ROUTES.LOUNGE]: C.navy,       // 라운지 = 네이비
-  [ROUTES.MY]: C.charcoal,       // MY = 차콜
-  [ROUTES.FRIENDS]: C.burgundy,  // 친구 = 버건디
+  [ROUTES.MEET]: C.navy,         // 모임 = 네이비(라운지 계승)
   [ROUTES.COURSE]: '#5E7B51',    // 코스 = 세이지그린
+  [ROUTES.MY]: C.charcoal,       // MY = 차콜
 };
 
 export function TabBar({ state, navigation }) {
@@ -62,7 +61,7 @@ export function TabBar({ state, navigation }) {
             };
             // 친구 탭 — 받은 친구신청 / 홈 탭 — 받은 일정 전파 초대 있으면 아이콘 진동 + 알림색(주목).
             //   ★라운지는 신호 없음 — 수락/거절 타이밍 어긋남 거슬림 제거(사용자 2026-06-30). ([[schedule-propagation-spec]])
-            const alertFriend = route.name === ROUTES.FRIENDS && friendReqCount > 0;
+            const alertFriend = route.name === ROUTES.MEET && friendReqCount > 0;
             const alertHome = route.name === ROUTES.HOME && scheduleInviteCount > 0;
             const alerting = alertFriend || alertHome;
             const color = alerting ? t.alert : focused ? t.on : t.off;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator } from 'react-native';
-import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, Modal, Platform } from 'react-native';
+import { SafeAreaView, SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { SlideInRight } from 'react-native-reanimated'; // 깊은 화면 푸시 슬라이드 전환
@@ -8,7 +8,7 @@ import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-ha
 import { DraggableRows } from './common/DraggableRows';
 import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
-import { useScreenBack } from '../hooks/useScreenBack';
+import { useScreenBack, ModalBackContext } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { UserContext } from '../contexts/UserContext';
 import { maxCrewsOf } from '../utils/entitlements';
@@ -92,8 +92,12 @@ function AvatarStack({ avatars, total, max = 4 }) {
   );
 }
 
-export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId, onReopenConsumed }) {
+// embedded — 모임 탭 '크루' 세그먼트로 얹힐 때 true(2026-08-26 홈 모달→탭 이사):
+//   상단 인셋은 MeetScreen 스트립이 처리, ← 닫기 버튼 생략(하드웨어 백은 useScreenBack이 onClose 호출 → 친구 세그먼트로).
+export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId, onReopenConsumed, embedded = false }) {
   useScreenBack(true, onClose);
+  const insets = useSafeAreaInsets();      // embedded 목록 하단 — 플로팅 탭바에 안 가리게(콘텐츠 패딩)
+  const embBack = useRef(null);            // embedded 전체화면 Modal(앨범·만들기) 내부 다단계 뒤로가기 ref
   const currentUid = useCurrentUid();
   const { userProfile } = React.useContext(UserContext);   // 등급 한도(entitlements.maxCrews) 읽기용
 
@@ -329,38 +333,48 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
   };
   const isEmpty = !loading && invites.length === 0 && crews.length === 0;
 
-  // 앨범(상세) 열림 — 같은 Modal 안에서 리스트↔앨범 전환(DM 목록↔대화방과 동일). 닫을 때 본 시각 갱신(새 글 표시 해제)
-  if (albumCrew) return (
+  // 앨범 닫기 — 본 시각 갱신(새 글 표시 해제) + 멤버 화면서 바꿨을 수 있는 로컬 설정 재로드
+  const closeAlbum = () => {
+    if (!albumCrew) return;
+    markCrewSeen(albumCrew.id); markCrewSeenAt(albumCrew.id);
+    storage.load(STORAGE_KEYS.crewMuted, {}).then((m) => setMutedMap(m || {}));     // 멤버 화면서 토글했을 수 있어 재로드
+    storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => setAliasMap(a || {}));   // 멤버 화면서 별명 바꿨을 수 있어 재로드
+    setOpenCrew(null); onReopenConsumed?.();
+  };
+
+  // 앨범(상세)·만들기 — 같은 Modal 안에서 리스트↔전환(DM 목록↔대화방과 동일).
+  //   ★embedded(모임 탭)에선 이 화면들을 '탭바를 덮는 전체화면 Modal'로 띄운다(아래) — 둘 다 전체화면
+  //   기준으로 설계돼(자체 top inset·하단 FAB) 탭바 위 좁은 판에 끼우면 위아래가 다 어긋난다(2026-08-26).
+  const deepView = albumCrew ? (
     <Animated.View style={{ flex: 1 }} entering={albumAnimRef.current ? SlideInRight.duration(230) : undefined}>
       <CrewAlbumScreen crew={albumCrew} seenAt={albumCrew._seenAt || 0}
-        onClose={() => { markCrewSeen(albumCrew.id); markCrewSeenAt(albumCrew.id);
-          storage.load(STORAGE_KEYS.crewMuted, {}).then((m) => setMutedMap(m || {}));     // 멤버 화면서 토글했을 수 있어 재로드
-          storage.load(STORAGE_KEYS.crewAliases, {}).then((a) => setAliasMap(a || {}));   // 멤버 화면서 별명 바꿨을 수 있어 재로드
-          setOpenCrew(null); onReopenConsumed?.(); }} onOpenDM={onOpenDM}
+        onClose={closeAlbum} onOpenDM={onOpenDM}
         onOpenRoundup={(id, host) => onOpenRoundup?.(id, host, albumCrew?.id)} />
     </Animated.View>
-  );
-  if (createOpen) return (
+  ) : createOpen ? (
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
       <CrewCreateScreen onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
     </Animated.View>
-  );
+  ) : null;
+  if (deepView && !embedded) return deepView;
 
   return (
     // RN Modal 안에선 루트 SafeAreaProvider가 안 닿아 top inset이 0 → 헤더(뒤로가기)가 노치 밑으로 올라가 안 눌림.
     //   DMListScreen과 동일 처리: 자체 Provider로 재측정([[dm-design]] iOS safe-area 버그).
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
     <GestureHandlerRootView style={{ flex: 1 }}>
-    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
-      <StatusBar barStyle="dark-content" backgroundColor={BG} />
+    <SafeAreaView edges={embedded ? ['left', 'right'] : ['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
+      {!embedded && <StatusBar barStyle="dark-content" backgroundColor={BG} />}
 
-      {/* 헤더 — ← 닫기 · 제목 · ＋ 만들기 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 }}>
+      {/* 헤더 — ← 닫기 · 제목 · ＋ 만들기. ★embedded(모임 탭)에선 ← 생략(세그먼트가 입구라 닫을 곳이 없다) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: embedded ? 8 : 12 }}>
+        {!embedded && (
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
         </TouchableOpacity>
+        )}
         {/* 타이틀 = 홈 진입점과 동일한 크루 아이콘(진한 세이지, 키움) */}
-        <View style={{ flex: 1, marginLeft: 8 }}>
+        <View style={{ flex: 1, marginLeft: embedded ? 2 : 8 }}>
           <Icon name="crew" size={fs(34)} color={SAGE_DEEP} strokeWidth={1.8} />
         </View>
         {/* 이용안내(크루 소개) — 우리 book 아이콘. 첫 진입 1회 자동 + 여기서 다시 보기 */}
@@ -396,7 +410,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
           </Text>
         </View>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14, paddingBottom: embedded ? insets.bottom + 96 : 28 }} showsVerticalScrollIndicator={false}>
           {/* 초대됨 — "초대됨 N" 헤더 + 컴팩트 행(여러 개여도 안 밀림) */}
           {invites.length > 0 && (
             <View style={{ marginBottom: 16 }}>
@@ -480,6 +494,18 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
       )}
 
       <CrewIntroModal visible={showIntro} onClose={() => setShowIntro(false)} onCreatePress={openCreate} />
+
+      {/* ★embedded — 앨범·만들기는 탭바를 덮는 전체화면 Modal(옛 홈 크루 모달과 같은 환경 복원).
+          onRequestClose는 ModalBackContext ref로 '가장 깊은 화면 한 단계만' 뒤로(useScreenBack LIFO). */}
+      {embedded && (
+        <Modal visible={!!deepView} animationType="slide"
+          statusBarTranslucent={Platform.OS === 'android'}
+          onRequestClose={() => { if (embBack.current) embBack.current(); else if (albumCrew) closeAlbum(); else setCreateOpen(false); }}>
+          <ModalBackContext.Provider value={embBack}>
+            <View style={{ flex: 1, backgroundColor: BG }}>{deepView}</View>
+          </ModalBackContext.Provider>
+        </Modal>
+      )}
     </SafeAreaView>
     </GestureHandlerRootView>
     </SafeAreaProvider>

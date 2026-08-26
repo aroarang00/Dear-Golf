@@ -96,10 +96,9 @@ import { OnboardingIntro } from './src/components/OnboardingIntro';
 import { OnboardingKakao } from './src/components/OnboardingKakao';
 import { OnboardingConsent } from './src/components/OnboardingConsent';
 import { HomeScreen } from './src/components/HomeScreen';
-import { LoungeScreen } from './src/components/LoungeScreen';
+import { MeetScreen } from './src/components/MeetScreen'; // 모임 탭 — 라운지+친구 통합(탭 5→4 재편, 2026-08-26)
 import { DiaryScreen } from './src/components/DiaryScreen';
 import { GuideScreen } from './src/components/GuideScreen';
-import { FriendsScreen } from './src/components/FriendsScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 import { AppToastHost } from './src/components/AppToast';
@@ -581,10 +580,10 @@ function App() {
       const type = data.type;
       try {
         if (!type) { navigationRef.navigate(ROUTES.HOME); return; }
-        if (type === 'friendRequest') { navigationRef.navigate(ROUTES.FRIENDS); return; }
+        if (type === 'friendRequest') { navigationRef.navigate(ROUTES.MEET, { view: 'friends' }); return; }
         // 라운지 친구지정 초대(invite) — 초대장 카드는 라운지 '내 참여(mine)' view에만 렌더되므로
         //   (RoundupTab의 InvitationCard/Ticket, view==='mine' 게이트) 그 view로 열어준다 ([[roundup-invitation]]).
-        if (type === 'invite') { navigationRef.navigate(ROUTES.LOUNGE, { openView: 'mine' }); return; }
+        if (type === 'invite') { navigationRef.navigate(ROUTES.MEET, { openView: 'mine' }); return; }
         // DM 푸시 탭 → MY 탭 열고 senderUid와의 대화방 직행(DiaryScreen openDmUid 처리). 안 그러면 기본값 라운지로 잘못 감.
         if (type === 'dm') { navigationRef.navigate(ROUTES.MY, { openDmUid: data.senderUid }); return; }
         // 일정 전파 초대 → 홈(수신 배너가 홈에 있음) ([[schedule-propagation-spec]])
@@ -603,10 +602,10 @@ function App() {
         if (type === 'mealSuggestion') { navigationRef.navigate(ROUTES.HOME, { openMeal: data.mealId || true }); return; }
         // 스코어 공유 → MY(ScoreShareInbox 수신 배너가 MY 피드 상단)
         if (type === 'scoreShare') { navigationRef.navigate(ROUTES.MY); return; }
-        // 크루 초대 → 홈 + 크루 화면 자동 오픈(글로우가 있는 홈 우상단 진입점) ([[crew-space-design]])
-        if (type === 'crewInvite') { navigationRef.navigate(ROUTES.HOME, { openCrew: true }); return; }
+        // 크루 초대 → 모임 탭 크루 세그먼트(2026-08-26 홈 모달→탭 이사) ([[crew-space-design]])
+        if (type === 'crewInvite') { navigationRef.navigate(ROUTES.MEET, { view: 'crew' }); return; }
         const openPostId = (POST_DETAIL_TYPES.has(type) && data.postId) ? data.postId : null;
-        navigationRef.navigate(ROUTES.LOUNGE, openPostId ? { openPostId } : undefined);
+        navigationRef.navigate(ROUTES.MEET, openPostId ? { openPostId } : undefined);
       } catch (e) { /* 네비게이션 미준비 */ }
     };
     // 앱이 종료된 상태에서 알림 탭으로 실행된 경우 — 네비게이션 준비 시간 확보
@@ -653,7 +652,7 @@ function App() {
       const parsed = parseDeepLink(url);
       if (parsed?.type === 'roundup' && parsed.postId) {
         // openPostHost = 주최자 uid(있으면) — 비친구라 글 읽기 막힐 때 '친구 맺기' 안내에 사용 ([[roundup-friend-redesign]])
-        navigationRef.navigate(ROUTES.LOUNGE, { openPostId: parsed.postId, openPostHost: parsed.hostUid || undefined });
+        navigationRef.navigate(ROUTES.MEET, { openPostId: parsed.postId, openPostHost: parsed.hostUid || undefined });
       }
     };
     // 종료 상태에서 링크로 실행된 경우 — route가 네비 준비될 때까지 재시도(고정 지연 대신, 콜드스타트 유실 방지)
@@ -675,7 +674,7 @@ function App() {
     //   ([[first-entry-friend-path]]와 동일 경로 재사용). 메인앱·네비 마운트 여유를 두고 호출.
     if (openKakaoFriends) {
       setTimeout(() => {
-        try { if (navigationRef.isReady()) navigationRef.navigate(ROUTES.FRIENDS, { openFinder: 'kakao' }); } catch (e) {}
+        try { if (navigationRef.isReady()) navigationRef.navigate(ROUTES.MEET, { openFinder: 'kakao' }); } catch (e) {}
       }, 600);
     }
   };
@@ -765,11 +764,11 @@ function App() {
         screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: 'transparent' },
           // 플로팅 유리 탭바 — position:absolute로 화면 위에 띄워 뒤 배경(홈 이미지 등)이 비치게. 씬은 전체 높이.
           tabBarStyle: { position: 'absolute', backgroundColor: 'transparent', borderTopWidth: 0, elevation: 0 } }} backBehavior="history">
+        {/* ★탭 5→4 재편(2026-08-26) — 홈·모임(라운지+친구)·코스·MY(마이페이지). 사용자 최종결정 2026-08-24 */}
         <Tab.Screen name={ROUTES.HOME} component={HomeScreen} />
-        <Tab.Screen name={ROUTES.LOUNGE} component={LoungeScreen} />
-        <Tab.Screen name={ROUTES.MY} component={DiaryScreen} />
-        <Tab.Screen name={ROUTES.FRIENDS} component={FriendsScreen} />
+        <Tab.Screen name={ROUTES.MEET} component={MeetScreen} />
         <Tab.Screen name={ROUTES.COURSE} component={GuideScreen} />
+        <Tab.Screen name={ROUTES.MY} component={DiaryScreen} />
       </Tab.Navigator>
 
       <Modal visible={firstSingleAlert} transparent animationType="fade">

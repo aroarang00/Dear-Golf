@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useContext } from 'react';
 import { Modal, View, Text, TouchableOpacity, Share, Keyboard } from 'react-native';
 import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAndroidBack } from '../hooks/useAndroidBack'; // 임베디드(모임 탭) 하드웨어 뒤로가기
 import * as ImagePicker from 'expo-image-picker';
 import AppTextInput from './common/AppTextInput';
 import { Spinner } from './common/Spinner';
@@ -91,7 +92,11 @@ function parseNames(text) {
     .map((name, i) => ({ id: `m${i}_${name.slice(0, 8)}`, name: name.slice(0, 20), amount: 0, status: PAY_PENDING }));
 }
 
-export function SettlementModal({ visible, onClose }) {
+// embedded — 모임 탭 '정산' 세그먼트로 얹힐 때 true(2026-08-26 정식 메뉴 승격):
+//   Modal 래퍼·자체 Provider 없이 일반 화면으로. 헤더 ✕ 없음(목록 레벨 헤더 자체 생략 —
+//   세그먼트 '정산'과 "모임 정산" 타이틀이 중복이라), 안내(book)는 걷기/회비장부 탭 줄 우측으로.
+export function SettlementModal({ visible, onClose, embedded = false }) {
+  const insets = useSafeAreaInsets(); // 임베디드 하단 여백(플로팅 탭바 회피)용
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -204,16 +209,19 @@ export function SettlementModal({ visible, onClose }) {
       leave(); return;
     }
     if (openId) { setOpenId(null); return; }
-    onClose();
+    if (!embedded) onClose();
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={goBack} transparent={false}>
-      <SafeAreaProvider>
-        <KeyboardProvider>
-          <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom']}>
-            {/* 헤더 — 상세/작성 중이면 뒤로, 아니면 닫기. 회비장부 상세일 땐 숨김(LedgerScreen 자체 ← 헤더와 ✕ 중복 방지) */}
-            {!(tab === 'ledger' && ledgerDetail) && (
+  // ★임베디드 안드 뒤로가기 — 모달일 땐 onRequestClose가 받지만, 임베디드는 직접 잡아야 한다.
+  //   안 잡으면 작성 중 하드웨어 뒤로가기가 탭 네비게이터로 흘러 작성 내용을 잃는다(모달 시절 사고 재발 방지).
+  //   목록 레벨(아무것도 안 열림)에선 비활성 — 탭 기본 뒤로가기(홈 복귀)가 자연스럽다.
+  useAndroidBack(embedded && (showGuide || composing || !!openId || ledgerDetail), goBack);
+
+  const inner = (
+    <>
+            {/* 헤더 — 상세/작성 중이면 뒤로, 아니면 닫기. 회비장부 상세일 땐 숨김(LedgerScreen 자체 ← 헤더와 ✕ 중복 방지).
+                ★임베디드 목록 레벨에선 헤더 통째 생략 — 세그먼트 '정산'과 "모임 정산" 타이틀 중복(사용자 2026-08-26 라운지 타이틀과 같은 지적). */}
+            {!(tab === 'ledger' && ledgerDetail) && (!embedded || composing || !!openId) && (
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,
               borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
               {/* 뒤로/닫기 — Icon 맵에 chevron·close가 없어 가계부와 같은 기호 문자를 쓴다(이모지 아님) */}
@@ -254,6 +262,14 @@ export function SettlementModal({ visible, onClose }) {
                     </TouchableOpacity>
                   );
                 })}
+                {/* 임베디드 — 목록 헤더가 없으니 안내(book)는 탭 줄 우측으로(걷기 탭만, 모달의 헤더 book과 같은 역할) */}
+                {embedded && <View style={{ flex: 1 }} />}
+                {embedded && tab === 'settle' && (
+                  <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={{ paddingBottom: 9 }}>
+                    <Icon name="book" size={fs(19)} color={C.charcoal} strokeWidth={1.8} />
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
@@ -274,13 +290,33 @@ export function SettlementModal({ visible, onClose }) {
             )}
 
             {/* ★안내 시트는 이 모달 '안'에 중첩한다 — 형제로 두면 iOS에서 둘 다 안 뜬다
-                ([[ios-modal-stacking]]). 라운지는 화면이라 형제로 둬도 되지만 여기는 모달 안이다. */}
+                ([[ios-modal-stacking]]). 라운지는 화면이라 형제로 둬도 되지만 여기는 모달 안이다.
+                (임베디드는 화면이라 어차피 안전) */}
             <SettlementGuideModal visible={showGuide} onClose={() => setShowGuide(false)} />
 
             {/* ★삭제·보관·계좌삭제·나가기 확인창은 이 모달 '안'의 호스트가 그려야 위로 뜬다.
                 없으면 루트 호스트가 그려 이 풀스크린 모달 뒤로 깔려 '눌러도 아무 일 없음'으로 보였다
-                (사용자 2026-07-27 — 삭제가 안 되던 진짜 원인). LedgerScreen은 자체 호스트가 있어 회비 탭은 정상이었다. */}
-            <AppAlertHost />
+                (사용자 2026-07-27 — 삭제가 안 되던 진짜 원인). LedgerScreen은 자체 호스트가 있어 회비 탭은 정상이었다.
+                ★임베디드에선 렌더 금지 — 모달 창이 아니라 루트 호스트가 정상으로 위에 뜨고, 호스트가 둘이면 확인창이 겹으로 그려진다. */}
+            {!embedded && <AppAlertHost />}
+    </>
+  );
+
+  // 임베디드(모임 탭 세그먼트) — Modal·자체 Provider 없이 일반 화면. 루트 KeyboardProvider/AppAlertHost 사용.
+  //   하단 paddingBottom — 플로팅 탭바(≈insets+66)에 목록·버튼이 가리지 않게.
+  if (embedded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingBottom: insets.bottom + 78 }}>
+        {inner}
+      </View>
+    );
+  }
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={goBack} transparent={false}>
+      <SafeAreaProvider>
+        <KeyboardProvider>
+          <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'bottom']}>
+            {inner}
           </SafeAreaView>
         </KeyboardProvider>
       </SafeAreaProvider>

@@ -264,7 +264,8 @@ const PostCard = React.memo(function PostCard({ post, myUid, friendGroups, frien
   );
 });
 
-export function RoundupTab({ visible, onClose, asScreen = false, navigation, route }) {
+// embedded — 모임 탭(MeetScreen) 안에 얹힐 때 true: 상단 인셋은 MeetScreen 스트립이 이미 처리(2026-08-26 탭 재편)
+export function RoundupTab({ visible, onClose, asScreen = false, embedded = false, navigation, route }) {
   const insets = useSafeAreaInsets(); // asScreen(라운지 탭) 루트는 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=점프 방지, 2026-06-15). 모달 분기는 SafeAreaView 유지
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, addSchedule, editSchedule, removeSchedule } = useContext(SchedulesContext);
@@ -1814,7 +1815,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
     setShowNoti(false);
     // 친구 신청 알림 — 모집글이 아니라 친구 탭으로 이동
     if (n.type === 'friendRequest') {
-      setTimeout(() => navigation?.navigate?.(ROUTES.FRIENDS), 320);
+      setTimeout(() => navigation?.navigate?.(ROUTES.MEET, { view: 'friends' }), 320);
       return;
     }
     // 일정 공지/변경/취소 — 모집이 아니라 홈 일정 시트로 이동
@@ -1927,8 +1928,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
   // 라운지 탭(asScreen)으로 띄울 땐 Modal 래퍼 없이 일반 화면처럼 동작
   const body = (
     <>
-      {/* 헤더 — 정식 메뉴이므로 친구 화면과 동일한 네이비 헤더 (큰 타이틀 + 서브) */}
-      <View style={{ backgroundColor: C.navy, paddingHorizontal: 20, paddingVertical: 7,
+      {/* 헤더 — 정식 메뉴이므로 친구 화면과 동일한 네이비 헤더 (큰 타이틀 + 서브).
+          ★embedded(모임 탭)에선 타이틀·서브 생략 — 위 세그먼트가 이미 '라운딩 모집'이라 중복(사용자 2026-08-26).
+            안내(book)는 우측 버튼 줄로 이동, 헤더는 얇은 버튼 줄만 남는다. */}
+      <View style={{ backgroundColor: C.navy, paddingHorizontal: 20, paddingVertical: embedded ? 4 : 7,
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
           {!asScreen && (
@@ -1936,6 +1939,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
               <Text style={{ fontSize: fs(22), color: C.butter }}>←</Text>
             </TouchableOpacity>
           )}
+          {!embedded && (
           <View>
             <Text style={{ fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(250,246,236,0.72)', letterSpacing: 2, marginBottom: _and ? 2 : 4 }}>나의 라운딩 파트너 찾기</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
@@ -1946,17 +1950,27 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
               </TouchableOpacity>
             </View>
           </View>
+          )}
+          {embedded && (
+            <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ padding: 4 }}>
+              <Icon name="book" size={fs(21)} color={C.bgPrimary} strokeWidth={1.8} />
+            </TouchableOpacity>
+          )}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           {/* 모집 만들기는 우측 하단 FAB로 일원화(크루·MY와 통일) — 헤더 버튼 제거 */}
           {/* 정산(걷기) — 모임 돈이라 개인 공간(MY)이 아니라 여기가 맞다(사용자 2026-07-22).
               모집이 하나도 없어도 총무가 할 일이 생겨, 빈 라운지 문제도 같이 덜어준다. */}
           {/* '정산'만 두면 뭘 하는 곳인지 안 읽힌다 → '+ 정산하기'로 행동을 붙여 발견성을 올림(사용자 2026-07-22) */}
+          {/* ★embedded(모임 탭)에선 숨김 — 정산이 모임 탭 세그먼트로 승격돼(2026-08-26) 중복 진입점 */}
+          {!embedded && (
           <TouchableOpacity onPress={() => setShowSettlement(true)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             style={{ borderWidth: 0.5, borderColor: 'rgba(250,246,236,0.5)', borderRadius: 14,
               paddingHorizontal: 11, height: 27, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(11.5), color: C.bgPrimary, includeFontPadding: false }}>+ 정산하기</Text>
           </TouchableOpacity>
+          )}
           {/* 알림함 */}
           <TouchableOpacity onPress={() => setShowNoti(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ fontSize: fs(22) }}>🔔</Text>
@@ -2367,9 +2381,10 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
             if (opts?.viaBack) setTimeout(seq, 0); else seq();
             return;
           }
-          // iOS: 크루 닫고 왔으니 닫을 때 크루를 재오픈. 모달 '닫기 전에' 홈+크루 먼저 전환 → 라운지 잔상 제거.
+          // 크루로 복귀 — 크루가 모임 탭 세그먼트로 이사(2026-08-26)해 이제 같은 탭의 MeetScreen이 reopenCrew를 받아
+          //   크루 세그먼트로 전환+그 앨범 재오픈한다(옛 홈 모달 시절엔 ROUTES.HOME으로 보냈음).
           const crewId = ret.crewId || undefined;
-          const go = () => { navigation?.navigate?.(ROUTES.HOME, { reopenCrew: Date.now(), reopenCrewId: crewId }); setDetailId(null); };
+          const go = () => { navigation?.navigate?.(ROUTES.MEET, { reopenCrew: Date.now(), reopenCrewId: crewId }); setDetailId(null); };
           if (opts?.viaBack) setTimeout(go, 0); else go();
         }}
         onApply={(anonymous) => detailId ? performJoinOrApply(detailId, { anonymous: !!anonymous }) : undefined}
@@ -2450,7 +2465,7 @@ export function RoundupTab({ visible, onClose, asScreen = false, navigation, rou
 
   if (asScreen) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
+      <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: embedded ? 0 : insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
         {body}
       </View>
     );
