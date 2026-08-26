@@ -41,6 +41,8 @@ import { isRoundDiary } from '../utils/diaryKind';
 import { firstPhotoUri } from '../utils/photoRatio';
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { ScoreBanner, ScoreStatsScreen } from './ScoreStatsScreen';
+import { LedgerBanner } from './LedgerBanner';       // 골프 가계부 요약 카드(스코어 추이 아래, 2026-08-26)
+import { GolfLedgerModal } from './GolfLedgerModal'; // 카드 탭 → 가계부
 import { DiaryCard } from './DiaryCard';                   // 친구 소식 미리보기 카드 — 친구 피드와 같은 카드 그대로(2026-08-26)
 import { PhotoViewer } from './common/PhotoViewer';        // 친구 소식 카드 사진 탭 → 전체화면(핀치줌)
 import { loadFriendData } from '../utils/friendGroups';
@@ -167,6 +169,7 @@ export function HomeScreen({ navigation, route }) {
   const [showWeatherPopup, setShowWeatherPopup] = useState(false);
   const [showScheduleScreen, setShowScheduleScreen] = useState(false); // 일정(캘린더) 풀스크린
   const [scoreStatsOpen, setScoreStatsOpen] = useState(false); // 스코어 추이 상세(홈 배너 탭)
+  const [showLedger, setShowLedger] = useState(false); // 골프 가계부(홈 카드 탭, 2026-08-26)
   const [scheduleJumpTo, setScheduleJumpTo] = useState(null); // 캘린더 열 때 점프할 날짜('YYYY.MM.DD') — '+N개 더' 카드용
   const [editScheduleTarget, setEditScheduleTarget] = useState(null);
   const [pendingScheduleChange, setPendingScheduleChange] = useState(null); // 전파 일정 변경 반영 대기 1건 { schedule, pc } — 홈 상단 맥동 배너
@@ -1919,6 +1922,10 @@ export function HomeScreen({ navigation, route }) {
               2026-08-26: 다른 섹션과 같은 리듬(강한 타이틀→카드)으로 타이틀 신설 + 섹션 간격 44 통일 */}
           <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, marginTop: 60, marginBottom: 14, paddingHorizontal: SIDE_PAD }}>스코어 추이</Text>
           <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)} style={{ marginHorizontal: SIDE_PAD, marginTop: 0, marginBottom: 0 }} />
+          {/* ★골프 가계부(2026-08-26, A안) — 이번 달 지출 요약 카드. 스코어 추이 아래(경기력 묶음 뒤에 돈).
+              내 돈이라 홈('나') 소속 — 모임 돈(정산)은 모임 탭. 섹션 리듬(fs21 타이틀+간격 60) 동일 */}
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, marginTop: 60, marginBottom: 14, paddingHorizontal: SIDE_PAD }}>골프 가계부</Text>
+          <LedgerBanner diaries={diaries} onPress={() => setShowLedger(true)} style={{ marginHorizontal: SIDE_PAD }} />
           {/* ★친구 소식(2026-08-26 개편) — 친구 피드와 같은 미리보기 카드(DiaryCard variant='friend') 그대로 최근 2개.
               사진 크게 + 홈에서 바로 좋아요. 카드 위에 친구 이름(아바타) 한 줄로 누구 소식인지 표시.
               4개 컴팩트 행 → 2개 풀카드: 홈 주인공(다음 라운딩)과 안 겨루게 개수는 줄임. 나머지는 더보기로. */}
@@ -2026,6 +2033,9 @@ export function HomeScreen({ navigation, route }) {
       {/* ★스코어 추이 상세 — 홈 배너 탭 시 통계 화면(추세·마일스톤·분포·구장별) */}
       <ScoreStatsScreen visible={scoreStatsOpen} onClose={() => setScoreStatsOpen(false)}
         diaries={diaries} schedules={schedules} userProfile={userProfile} />
+
+      {/* ★골프 가계부 — 홈 요약 카드 탭. 기록(다이어리) 헤더 알약과 같은 모달 재사용 */}
+      <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
 
       <ScheduleSheetModal
         visible={showScheduleModal}
