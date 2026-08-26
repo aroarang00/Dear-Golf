@@ -1302,8 +1302,10 @@ export function HomeScreen({ navigation, route }) {
   const weekStrip = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(_weekStart); d.setDate(_weekStart.getDate() + i);
     const t = d.getTime();
-    return { day: d.getDate(), dow: d.getDay(), isToday: t === _todayMid, hasEvent: _schedDaySet.has(t) };
+    return { day: d.getDate(), month: d.getMonth() + 1, dow: d.getDay(), isToday: t === _todayMid, hasEvent: _schedDaySet.has(t) };
   });
+  // 스트립 월 라벨 — 몇 월인지 안 보인다는 지적(사용자 2026-08-26). 주가 두 달에 걸치면 "8월 · 9월"
+  const stripMonthLabel = [...new Set(weekStrip.map(wd => wd.month))].map(m => `${m}월`).join(' · ');
   // ★내 피드 최신(2026-08-24) — 내 라운딩 기록(일상/모멘트 제외) 최근 4개. diaries는 date desc라 slice가 최신.
   const myFeed = (diaries || []).filter(isRoundDiary).slice(0, 4);
 
@@ -1340,8 +1342,11 @@ export function HomeScreen({ navigation, route }) {
           <Text style={homeS.hdrGreeting}>
             안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
           </Text>
-          {/* ★주간 스트립(2026-08-24) — 인사말 아래, 콘텐츠와 같이 스크롤. 이번 주 7일·오늘 강조·일정 있는 날 점. 탭→일정 캘린더 */}
-          <View style={{ flexDirection: 'row', marginTop: 16, backgroundColor: 'rgba(0,0,0,0.24)', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 4 }}>
+          {/* ★주간 스트립(2026-08-24) — 인사말 아래, 콘텐츠와 같이 스크롤. 이번 주 7일·오늘 강조·일정 있는 날 점. 탭→일정 캘린더.
+              상단에 월 라벨(2026-08-26) — 몇 월인지 안 보인다는 지적 */}
+          <View style={{ marginTop: 16, backgroundColor: 'rgba(0,0,0,0.24)', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 4 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: 'rgba(255,255,255,0.78)', marginLeft: 12, marginBottom: 8 }}>{stripMonthLabel}</Text>
+            <View style={{ flexDirection: 'row' }}>
             {weekStrip.map((wd, i) => (
               <TouchableOpacity key={i} onPress={() => setShowScheduleScreen(true)} activeOpacity={0.7} style={{ flex: 1, alignItems: 'center' }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: wd.isToday ? C.butter : 'rgba(255,255,255,0.6)', marginBottom: 6 }}>{WEEKDAYS[wd.dow]}</Text>
@@ -1351,6 +1356,7 @@ export function HomeScreen({ navigation, route }) {
                 <View style={{ width: 6, height: 6, borderRadius: 3, marginTop: 6, backgroundColor: wd.hasEvent ? '#8FB06B' : 'transparent' }} />
               </TouchableOpacity>
             ))}
+            </View>
           </View>
           {/* 당일 체크인 카드 배너 — 박스가 많아 정신없어, 이용안내 띠 '자리'에 대신 노출(둘 다 안 띄움). 활성 아니면 이용안내 띠. */}
           {checkinActive ? (
