@@ -92,9 +92,9 @@ export function RoundCard({ item, width = 320 }) {
             style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * (panelTop ? 0.20 : 0.46)) }}
           />
 
-          {/* 상단 — 좌측: special 있으면 에메랄드 채움 박스(홀인원 등), 없으면 ROUND RECAP / 우측: Dear Golf 워터마크.
-              special을 좌상단에 올려 특별함을 먼저 보여줌(사용자 2026-06-14, [[score-brag-card]]). */}
-          <View style={{ position: 'absolute', top: 15, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* 워터마크 줄 — 좌측: special 있으면 채움 박스(홀인원 등), 없으면 ROUND RECAP / 우측: Dear Golf.
+              special을 앞세워 특별함 먼저(사용자 2026-06-14). ★panelTop이면 글상자와 자리를 맞바꿔 하단으로(사용자 2026-08-27) */}
+          <View style={[{ position: 'absolute', left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, panelTop ? { bottom: 13 } : { top: 15 }]}>
             {special ? (
               // 사진版 special — 차콜 바탕 + 골드 텍스트(사용자 2026-06-14). no-photo版(골드 테두리 박스)과 다른 결
               <View style={{ backgroundColor: 'rgba(42,38,34,0.92)', borderRadius: 5, paddingHorizontal: 10, paddingVertical: 5 }}>
@@ -106,9 +106,9 @@ export function RoundCard({ item, width = 320 }) {
             <Text style={[{ fontFamily: F.brand, fontSize: fs(14), color: WHITE }, SHADOW]}>Dear Golf</Text>
           </View>
 
-          {/* 정보 패널 — 영예칩(베스트/싱글, 골드 테두리) + 정보 박스. special은 상단 줄로 올려 여기선 중복 표시 안 함.
-              panelTop이면 워터마크 줄 바로 아래(top 46)로 이동 */}
-          <View style={[{ position: 'absolute', left: 14, right: 14 }, panelTop ? { top: 46 } : { bottom: 12 }]}>
+          {/* 정보 패널 — 영예칩(베스트/싱글, 골드 테두리) + 정보 박스. special은 워터마크 줄로 올려 여기선 중복 표시 안 함.
+              panelTop이면 카드 최상단으로 — 워터마크 줄은 하단으로 내려가 자리 교환(사용자 2026-08-27) */}
+          <View style={[{ position: 'absolute', left: 14, right: 14 }, panelTop ? { top: 15 } : { bottom: 12 }]}>
             {sideBadge ? (
               <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: GOLD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.42)', marginBottom: 8 }}>
                 <Text style={[{ fontFamily: F.en, fontSize: fs(11), color: GOLD, letterSpacing: 2 }, SHADOW]}>{sideBadge}</Text>

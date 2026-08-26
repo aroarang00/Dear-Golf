@@ -69,9 +69,9 @@ export function RoundCardMemory({ item, width = 320 }) {
       {/* 얇은 내부 프레임 — 럭셔리 액자 느낌 */}
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }} />
 
-      {/* 상단 — 좌측: special 있으면 '그날의 라운딩' 자리에 버건디 채움 박스(홀인원 등), 없으면 워터마크 / 우측: Dear Golf.
-          special을 워터마크 자리로 올림(사용자 2026-06-14, 매거진과 통일) */}
-      <View style={{ position: 'absolute', top: 16, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* 워터마크 줄 — 좌측: special 있으면 '그날의 라운딩' 자리에 버건디 채움 박스(홀인원 등), 없으면 워터마크 / 우측: Dear Golf.
+          special을 워터마크 자리로 올림(사용자 2026-06-14, 매거진과 통일). ★panelTop이면 글상자와 자리 교환→하단(2026-08-27) */}
+      <View style={[{ position: 'absolute', left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, panelTop ? { bottom: 14 } : { top: 16 }]}>
         {special ? (
           <View style={{ backgroundColor: BURGUNDY, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: CREAM, letterSpacing: 1 }}>{special}</Text>
@@ -82,8 +82,9 @@ export function RoundCardMemory({ item, width = 320 }) {
         <Text style={[{ fontFamily: F.brand, fontSize: fs(15), color: WHITE }, SHADOW]}>Dear Golf</Text>
       </View>
 
-      {/* 정보 패널(사진 있을 때만 반투명 박스) — 타수 대신 WITH 동반자 + 메모. panelTop이면 워터마크 아래(top 48)로 */}
-      <View style={[{ position: 'absolute', left: 14, right: 14 }, panelTop ? { top: 48 } : { bottom: 14 }]}>
+      {/* 정보 패널(사진 있을 때만 반투명 박스) — 타수 대신 WITH 동반자 + 메모.
+          panelTop이면 카드 최상단으로 — 워터마크 줄은 하단으로 자리 교환(2026-08-27) */}
+      <View style={[{ position: 'absolute', left: 14, right: 14 }, panelTop ? { top: 16 } : { bottom: 14 }]}>
         {/* 영예칩(베스트/싱글) — special은 워터마크 자리로 올려 여기선 제외. 스코어 없는 기념카드는 보통 미표시 */}
         {sideBadge ? (
           <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: GOLD, borderRadius: 4, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: 'rgba(0,0,0,0.42)', marginBottom: 7 }}>
