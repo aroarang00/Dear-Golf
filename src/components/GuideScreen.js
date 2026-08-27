@@ -701,10 +701,16 @@ export function GuideScreen({ route, navigation }) {
     else showAppAlert('코멘트 저장 실패', '네트워크 상태를 확인하고 다시 시도해주세요.');
   };
 
+  // ── 코스 상세/여는 중 화면 — early return으로 랜딩을 언마운트하지 않고 '오버레이'로 위에 덮는다(2026-08-27).
+  //   전엔 상세를 열면 랜딩(코스 지도)이 통째로 언마운트돼 마커 477개 해체(removeViewAt→setIcon 연쇄)가
+  //   메인 스레드를 수 초 잠갔다 — 저사양 기기 백그라운드 ANR(Sentry e16f4966)+"상세 보기 먹통"의 뿌리.
+  //   랜딩을 산 채로 두면 해체·재생성이 모두 사라지고, 상세 닫으면 지도가 보던 그대로 즉시 돌아온다.
+  let detailOverlay = null;
+
   // 홈 '구장 ›' → 상세 여는 중(코스 새로고침·카카오 검색) — 목록 대신 스피너로 즉시 반응감 부여.
   //   selected가 잡히면 바로 아래 상세 렌더로 넘어가므로 selected 없을 때만.
   if (openingCourse && !selected) {
-    return (
+    detailOverlay = (
       <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
         <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
           <TouchableOpacity onPress={closeDetail}
@@ -723,7 +729,7 @@ export function GuideScreen({ route, navigation }) {
     const c = getCourseData(selected);
     if (!c) {
       // userCoursesList 로딩 race — 헤더+스피너로 placeholder
-      return (
+      detailOverlay = (
         <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
           <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
             <TouchableOpacity onPress={closeDetail}
@@ -736,8 +742,7 @@ export function GuideScreen({ route, navigation }) {
           </View>
         </View>
       );
-    }
-    return (
+    } else detailOverlay = (
       <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
         <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1616,23 +1621,32 @@ export function GuideScreen({ route, navigation }) {
   return (
     /* 코스 랜딩 — 헤더는 CourseExploreTab이 모드별로 그린다(2026-08-26 간소화):
        지도=헤더 없이 풀블리드(상태바 뒤까지, 검색·칩 오버레이) / 목록=컴팩트 한 줄 띠(코스·안내).
-       ★paddingTop 주지 말 것 — 상태바 영역에 베이지 띠가 생겨 어색(사용자 지적). */
-    <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingLeft: insets.left, paddingRight: insets.right }}>
-      <CourseExploreTab
-        ref={exploreRef}
-        region={exploreRegion}
-        onRegionChange={setExploreRegion}
-        top100={top100}
-        master={exploreMaster}
-        onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); }}
-        onOpenPreview={handleOpenPreview}
-        onOpenCourseLog={() => setShowCourseLog(true)}
-      />
-      <CourseLogModal
-        visible={showCourseLog}
-        onClose={() => setShowCourseLog(false)}
-        navigation={navigation}
-      />
+       ★paddingTop 주지 말 것 — 상태바 영역에 베이지 띠가 생겨 어색(사용자 지적).
+       상세(detailOverlay)는 랜딩 '위'에 절대배치 — 랜딩(지도 마커 477개)을 언마운트하지 않는다(위 주석). */
+    <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingLeft: insets.left, paddingRight: insets.right }}>
+        <CourseExploreTab
+          ref={exploreRef}
+          region={exploreRegion}
+          onRegionChange={setExploreRegion}
+          top100={top100}
+          master={exploreMaster}
+          onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); }}
+          onOpenPreview={handleOpenPreview}
+          onOpenCourseLog={() => setShowCourseLog(true)}
+        />
+        <CourseLogModal
+          visible={showCourseLog}
+          onClose={() => setShowCourseLog(false)}
+          navigation={navigation}
+        />
+      </View>
+      {detailOverlay ? (
+        <View onStartShouldSetResponder={() => true}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          {detailOverlay}
+        </View>
+      ) : null}
     </View>
   );
 }

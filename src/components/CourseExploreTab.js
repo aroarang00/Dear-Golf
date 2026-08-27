@@ -324,17 +324,22 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const visibleScreen = screenExpanded ? screen : screen.slice(0, 5);
   const moreScreen = screen.length - visibleScreen.length;
 
-  // ── 지도 모드(기본) — 전국 핀 둘러보기. 핀/검색 → 하단 카드 → 상세(openMasterCourse 기존 흐름 재사용) ──
-  if (viewMode === 'map') {
-    return (
+  // ── 지도는 '항상 마운트'(2026-08-27 ANR 처방) — 목록 모드에선 지도 위에 목록을 불투명하게 덮는다.
+  //   전엔 토글마다 지도를 언마운트했는데, 마커 477개 해체(removeViewAt→updateMarkerIcon→setIcon
+  //   바인더 호출 연쇄)가 메인 스레드를 수 초 잠가 저사양 기기 백그라운드 ANR(Sentry e16f4966)과
+  //   토글 먹통의 원인이었다. 재생성 2~3초(빈 지도+스피너)도 함께 사라진다.
+  //   ★display:none 토글 금지 — 안드 MapView가 GONE 되면 서피스가 죽어 재표시 때 회색 지도 고질병.
+  //   ★덮개엔 onStartShouldSetResponder — 버튼 없는 맨 영역의 터치가 밑의 지도로 새어 몰래 팬 되는 것 차단.
+  return (
+    <View style={{ flex: 1 }}>
+    {MAP_OK && (
       <CourseMapExplore ref={mapExpRef} master={master} top100={top100} savedFav={savedFav}
         onPressCourse={openMasterCourse} onOpenCourseLog={onOpenCourseLog}
         onSwitchToList={() => setViewMode('list')} />
-    );
-  }
-
-  return (
-    <View style={{ flex: 1 }}>
+    )}
+    {(viewMode === 'list' || !MAP_OK) && (
+    <View onStartShouldSetResponder={() => true}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bgPrimary }}>
     {/* 목록 모드 헤더 — 컴팩트 한 줄(코스·안내), 버터 띠를 상태바 뒤 상단 끝까지(친구·라운딩 모집과 동일 규격, 2026-08-26).
         옛 큰 타이틀 헤더(GuideScreen)는 폐기 — 지도 모드는 헤더 없이 풀블리드. */}
     <View style={{ backgroundColor: C.butter, paddingHorizontal: 12, paddingTop: insets.top + 6, paddingBottom: 6,
@@ -766,6 +771,8 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
         <Icon name="pin" size={fs(15)} color={C.butter} strokeWidth={1.9} />
         <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: C.butter }}>지도</Text>
       </TouchableOpacity>
+    )}
+    </View>
     )}
     </View>
   );
