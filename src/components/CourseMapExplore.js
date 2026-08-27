@@ -222,14 +222,16 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
         )}
       </MapView>
 
-      {/* 핀 로딩 — 마스터 로드+마커 생성 동안 중앙 필(2~3초 빈 지도 지적, 2026-08-27). 탭 방해 없음 */}
+      {/* 핀 로딩 — 마스터 로드+마커 생성 동안 중앙 필(2~3초 빈 지도 지적, 2026-08-27). 탭 방해 없음.
+          이 동안은 마커 477개 네이티브 생성으로 화면 전체가 순간 둔해져, 멈춘 게 아니라 로딩임이
+          한눈에 보이게 크게(스피너 36·세로 카드, "너무 작아 멈춘 줄" 지적 2026-08-27) */}
       {!pinsShown && (
-        <View pointerEvents="none" style={{ position: 'absolute', top: '44%', left: 0, right: 0, alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.96)',
-            borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10,
-            shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
-            <Spinner size={18} color={C.navy} />
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.charcoal }}>골프장을 불러오는 중…</Text>
+        <View pointerEvents="none" style={{ position: 'absolute', top: '38%', left: 0, right: 0, alignItems: 'center' }}>
+          <View style={{ alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.97)',
+            borderRadius: 22, paddingHorizontal: 30, paddingVertical: 22,
+            shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 }}>
+            <Spinner size={36} color={C.navy} />
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(14.5), color: C.charcoal }}>골프장을 불러오는 중…</Text>
           </View>
         </View>
       )}
@@ -250,11 +252,14 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
               </TouchableOpacity>
             )}
           </View>
-          <TouchableOpacity onPress={onSwitchToList} activeOpacity={0.8} style={pill}>
+          {/* hitSlop — 지도 마커 생성·카메라 비행 중엔 프레임이 떨어져 작은 필은 탭이 자주 빗나감
+              ("한 번에 잘 안 눌림" 2026-08-27). 판정을 넓혀 한 번에 잡히게 */}
+          <TouchableOpacity onPress={onSwitchToList} activeOpacity={0.8} style={pill}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 6 }}>
             <Icon name="list" size={fs(15)} color={C.charcoal} strokeWidth={1.9} />
             <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>목록</Text>
           </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.8}
+          <TouchableOpacity activeOpacity={0.8} hitSlop={{ top: 10, bottom: 10, left: 6, right: 8 }}
             onPress={() => showAppAlert('코스 지도 안내',
               '전국 골프장이 핀으로 떠 있어요.\n금색 핀은 100대 코스예요.\n\n핀을 탭하면 카드가 뜨고,\n상세 보기에서 코스 정보·골퍼 코멘트·\n주변 맛집을 볼 수 있어요.',
               [{ text: '확인' }])}
@@ -301,6 +306,7 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
               const on = regionChip === r;
               return (
                 <TouchableOpacity key={r} onPress={() => goRegion(r)} activeOpacity={0.75}
+                  hitSlop={{ top: 8, bottom: 8 }}
                   style={{ paddingHorizontal: 13, paddingVertical: _and ? 6 : 7, borderRadius: 15,
                     backgroundColor: on ? C.charcoal : 'rgba(255,255,255,0.96)',
                     shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2 }}>
@@ -366,7 +372,8 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
               <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: '#fff' }}>내 코스 모아보기</Text>
             </TouchableOpacity>
           ) : <View />}
-          <TouchableOpacity onPress={goMyLoc} activeOpacity={0.8} style={pill}>
+          <TouchableOpacity onPress={goMyLoc} activeOpacity={0.8} style={pill}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}>
             <Icon name="target" size={fs(15)} color={C.navy} strokeWidth={1.9} />
             <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.navy }}>내 위치</Text>
           </TouchableOpacity>
