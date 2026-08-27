@@ -17,7 +17,10 @@ import { RoundupTab } from './RoundupTab';
 import { FriendsScreen } from './FriendsScreen';
 import { SettlementModal } from './SettlementModal'; // 정산 — 라운지 헤더 버튼에서 정식 메뉴로 승격(2026-08-26)
 import { CrewListScreen } from './CrewListScreen';   // 크루 — 홈 모달에서 모임 탭으로 이사(2026-08-26)
-import { DMChatScreen } from './DMChatScreen';       // 크루에서 멤버 DM 열기
+import { DMChatScreen } from './DMChatScreen';       // 크루에서 멤버 DM 열기 + 메시지 카드 대화방
+import { DMListScreen } from './DMListScreen';       // 메시지(DM) 목록 — 홈 레일 폐지로 사라진 진입점, 대문에 정착(2026-08-27)
+import { UserContext } from '../contexts/UserContext'; // 차단 목록 — DM 안읽음 집계서 제외
+import { loadUnreadTotal } from '../utils/dm';
 
 // ★모임 탭 — 탭 5→4 재편(2026-08-26). 라운지(모집)·친구·크루·정산을 한 지붕으로.
 //   v2 = '대문(허브)' 방식(사용자 선택 2026-08-26, 상단 세그먼트는 "탭 안 탭이라 어수선" 폐기):
@@ -59,6 +62,18 @@ export function MeetScreen({ navigation, route }) {
   const currentUid = useCurrentUid();
   const [crewReturnId, setCrewReturnId] = useState(() => (p.reopenCrew ? (p.reopenCrewId || null) : null)); // 모집 닫고 크루로 복귀할 앨범 id
   const [crewDm, setCrewDm] = useState(null); // 크루 멤버 DM {uid,name,avatar} — 화면 위 Modal
+
+  // 메시지(DM) — 홈 우측 레일 폐지(2026-08 개편)로 목록 진입점이 사라졌던 것을 대문 카드로 정착(2026-08-27).
+  //   단일 Modal서 목록↔대화방 전환(옛 홈 모달 이식, [[dm-design]]). 안읽음은 대문에 돌아올 때마다 재집계.
+  const [dmOpen, setDmOpen] = useState(false);
+  const [dmChat, setDmChat] = useState(null);   // { uid, name, avatar } 선택 시 대화방
+  const [dmUnread, setDmUnread] = useState(0);
+  const { userProfile } = useContext(UserContext);
+  const blockedUsers = userProfile?.blockedUsers; // 차단한 상대의 안읽음은 배지에서 제외(홈 시절과 동일 계산)
+  useEffect(() => {
+    if (dmOpen || seg !== 'hub') return; // 대화 보는 중·섹션에선 생략 — 대문 복귀 때 다시 센다
+    loadUnreadTotal(blockedUsers).then(setDmUnread).catch(() => {});
+  }, [dmOpen, seg, blockedUsers]);
 
   useEffect(() => {
     if (p.view === 'friends' || p.openFinder) go('friends');
@@ -208,6 +223,20 @@ export function MeetScreen({ navigation, route }) {
               {hubCard('roundup')}
               {hubCard('settle')}
             </View>
+            {/* 메시지(DM) — 와이드 슬림 카드. 다크 배경=DM 방(#211E1B 다크 룸) 톤 예고, 배지=버건디(카드 문법 통일) */}
+            <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.85}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18,
+                backgroundColor: '#211E1B', paddingHorizontal: 16, paddingVertical: 16 }}>
+              <Icon name="chat" size={fs(23)} color={C.butter} strokeWidth={1.9} />
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.butter }}>메시지</Text>
+              <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.55)' }}>친구와 1:1 대화</Text>
+              {dmUnread > 0 ? (
+                <View style={{ backgroundColor: C.burgundy, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#fff' }}>새 메시지 {dmUnread}</Text>
+                </View>
+              ) : null}
+              <Text style={{ fontFamily: F.sys, fontSize: fs(18), color: 'rgba(255,255,255,0.5)' }}>›</Text>
+            </TouchableOpacity>
           </View>
 
           {/* ② 자주 함께한 골프 친구 — 라운딩 기록 동반자 빈도 상위 5명(이니셜 원+횟수). 탭→친구 화면(2026-08-27) */}
@@ -346,6 +375,24 @@ export function MeetScreen({ navigation, route }) {
             }} />
         </View>
       )}
+      {/* 메시지(DM) — 대문 '메시지' 카드 진입 = 대화 목록(인스타식). 단일 Modal서 목록↔대화방 전환([[dm-design]]).
+          옛 홈 우상단 💬 모달을 그대로 이식(2026-08-27). 크루 멤버 DM 모달(아래)과는 진입 경로가 달라 동시에 안 뜬다. */}
+      <Modal visible={dmOpen} transparent animationType="slide"
+        statusBarTranslucent={Platform.OS === 'android'}
+        onRequestClose={() => (dmChat ? setDmChat(null) : setDmOpen(false))}>
+        {dmChat ? (
+          <DMChatScreen friendUid={dmChat.uid} friendName={dmChat.name} friendAvatarUri={dmChat.avatar || null} onClose={() => setDmChat(null)}
+            onOpenRoundup={(postId, hostUid, scope) => {
+              setDmChat(null); setDmOpen(false);
+              // 친구지정(select)=내 참여 초대장(openView:'mine'), 그 외(친구모집 등)=모집 상세 — 같은 탭이라 파라미터만
+              if (scope === 'select') navigation.navigate(ROUTES.MEET, { openView: 'mine' });
+              else navigation.navigate(ROUTES.MEET, { openPostId: postId, openPostHost: hostUid });
+            }} />
+        ) : (
+          <DMListScreen onClose={() => { setDmOpen(false); setDmChat(null); }} onOpenChat={(uid, name, avatar) => setDmChat({ uid, name, avatar })} />
+        )}
+      </Modal>
+
       {/* 크루에서 연 멤버 DM — 화면 위 Modal(홈 모달 시절의 '모달 안 중첩'과 달리 여긴 일반 화면이라 안전) */}
       <Modal visible={!!crewDm} transparent animationType="slide"
         statusBarTranslucent={Platform.OS === 'android'}
