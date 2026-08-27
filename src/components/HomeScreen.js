@@ -32,6 +32,7 @@ import { ScheduleShareCard } from './ScheduleShareCard';   // 체크인 카드 �
 import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모션(맥동·nudge·부유) 공용 래퍼
 import { ScheduleModal } from './ScheduleModal';
 import { HomeIntroModal } from './HomeIntroModal';
+import { OneTimeNotices } from './OneTimeNotices'; // 1회성 공지 팝업(개편·스코어카드) — 순차 1개씩
 import { ScheduleScreen } from './ScheduleScreen';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { HomeTooltip } from './HomeTooltip';
@@ -2242,6 +2243,7 @@ export function HomeScreen({ navigation, route }) {
         visible={showHomeIntro}
         onClose={() => setShowHomeIntro(false)}
         onAddSchedulePress={() => setShowAddModal(true)} />
+      <OneTimeNotices />
       <ScheduleModal
         visible={!!editScheduleTarget}
         initial={editScheduleTarget}

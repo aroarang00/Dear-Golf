@@ -52,6 +52,8 @@ export const STORAGE_KEYS = {
   teamSeenAt: '@dg_team_seen_at', // 단체 모집별 단체팀(조편성) 마지막 열람 시각 {roundupId: millis} — 편성완료 미열람 맥동 판단(서버 미저장)
   crewIntroSeen: '@dg_crew_intro_seen', // 크루 소개(이용안내) 첫 진입 1회 자동 표시 제어 — 라운지 소개와 동일 패턴
   systemAlarmDone: '@dg_system_alarm_done', // 일정별 '내 폰 알람 등록 버튼 눌렀음' {scheduleId: millis} — 기기 로컬. 등록함 표시용(안드 SET_ALARM은 OS 등록여부 조회 불가→'눌렀음'만 기록, 폰 알람 앱서 직접 삭제는 미반영)
+  noticeRedesignSeen: '@dg_notice_redesign_v1',      // 1회성 공지 — 2026-08 개편 안내(탭4·코스 지도·홈) 본 여부 (OneTimeNotices)
+  noticeScorecardParSeen: '@dg_notice_scorecard_par_v1', // 1회성 공지 — PAR 없는 스코어카드 인식 안내 본 여부 (OneTimeNotices)
 };
 
 export const storage = {
