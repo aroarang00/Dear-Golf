@@ -2097,7 +2097,14 @@ export function HomeScreen({ navigation, route }) {
               4개 컴팩트 행 → 2개 풀카드: 홈 주인공(다음 라운딩)과 안 겨루게 개수는 줄임. 나머지는 더보기로. */}
           {friendsFeed.length > 0 && (
             <View style={{ marginTop: 60, paddingHorizontal: SIDE_PAD }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, marginBottom: 14 }}>친구 소식</Text>
+              {/* 더보기는 타이틀 줄 우측 — 최근 기록 '전체보기'와 같은 자리(하단 버튼 폐기, 사용자 2026-08-27) */}
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 14 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>친구 소식</Text>
+                <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MEET, { view: 'friends' })} activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: 'rgba(255,255,255,0.72)' }}>전체보기 ›</Text>
+                </TouchableOpacity>
+              </View>
               {friendsFeed.slice(0, 2).map((d) => {
                 const avatar = /^https?:/.test(d._friendAvatar || '') ? d._friendAvatar : null;
                 return (
@@ -2119,11 +2126,6 @@ export function HomeScreen({ navigation, route }) {
                   </View>
                 );
               })}
-              {/* 더보기 → 친구 탭. 최근 기록의 '전체 기록 보기'와 동일 패턴 */}
-              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MEET, { view: 'friends' })} activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ alignItems: 'center', paddingVertical: 8, marginTop: 2 }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: 'rgba(255,255,255,0.72)' }}>친구 소식 더보기 ›</Text>
-              </TouchableOpacity>
             </View>
           )}
           {/* 하단 여백 22→8 — 캐러셀 점과 하단 탭 사이가 너무 벌어 보임(사용자 2026-07-03) */}
