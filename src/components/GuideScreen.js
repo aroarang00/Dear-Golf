@@ -1624,7 +1624,10 @@ export function GuideScreen({ route, navigation }) {
        ★paddingTop 주지 말 것 — 상태바 영역에 베이지 띠가 생겨 어색(사용자 지적).
        상세(detailOverlay)는 랜딩 '위'에 절대배치 — 랜딩(지도 마커 477개)을 언마운트하지 않는다(위 주석). */
     <View style={{ flex: 1 }}>
-      <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingLeft: insets.left, paddingRight: insets.right }}>
+      {/* 상세가 떠 있는 동안 랜딩(지도) 터치 완전 잠금 — 오버레이 빈 영역 터치가 네이티브 지도·검색창으로
+          새는 것을 여기서 원천 차단. 오버레이 쪽 responder 가로채기(스크롤 죽임)는 쓰지 않는다(2026-08-28). */}
+      <View pointerEvents={detailOverlay ? 'none' : 'auto'}
+        style={{ flex: 1, backgroundColor: C.bgPrimary, paddingLeft: insets.left, paddingRight: insets.right }}>
         <CourseExploreTab
           ref={exploreRef}
           region={exploreRegion}
@@ -1644,7 +1647,10 @@ export function GuideScreen({ route, navigation }) {
       {detailOverlay ? (
         // zIndex/elevation 30 — 밑에 산 채로 있는 지도 검색창·지역칩·하단 카드(20)가 상세 헤더(구장명)를
         // 뚫고 올라오던 것("구장명이 검색창에 가려짐" 2026-08-28). 배경색도 래퍼에 직접 깔아 비침 원천 차단.
-        <View onStartShouldSetResponder={() => true}
+        // ★onStartShouldSetResponder 금지 — JS responder가 잡히면 안의 ScrollView 네이티브 스크롤이 막혀
+        //   빈 영역에서 시작한 드래그만 스크롤이 안 되는 반쪽 먹통("되는 데가 있고 안 되는 데가" 2026-08-28).
+        //   터치 누수 차단은 위 랜딩 pointerEvents 잠금이 담당.
+        <View
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
             zIndex: 30, elevation: 30, backgroundColor: C.bgPrimary }}>
           {detailOverlay}
