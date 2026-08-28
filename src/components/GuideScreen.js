@@ -1642,8 +1642,11 @@ export function GuideScreen({ route, navigation }) {
         />
       </View>
       {detailOverlay ? (
+        // zIndex/elevation 30 — 밑에 산 채로 있는 지도 검색창·지역칩·하단 카드(20)가 상세 헤더(구장명)를
+        // 뚫고 올라오던 것("구장명이 검색창에 가려짐" 2026-08-28). 배경색도 래퍼에 직접 깔아 비침 원천 차단.
         <View onStartShouldSetResponder={() => true}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 30, elevation: 30, backgroundColor: C.bgPrimary }}>
           {detailOverlay}
         </View>
       ) : null}
