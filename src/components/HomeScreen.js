@@ -822,13 +822,13 @@ export function HomeScreen({ navigation, route }) {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.butter, borderRadius: 20, paddingHorizontal: 11, paddingVertical: 4 }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#22301F' }}>다음 라운딩</Text>
-            <Text style={{ fontFamily: F.en, fontSize: fs(12), color: '#22301F' }}>D-{freshDDay(s)}</Text>
+            <Text style={{ fontFamily: F.en, fontSize: fs(17), color: '#22301F' }}>D-{freshDDay(s)}</Text>
           </View>
           {s.groupId && unreadComments[s.groupId] > 0 ? <View style={{ marginLeft: 8 }}>{commentBadge(s.groupId)}</View> : null}
         </View>
         {/* 구장명 = 주인공. 탭하면 코스 페이지 */}
         <TouchableOpacity activeOpacity={canOpenCourse(s) ? 0.7 : 1} onPress={() => handleCardCoursePress(s)}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(24), lineHeight: fs(30), color: '#fff', marginTop: 13, textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCourseName(s.course)}
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(22), lineHeight: fs(28), color: '#fff', marginTop: 13, textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCourseName(s.course)}
             {canOpenCourse(s) ? <Text style={{ fontSize: fs(14), color: 'rgba(255,255,255,0.6)' }}> ›</Text> : null}
           </Text>
         </TouchableOpacity>
