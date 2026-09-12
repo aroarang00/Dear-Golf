@@ -254,7 +254,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     <Modal visible={visible && showSheet} transparent animationType="slide" onRequestClose={onClose}>
       <View style={sheetS.mask}>
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { if (!confirmDelete) onClose(); }} />
-        <View style={[sheetS.sheet, { maxHeight: '94%', minHeight: '58%', paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View style={[sheetS.sheet, { maxHeight: '94%', minHeight: '58%', paddingBottom: 0 }]}>
           <View style={sheetS.handle} />
           {/* 고정 ✕ — iOS는 백버튼 없고 시트가 길면 상단(핸들)이 노치 근처라 닫기 어려움(사용자 2026-07-06).
               스크롤·길이와 무관하게 우상단 고정. 삭제 확인 중엔 숨김(취소/삭제 버튼으로 유도). */}
@@ -266,7 +266,8 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
           )}
 
           {/* 확대(디스플레이 줌) 시 메뉴가 길어져 시트가 화면 위로 넘쳐 상단(구장명) 잘리던 것 방지 — maxHeight + 스크롤 */}
-          <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+          <ScrollView bounces={false} showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 12) }}>
           {confirmDelete ? (
             // 시트 안 삭제 confirm — 별도 Modal(AppAlert) 우회. RN의 3중 Modal 중첩 z-index 충돌 회피.
             <View style={{ paddingHorizontal: 22, paddingTop: 14, paddingBottom: 6 }}>
