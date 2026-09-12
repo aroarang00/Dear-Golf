@@ -314,8 +314,9 @@ export function DiaryScreen({ route, navigation }) {
     const special = rounds.filter(d => d.special).map(d => buildHofEntry(d, d.id));
     special.sort((a, b) => hofDateNum(b.date) - hofDateNum(a.date)); // 최신 날짜 위
     let single = [];
-    const onboardBest = userProfile.lifeBest || 99; // 온보딩 라이프베스트가 80타↑였던 사람만 '첫 싱글' 대상(이미 싱글이면 제외)
-    if (onboardBest > 79) {
+    // 온보딩 당시 이미 싱글이었으면 '첫 싱글' 대상 아님. hasFirstSingle=온보딩 때 얼린 플래그라
+    //   라베 자동갱신으로 lifeBest가 79 이하로 낮아져도 이 판정이 흔들리지 않는다(카드 깜빡임 방지).
+    if (!userProfile.hasFirstSingle) {
       const subs = rounds.filter(d => typeof d.score === 'number' && d.score <= 79);
       if (subs.length) {
         const first = subs.reduce((a, b) => (hofDateNum(b.date) < hofDateNum(a.date) ? b : a)); // 가장 이른 날짜=최초 싱글
@@ -323,7 +324,7 @@ export function DiaryScreen({ route, navigation }) {
       }
     }
     return [...special, ...single];
-  }, [diaries, userProfile.lifeBest]);
+  }, [diaries, userProfile.hasFirstSingle]);
 
   // 표시용 합본 — 마일스톤(영속) 위, 그 아래 특별순간·싱글(파생).
   const hallOfFame = useMemo(() => [...milestoneHof, ...diaryHof], [milestoneHof, diaryHof]);
@@ -334,6 +335,22 @@ export function DiaryScreen({ route, navigation }) {
     const hc = calcHandicap(diaries, userProfile.avgScore);
     if (hc != null && hc !== userProfile.handicap) syncMyHandicap(hc);
   }, [diaries, userProfile.avgScore, userProfile.handicap]);
+
+  // 라이프 베스트 자동 갱신 — 기록된 라운드가 현재 라베보다 좋으면 그 값으로 낮춘다(단방향: 나빠질 땐 안 올림).
+  //   온보딩/설정 입력값은 시작점일 뿐, 이후 더 잘 친 라운드가 나오면 라베가 따라 내려가야 한다(사용자 2026-09-12).
+  //   lifeBest 변경은 App.js write-through가 Firestore·스토리지에 반영 → MY 명함·친구 명함·HOF 라베 모두 갱신.
+  //   '첫 싱글' 판정은 얼린 hasFirstSingle을 쓰므로 이 갱신에 영향받지 않는다.
+  useEffect(() => {
+    const roundScores = (diaries || [])
+      .filter(d => d && d.kind !== 'moment' && typeof d.score === 'number' && d.score > 0)
+      .map(d => d.score);
+    if (roundScores.length === 0) return;
+    const bestRound = Math.min(...roundScores);
+    const cur = userProfile.lifeBest || 0;
+    if (cur === 0 || bestRound < cur) {
+      setUserProfile(prev => ({ ...prev, lifeBest: bestRound }));
+    }
+  }, [diaries, userProfile.lifeBest]);
 
   // 홈 'D-0 기록 보기'로 상세 진입한 경우, 닫을 때(안드 뒤로가기 포함) MY 목록이 아니라 홈으로 복귀
   const detailFromHomeRef = React.useRef(false);

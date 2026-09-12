@@ -318,6 +318,12 @@ function App() {
         //   저절로 꺼지는 원인, 사용자 2026-07-28). 완전한 기본 위에 로컬값을 얹어 '없는 키'는 기본(ON)으로 살리고
         //   '명시적 false'만 존중한다. (아래 서버 병합·write-through도 동일 원칙)
         migrated.alarmDefaults = { ...USER_PROFILE_INIT.alarmDefaults, ...(loaded.alarmDefaults || {}) };
+        // 라이프베스트 자동 갱신 도입(2026-09-12) 대비 — '온보딩 당시 이미 싱글이었나'를 얼려둠.
+        //   옛 사용자는 이 플래그가 없으니, 라베가 아직 자동 갱신되기 전인 지금(=온보딩값) 기준으로 1회 복원.
+        //   이후 lifeBest가 낮아져도 이 플래그는 불변 → '첫 싱글' HOF 카드가 라베 갱신에 흔들리지 않는다.
+        if (loaded.hasFirstSingle === undefined && migrated.lifeBest > 0) {
+          migrated.hasFirstSingle = migrated.lifeBest <= 79;
+        }
         setUserProfile(migrated);
         // 새 필드가 추가됐으면 storage에 다시 저장해서 옛 데이터를 새 구조로 업그레이드
         if (JSON.stringify(migrated) !== JSON.stringify(loaded)) {
@@ -410,6 +416,7 @@ function App() {
           if (data.avgScore > 0) next.avgScore = data.avgScore;
           if (data.lifeBest > 0) next.lifeBest = data.lifeBest;
           if (data.totalRounds > 0) next.totalRounds = data.totalRounds;
+          if (typeof data.hasFirstSingle === 'boolean') next.hasFirstSingle = data.hasFirstSingle; // 온보딩 얼린 플래그 — 재설치 시 라베가 이미 낮아진 값으로 오판되지 않게 서버값 복원
           // 카카오 연동 상태 — Firestore가 권위 (재설치 후 자동 복원)
           if (typeof data.kakaoLinked === 'boolean') next.kakaoLinked = data.kakaoLinked;
           if (data.kakaoId) next.kakaoId = data.kakaoId;
@@ -501,6 +508,7 @@ function App() {
         if (userProfile.lifeBest > 0) payload.lifeBest = userProfile.lifeBest;
         if (userProfile.avgScore > 0) payload.avgScore = userProfile.avgScore;
         if (userProfile.totalRounds > 0) payload.totalRounds = userProfile.totalRounds;
+        if (typeof userProfile.hasFirstSingle === 'boolean') payload.hasFirstSingle = userProfile.hasFirstSingle;
         await setDoc(doc(db, 'users', uid), payload, { merge: true });
       } catch (e) {
         if (__DEV__) console.warn('[App] settings write-through failed', e?.message);
@@ -527,6 +535,7 @@ function App() {
     userProfile.lifeBest,
     userProfile.avgScore,
     userProfile.totalRounds,
+    userProfile.hasFirstSingle,
   ]);
 
   // 안드 edge-to-edge 루트 배경 — 시스템바(상태바·네비바) 뒤까지 brand 배경(paleSky)으로 칠해
