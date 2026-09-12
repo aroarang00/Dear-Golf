@@ -2110,7 +2110,7 @@ export function HomeScreen({ navigation, route }) {
                 return (
                   <View key={d.id} style={{ marginBottom: 18 }}>
                     {/* 누구 소식인지 — 카드 자체(친구 프로필 안에서 쓰던 것)엔 주인 표시가 없어 홈에선 이 줄이 필요 */}
-                    <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate(ROUTES.MEET, { view: 'friends' })}
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate(ROUTES.MEET, { view: 'friends', openFriendUid: d._uid })}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                       {avatar ? (
                         <ExpoImage source={{ uri: avatar }} style={{ width: 22, height: 22, borderRadius: 11 }} />

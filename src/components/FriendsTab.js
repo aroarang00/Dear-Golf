@@ -136,7 +136,7 @@ function SwipeableFriendCard({ friend, favorite, onToggleFavorite, onHide, ...ca
   );
 }
 
-export function FriendsTab({ navigation, onInvite, openFinderRef }) {
+export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid, onConsumeOpenFriend }) {
   const { userProfile } = React.useContext(UserContext);
   const insets = useSafeAreaInsets();
   const { setFriendReqCount } = useContext(FriendBadgeContext);
@@ -531,6 +531,16 @@ export function FriendsTab({ navigation, onInvite, openFinderRef }) {
       setFeedLoading(false);
     }
   };
+
+  // 홈 '친구 소식'에서 이름/프로필 탭 → 그 친구 상세 자동 오픈(친구 메인이 아니라). friends 로드 후 uid로 찾아 연다.
+  //   못 찾아도(끊긴 친구 등) 1회 소비해 재실행 방지. friends 갱신 때 재시도되도록 friends를 의존성에 둠.
+  useEffect(() => {
+    if (!openFriendUid || !friendsLoaded) return;
+    const f = friends.find(x => x.id === openFriendUid);
+    if (f) openFriendProfile(f);
+    onConsumeOpenFriend?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openFriendUid, friendsLoaded, friends]);
 
   // 친구 신청 — Firestore friendships pending doc 생성 + 보낸 신청 state 추가.
   // 일일 한도는 폐지(사용자 2026-07-05 — 알림 끄면 그만, 닉 정확일치·카카오 친구 경로라 남용 표면 작음).

@@ -125,7 +125,9 @@ export function FriendsScreen({ navigation, route, embedded = false, onBack }) {
         </View>
       </View>
 
-      <FriendsTab navigation={navigation} onInvite={handleInvite} openFinderRef={openFinderRef} />
+      <FriendsTab navigation={navigation} onInvite={handleInvite} openFinderRef={openFinderRef}
+        openFriendUid={route?.params?.openFriendUid}
+        onConsumeOpenFriend={() => navigation.setParams({ openFriendUid: undefined })} />
 
       {/* 친구 초대 카드 — 이미지(바로공유/저장) + 평문 링크(설치 동선) */}
       <ShareMomentModal
