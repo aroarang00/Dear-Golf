@@ -2092,9 +2092,9 @@ export function HomeScreen({ navigation, route }) {
               내 돈이라 홈('나') 소속 — 모임 돈(정산)은 모임 탭. 섹션 리듬(fs21 타이틀+간격 60) 동일 */}
           <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, marginTop: 60, marginBottom: 14, paddingHorizontal: SIDE_PAD }}>골프 가계부</Text>
           <LedgerBanner diaries={diaries} onPress={() => setShowLedger(true)} style={{ marginHorizontal: SIDE_PAD }} />
-          {/* ★친구 소식(2026-08-26 개편) — 친구 피드와 같은 미리보기 카드(DiaryCard variant='friend') 그대로 최근 2개.
+          {/* ★친구 소식(2026-08-26 개편) — 친구 피드와 같은 미리보기 카드(DiaryCard variant='friend') 그대로 최근 4개.
               사진 크게 + 홈에서 바로 좋아요. 카드 위에 친구 이름(아바타) 한 줄로 누구 소식인지 표시.
-              4개 컴팩트 행 → 2개 풀카드: 홈 주인공(다음 라운딩)과 안 겨루게 개수는 줄임. 나머지는 더보기로. */}
+              전체 최신 4개 노출(사용자 2026-09-12, 2개→4개). 더 많은 소식은 '전체보기'로. */}
           {friendsFeed.length > 0 && (
             <View style={{ marginTop: 60, paddingHorizontal: SIDE_PAD }}>
               {/* 더보기는 타이틀 줄 우측 — 최근 기록 '전체보기'와 같은 자리(하단 버튼 폐기, 사용자 2026-08-27) */}
@@ -2105,7 +2105,7 @@ export function HomeScreen({ navigation, route }) {
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: 'rgba(255,255,255,0.72)' }}>전체보기 ›</Text>
                 </TouchableOpacity>
               </View>
-              {friendsFeed.slice(0, 2).map((d) => {
+              {friendsFeed.slice(0, 4).map((d) => {
                 const avatar = /^https?:/.test(d._friendAvatar || '') ? d._friendAvatar : null;
                 return (
                   <View key={d.id} style={{ marginBottom: 18 }}>
