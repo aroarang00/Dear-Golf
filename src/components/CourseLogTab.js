@@ -50,8 +50,19 @@ function RegionTag({ rs }) {
   );
 }
 
-// 기록 있는 카드 — 구장명 + 통계박스 + (지역·별점 최근). 펼침 고정, 태그·메모·중복 방문 제거
+// 방문 목록 날짜 — "2026.08.24"/"2026-08-24" → "26.08.24"(세기 생략, 카드가 좁아 간결하게)
+function fmtVisitDate(d) {
+  if (!d) return '날짜 미정';
+  const m = d.replace(/-/g, '.').match(/(\d{4})\.(\d{1,2})\.(\d{1,2})/);
+  if (!m) return d;
+  const pad = (n) => n.padStart(2, '0');
+  return `${m[1].slice(2)}.${pad(m[2])}.${pad(m[3])}`;
+}
+
+// 기록 있는 카드 — 구장명 + 통계박스 + (지역·별점 최근) + 접히는 방문 목록(갈 때마다 몇 타)
 function RecordedCard({ c, rs, navigation }) {
+  const [logOpen, setLogOpen] = useState(false);
+  const log = c.visitLog || [];
   return (
     <View style={[dS.courseCard, { borderLeftWidth: 6, borderLeftColor: rs.bg }]}>
       {/* › 셰브론을 구장명 바로 옆에 + 구장명·셰브론을 탭 영역으로 — 작은 › 단독 타깃이라 정확히 안 눌리던 문제 개선.
@@ -84,6 +95,50 @@ function RecordedCard({ c, rs, navigation }) {
           <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: '#C9A84C' }}>{'★'.repeat(Math.round(c.rating))}</Text>
         )}
       </View>
+
+      {/* 방문 기록 — 갈 때마다 몇 타(최신순). 접힘 기본, 탭하면 펼침. 베스트(라베)엔 커스텀 트로피. */}
+      {log.length > 0 && (
+        <>
+          <TouchableOpacity onPress={() => setLogOpen(o => !o)} activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              marginTop: 12, paddingTop: 11, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.textSecondary }}>방문 기록 {log.length}</Text>
+            <Text style={{ fontSize: fs(11), color: C.warmGray }}>{logOpen ? '▴' : '▾'}</Text>
+          </TouchableOpacity>
+          {logOpen && (
+            <View style={{ marginTop: 4 }}>
+              {log.map((v, i) => {
+                const isBest = c.best > 0 && v.score === c.best;
+                return (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7,
+                    borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: '#F0EDE6' }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, width: fs(74) }}>
+                      {fmtVisitDate(v.date)}
+                    </Text>
+                    {v.score != null ? (
+                      <>
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: isBest ? C.burgundy : C.charcoal }}>
+                          {v.score}
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>타</Text>
+                        </Text>
+                        {isBest && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 8 }}>
+                            <Icon name="trophy" size={fs(13)} />
+                            <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: '#A8801E' }}>베스트</Text>
+                          </View>
+                        )}
+                      </>
+                    ) : (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGrayLight }}>미기록</Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </>
+      )}
     </View>
   );
 }
@@ -249,6 +304,11 @@ export function CourseLogTab({ avgRating, navigation }) {
         const latestRatedRec = [...recs]
           .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
           .find(r => typeof r.starRating === 'number' && r.starRating > 0);
+        // 방문마다 몇 타 — 최신순 목록(기록=날짜+타수 / 지난 미기록 일정='미기록'). 개수는 visits와 일치.
+        const visitLog = [
+          ...recs.map(r => ({ date: r.date || '', score: (typeof r.score === 'number' && r.score > 0) ? r.score : null })),
+          ...unrecordedSched.map(s => ({ date: s.date || '', score: null })),
+        ].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
         return {
           key: e.name,
           name: e.name,
@@ -261,6 +321,7 @@ export function CourseLogTab({ avgRating, navigation }) {
           best: scores.length ? Math.min(...scores) : 0,
           avg: scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0,
           rating: latestRatedRec?.starRating || 0,
+          visitLog,
         };
       })
       .sort((a, b) => (b.latestDate || '').localeCompare(a.latestDate || ''));
