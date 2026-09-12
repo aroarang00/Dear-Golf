@@ -66,6 +66,7 @@ import { PlayfairDisplay_700Bold, PlayfairDisplay_700Bold_Italic } from '@expo-g
 import { C, F, fs } from './src/constants/colors';
 import { USER_PROFILE_INIT } from './src/constants/data';
 import { STORAGE_KEYS, storage } from './src/utils/storage';
+import { flushPendingLikes } from './src/utils/pendingLikes'; // 미완료 좋아요 재전송(약전파/앱종료 유실 복구)
 import { loadMyBlockedUids, loadReceivedRequests } from './src/utils/friends';
 import { syncReportLimitFromFirestore } from './src/utils/reportLimit';
 import { syncUserCoursesFromFirestore } from './src/utils/userCourses';
@@ -644,6 +645,15 @@ function App() {
     const appSub = AppState.addEventListener('change', (s) => { if (s === 'active') clearBadge(); });
     return () => appSub.remove();
   }, []);
+
+  // 미완료 좋아요 재전송 — 약전파/앱종료로 서버 반영 못 한 친구 라운드 좋아요를, 로그인 후·포그라운드
+  //   복귀 때 큐에서 다시 보낸다(유실 방지, [[pendingLikes]]). authUid 있을 때만(쓰기 권한 필요).
+  useEffect(() => {
+    if (!authUid) return undefined;
+    flushPendingLikes().catch(() => {});
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') flushPendingLikes().catch(() => {}); });
+    return () => sub.remove();
+  }, [authUid]);
 
   // 딥링크 수신 — deargolf.app/r/{postId}(Universal/App Links) 또는 deargolf://r/{postId} → 라운지 모집 상세.
   //   푸시 handleResponse와 동일하게 navigationRef로 라우팅. openPostId는 목록에 없어도 RoundupTab이 fetch해 상세를 연다(RoundupTab:505).

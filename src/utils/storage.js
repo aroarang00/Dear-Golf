@@ -54,6 +54,7 @@ export const STORAGE_KEYS = {
   systemAlarmDone: '@dg_system_alarm_done', // 일정별 '내 폰 알람 등록 버튼 눌렀음' {scheduleId: millis} — 기기 로컬. 등록함 표시용(안드 SET_ALARM은 OS 등록여부 조회 불가→'눌렀음'만 기록, 폰 알람 앱서 직접 삭제는 미반영)
   noticeRedesignSeen: '@dg_notice_redesign_v1',      // 1회성 공지 — 2026-08 개편 안내(탭4·코스 지도·홈) 본 여부 (OneTimeNotices)
   noticeScorecardParSeen: '@dg_notice_scorecard_par_v1', // 1회성 공지 — PAR 없는 스코어카드 인식 안내 본 여부 (OneTimeNotices)
+  pendingLikes: '@dg_pending_likes', // 친구 라운드 좋아요 미완료 큐 {roundId: {like:bool, ts}} — 약전파/앱종료로 서버 반영 실패한 좋아요를 재실행 때·포그라운드 복귀 때 자동 재전송(유실 방지)
 };
 
 export const storage = {
