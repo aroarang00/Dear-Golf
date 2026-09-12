@@ -550,21 +550,36 @@ function ScoreDistribution({ scored }) {
   );
 }
 
+// 구장별 스코어 날짜 — "2026.08.24"/"2026-08-24" → "26.08.24"(방문 목록이 좁아 간결하게)
+function fmtScoreDate(d) {
+  if (!d) return '날짜 미상';
+  const m = String(d).replace(/-/g, '.').match(/(\d{4})\.(\d{1,2})\.(\d{1,2})/);
+  if (!m) return d;
+  const pad = (n) => n.padStart(2, '0');
+  return `${m[1].slice(2)}.${pad(m[2])}.${pad(m[3])}`;
+}
+
 // 구장별 스코어 — 구장·방문수·베스트·평균. '내 코스 모아보기'와 스코어를 직접 연결. 방문 많은 순→베스트 좋은 순.
+//   여러 번 방문한 구장은 탭하면 방문별 기록(날짜·타수)을 펼침 — 베스트 방문엔 트로피(사용자 2026-09-12).
 function CourseScores({ scored }) {
+  const [open, setOpen] = useState({});
   const rows = useMemo(() => {
     const m = new Map();
     (scored || []).forEach((s) => {
       const c = (s.course || '').trim() || '코스 미상';
       if (!m.has(c)) m.set(c, []);
-      m.get(c).push(s.score);
+      m.get(c).push({ score: s.score, date: s.date });
     });
     return Array.from(m.entries())
-      .map(([course, arr]) => ({
-        course, count: arr.length,
-        best: Math.min(...arr),
-        avg: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length),
-      }))
+      .map(([course, arr]) => {
+        const scores = arr.map((v) => v.score);
+        return {
+          course, count: arr.length,
+          best: Math.min(...scores),
+          avg: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
+          visits: [...arr].sort((a, b) => (b.date || '').localeCompare(a.date || '')), // 최신순
+        };
+      })
       .sort((a, b) => b.count - a.count || a.best - b.best);
   }, [scored]);
   const card = { marginTop: 8, backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 4 };
@@ -588,14 +603,41 @@ function CourseScores({ scored }) {
         <Text style={{ width: 52, textAlign: 'center', fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray }}>베스트</Text>
         <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sys, fontSize: fs(10.5), color: C.warmGray }}>평균</Text>
       </View>
-      {rows.map((r) => (
-        <View key={r.course} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
-          <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12.5), color: C.charcoal, paddingRight: 6 }}>{r.course}</Text>
-          <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>{r.count}</Text>
-          <Text style={{ width: 52, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(13.5), color: '#C9A84C' }}>{r.best}</Text>
-          <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sysM, fontSize: fs(12.5), color: C.charcoal }}>{r.avg}</Text>
-        </View>
-      ))}
+      {rows.map((r) => {
+        const expandable = r.count > 1;   // 여러 번 방문일 때만 펼침(1회는 베스트=평균=그 점수라 의미 없음)
+        const isOpen = !!open[r.course];
+        return (
+          <View key={r.course} style={{ borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+            <TouchableOpacity activeOpacity={expandable ? 0.6 : 1}
+              onPress={expandable ? () => setOpen((o) => ({ ...o, [r.course]: !o[r.course] })) : undefined}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9 }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingRight: 6 }}>
+                <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.charcoal, flexShrink: 1 }}>{r.course}</Text>
+                {expandable && <Text style={{ fontSize: fs(9), color: C.warmGray, marginLeft: 5 }}>{isOpen ? '▴' : '▾'}</Text>}
+              </View>
+              <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>{r.count}</Text>
+              <Text style={{ width: 52, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(13.5), color: '#C9A84C' }}>{r.best}</Text>
+              <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sysM, fontSize: fs(12.5), color: C.charcoal }}>{r.avg}</Text>
+            </TouchableOpacity>
+            {expandable && isOpen && (
+              <View style={{ paddingBottom: 8, paddingLeft: 4 }}>
+                {r.visits.map((v, i) => {
+                  const isBest = v.score === r.best;
+                  return (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 5 }}>
+                      <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray }}>{fmtScoreDate(v.date)}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        {isBest && <Icon name="trophy" size={fs(12)} />}
+                        <Text style={{ width: 46, textAlign: 'right', fontFamily: F.sysB, fontSize: fs(13), color: isBest ? '#C9A84C' : C.charcoal }}>{v.score}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }
