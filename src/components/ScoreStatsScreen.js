@@ -620,16 +620,18 @@ function CourseScores({ scored }) {
               <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sysM, fontSize: fs(12.5), color: C.charcoal }}>{r.avg}</Text>
             </TouchableOpacity>
             {expandable && isOpen && (
-              <View style={{ paddingBottom: 8, paddingLeft: 4 }}>
+              <View style={{ paddingBottom: 8 }}>
                 {r.visits.map((v, i) => {
                   const isBest = v.score === r.best;
+                  // 열 정렬 — 날짜(구장 열) / 방문 열 비움 / 트로피(베스트 열) / 점수(평균 열, 위 표와 세로 일치)
                   return (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 5 }}>
-                      <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray }}>{fmtScoreDate(v.date)}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray }}>{fmtScoreDate(v.date)}</Text>
+                      <View style={{ width: 44 }} />
+                      <View style={{ width: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
                         {isBest && <Icon name="trophy" size={fs(12)} />}
-                        <Text style={{ width: 46, textAlign: 'right', fontFamily: F.sysB, fontSize: fs(13), color: isBest ? '#C9A84C' : C.charcoal }}>{v.score}</Text>
                       </View>
+                      <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(13), color: isBest ? '#C9A84C' : C.charcoal }}>{v.score}</Text>
                     </View>
                   );
                 })}
