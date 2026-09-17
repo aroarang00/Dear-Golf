@@ -17,9 +17,11 @@ import { getPhotoRatio, feedFrameAspect, firstPhotoUri, ratiosReady } from '../u
 //  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
 //  - variant 'friend'    : 친구 피드 — 같은 골격에 정보만 줄임(구장·스코어·한줄메모·★) + 좋아요/댓글 줄.
 //                          탭→PhotoViewer(onOpenPhoto), 정보는 항상 노출(접기 없음) ([[friend-feed-design]])
+//  - noStripe            : 옆면 3px 띠(일상=오른쪽 연하늘 / 무사진 라운딩=왼쪽 스코어색) 생략.
+//                          홈 '친구 소식'은 짙은 녹색 배경이라 흰 카드 옆 색띠가 테두리처럼 튀어 뺀다(사용자 2026-09-17).
 // React.memo — 부모(DiaryScreen) 리렌더(스크롤 feedLimit·검색·선택)마다 props 안 바뀐 카드는 건너뜀.
 //   onPress는 부모에서 useCallback으로 안정화, friendGroups·friendNameByUid는 state(로드 후 안정), avgScore는 숫자.
-function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups, collapseSignal = 0 }) {
+function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups, collapseSignal = 0, noStripe = false }) {
   const [expanded, setExpanded] = useState(false);
   const [showLikers, setShowLikers] = useState(false); // 내 글 — 누가 좋아요 눌렀나 팝업
   const isFriend = variant === 'friend';
@@ -29,6 +31,11 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   //   처음 보는 사진만 로드 후 한 번 확정된다(그 뒤로는 캐시).
   const [photoAr, setPhotoAr] = useState(() => getPhotoRatio(firstPhotoUri(item.photos)));
   const frameAspect = feedFrameAspect(photoAr);
+  // ★임시 진단(2026-09-17) — 친구 피드 첫 카드 흐림 추적. 카드 틀(4:3·1:1·4:5)이 언제 정해지는지. 원인 잡으면 제거.
+  useEffect(() => {
+    if (__DEV__) console.log('[DiaryCard] frame', variant, String(firstPhotoUri(item.photos) || '').split('?')[0].slice(-22), 'ar', photoAr ? photoAr.toFixed(3) : 'null', '→', frameAspect.toFixed(3));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoAr]);
   // ★캐시 하이드레이션 경쟁 보정(2026-08-26) — 카드가 디스크 캐시 로드보다 먼저 마운트되면 초기값이 null이라
   //   기본 4:3으로 그렸다가 사진 로드 후 틀이 바뀌며 '작았다가 확 커지는' 점프가 남는다. 로드 완료 직후
   //   (사진 로드보다 훨씬 빠름) 캐시를 한 번 재조회해 이미지가 뜨기 전에 틀을 확정한다.
@@ -272,7 +279,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
     // 글만 일상 — 사진이 없어 본문이 주인공이라 더 크게 (사용자 2026-06-16)
     const momentTextOnlyStyle = { fontFamily: F.sys, fontSize: fs(16), color: C.textPrimary, lineHeight: 24 };
     // 일상 구분 — 흰 바탕(라운딩 기록과 통일). 라운딩은 '왼쪽' 띠, 일상은 '오른쪽' 띠 → 자리로 구분(색 절제, 빈티지 인상 제거).
-    const momentCard = [dS.card, { borderRightWidth: 3, borderRightColor: C.paleSky }];
+    const momentCard = noStripe ? [dS.card] : [dS.card, { borderRightWidth: 3, borderRightColor: C.paleSky }];
     if (hasPhoto) {
       // withDate=true → 사진 위 날짜 그라데이션(친구 카드). 내 카드는 날짜를 아래 더보기 줄로 옮김(false).
       const photoEl = (withDate) => (
@@ -421,7 +428,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   return (
     <>
     {shell(
-      <TouchableOpacity style={[dS.card, highlight ? dS.cardSpecial : { borderLeftWidth: 3, borderLeftColor: lineColor }]}
+      <TouchableOpacity style={[dS.card, highlight ? dS.cardSpecial : (noStripe ? null : { borderLeftWidth: 3, borderLeftColor: lineColor })]}
         activeOpacity={isFriend ? 1 : 0.88} disabled={isFriend} onPress={isFriend ? undefined : () => onPress(item)}>
         {highlight && <View style={dS.cardSpecialLine} />}
         {isSpecial && (

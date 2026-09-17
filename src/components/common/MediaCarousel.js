@@ -71,6 +71,8 @@ export function MediaCarousel({ photos, onTap, onFirstRatio }) {
       style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
       onLayout={e => {
         const { width, height } = e.nativeEvent.layout;
+        // ★임시 진단(2026-09-17) — 친구 피드 첫 카드 흐림 추적. 원인 잡으면 제거.
+        if (__DEV__ && (width !== dim.w || height !== dim.h)) console.log('[MediaCarousel] layout', Math.round(width), 'x', Math.round(height), 'first', String(typeof photos[0] === 'object' ? photos[0]?.uri : photos[0]).split('?')[0].slice(-22));
         if (width !== dim.w || height !== dim.h) setDim({ w: width, h: height });
       }}>
       {/* ★h > 0 까지 기다렸다 올린다 — 폭만 잡히고 높이가 0인 첫 레이아웃에서 이미지를 걸면,

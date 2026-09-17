@@ -23,6 +23,7 @@ import { useAndroidBack } from '../hooks/useAndroidBack';
 import { DMChatScreen } from './DMChatScreen';
 import { FriendGroupManageModal } from './FriendGroupManageModal';
 import { loadFriendData } from '../utils/friendGroups';
+import { DiagContext } from '../utils/diag';   // ★임시 진단(2026-09-17) — 첫 카드 흐림 추적 오버레이 스위치. 원인 잡으면 제거
 
 // 친구 풀 프로필 — 프로필 / 라운딩 피드. 헤더 옵션에서 알림/숨기기/삭제 처리.
 // 옵션 액션시트는 자체 오버레이로 표시 (Modal 위 Modal 충돌 회피)
@@ -38,6 +39,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
   const [reportItem, setReportItem] = useState(null);      // 피드 게시물 신고 — 사유 선택 시트 ([[content-report-policy]])
   // 요약보기 — 내 기록(DiaryScreen)과 같은 선호값을 공유한다. '요약으로 보는 사람'은 어느 피드든 요약으로 보는 게 자연스러움.
   const [compact, setCompact] = useState(false);
+  const [diagOn, setDiagOn] = useState(false);   // ★임시 진단 — '라운딩 · 일상 피드' 제목 길게 누르면 사진 위에 로드 정보 표시
   const [collapseSignal, setCollapseSignal] = useState(0);   // 프로필을 닫을 때 올려 카드 펼침을 원위치
   const [rowOpenId, setRowOpenId] = useState(null);          // 요약보기에서 그 자리에 펼친 행(한 번에 하나)
   // 하단 안전영역 인셋 — SafeAreaView 'bottom' edge 대신 스크롤 콘텐츠 paddingBottom으로 넣어야
@@ -184,6 +186,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
           </View>
 
           {/* 전체 스크롤 — FlatList 가상화(보이는 카드만 렌더). 명함=ListHeaderComponent, 피드=data. 더보기 제거·자연 무한스크롤(perf 2단계, [[project_fullscroll_profile]]) */}
+          <DiagContext.Provider value={diagOn}>
           <FlatList
             style={{ flex: 1 }}
             data={friend.feed || []}
@@ -250,8 +253,9 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
                 </View>
                 {/* 피드 제목 줄 + 보기 방식(미리보기·요약보기) — 내 기록 화면과 같은 아이콘·같은 선호값 */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 14, marginBottom: 10 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, flex: 1 }}>
-                    라운딩 · 일상 피드
+                  <Text onLongPress={() => setDiagOn((v) => !v)} delayLongPress={600}
+                    style={{ fontFamily: F.sysSb, fontSize: fs(11), color: diagOn ? '#2E8B57' : C.warmGray, letterSpacing: 1.5, flex: 1 }}>
+                    라운딩 · 일상 피드{diagOn ? ' · 진단' : ''}
                   </Text>
                   <TouchableOpacity activeOpacity={0.7} onPress={() => toggleCompact(false)} accessibilityLabel="사진 카드로 보기"
                     hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ paddingRight: 18 }}>
@@ -328,6 +332,7 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
               </View>
             )}
           />
+          </DiagContext.Provider>
 
           {/* 신뢰 등급 설명 팝업 */}
           <TrustGradeModal visible={gradeOpen} highlightKey={grade.key}
