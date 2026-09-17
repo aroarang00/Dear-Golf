@@ -17,11 +17,11 @@ import { getPhotoRatio, feedFrameAspect, firstPhotoUri, ratiosReady } from '../u
 //  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
 //  - variant 'friend'    : 친구 피드 — 같은 골격에 정보만 줄임(구장·스코어·한줄메모·★) + 좋아요/댓글 줄.
 //                          탭→PhotoViewer(onOpenPhoto), 정보는 항상 노출(접기 없음) ([[friend-feed-design]])
-//  - noStripe            : 옆면 3px 띠(일상=오른쪽 연하늘 / 무사진 라운딩=왼쪽 스코어색) 생략.
-//                          홈 '친구 소식'은 짙은 녹색 배경이라 흰 카드 옆 색띠가 테두리처럼 튀어 뺀다(사용자 2026-09-17).
+//  - onDark              : 짙은 배경(홈 '친구 소식', #0a1e10)용. ①옆면 3px 띠(일상=오른쪽 연하늘 / 무사진 라운딩=왼쪽 스코어색)
+//                          ②카드 0.5px 연베이지 테두리(크림 배경에선 안 보이는데 짙은 배경에선 흰 선으로 튐) ③iOS 그림자용 흰 래퍼 — 셋 다 뺀다(사용자 2026-09-17).
 // React.memo — 부모(DiaryScreen) 리렌더(스크롤 feedLimit·검색·선택)마다 props 안 바뀐 카드는 건너뜀.
 //   onPress는 부모에서 useCallback으로 안정화, friendGroups·friendNameByUid는 state(로드 후 안정), avgScore는 숫자.
-function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups, collapseSignal = 0, noStripe = false }) {
+function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, variant = 'mine', myUid, onOpenPhoto, friendNameByUid, onReport, friendGroups, collapseSignal = 0, onDark = false }) {
   const [expanded, setExpanded] = useState(false);
   const [showLikers, setShowLikers] = useState(false); // 내 글 — 누가 좋아요 눌렀나 팝업
   const isFriend = variant === 'friend';
@@ -59,11 +59,15 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   //   onReport 미연결이면 그대로 통과. 일상·라운드 4갈래 모두 같은 래퍼로 감싼다(탭은 내부 사진/좋아요가 처리).
   const wrapFriend = (children) => {
     // cardShadow: iOS 입체감 래퍼(카드 overflow:hidden 회피). 친구 4갈래 공통 통과 지점.
-    const shadowed = <View style={dS.cardShadow}>{children}</View>;
+    //   onDark(홈)에선 흰 배경 래퍼가 카드 가장자리에 흰 선으로 비쳐 투명 래퍼로(짙은 배경엔 그림자도 안 보임).
+    const shadowed = <View style={onDark ? { borderRadius: 14 } : dS.cardShadow}>{children}</View>;
     return onReport ? (
       <Pressable onLongPress={() => onReport(item)} delayLongPress={350}>{shadowed}</Pressable>
     ) : shadowed;
   };
+
+  // 짙은 배경용 카드 보정 — 0.5px 연베이지 테두리 제거(짙은 배경에선 흰 테두리로 보임). 띠는 각 분기에서 생략.
+  const darkCard = onDark ? { borderWidth: 0 } : null;
 
   // 좋아요 상태 — 친구 변형에서만 의미. (훅은 항상 호출)
   const likedInit = !!(myUid && (item.likes || []).includes(myUid));
@@ -279,7 +283,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
     // 글만 일상 — 사진이 없어 본문이 주인공이라 더 크게 (사용자 2026-06-16)
     const momentTextOnlyStyle = { fontFamily: F.sys, fontSize: fs(16), color: C.textPrimary, lineHeight: 24 };
     // 일상 구분 — 흰 바탕(라운딩 기록과 통일). 라운딩은 '왼쪽' 띠, 일상은 '오른쪽' 띠 → 자리로 구분(색 절제, 빈티지 인상 제거).
-    const momentCard = noStripe ? [dS.card] : [dS.card, { borderRightWidth: 3, borderRightColor: C.paleSky }];
+    const momentCard = onDark ? [dS.card, darkCard] : [dS.card, { borderRightWidth: 3, borderRightColor: C.paleSky }];
     if (hasPhoto) {
       // withDate=true → 사진 위 날짜 그라데이션(친구 카드). 내 카드는 날짜를 아래 더보기 줄로 옮김(false).
       const photoEl = (withDate) => (
@@ -398,7 +402,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
     return (
       <>
       {shell(
-        <TouchableOpacity style={[dS.card, highlight && dS.cardSpecial]} activeOpacity={isFriend ? 1 : 0.88}
+        <TouchableOpacity style={[dS.card, darkCard, highlight && dS.cardSpecial]} activeOpacity={isFriend ? 1 : 0.88}
           disabled={isFriend} onPress={isFriend ? undefined : () => onPress(item)}>
           {highlight && <View style={dS.cardSpecialLine} />}
           {photoHero(isFriend
@@ -428,7 +432,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   return (
     <>
     {shell(
-      <TouchableOpacity style={[dS.card, highlight ? dS.cardSpecial : (noStripe ? null : { borderLeftWidth: 3, borderLeftColor: lineColor })]}
+      <TouchableOpacity style={[dS.card, darkCard, highlight ? dS.cardSpecial : (onDark ? null : { borderLeftWidth: 3, borderLeftColor: lineColor })]}
         activeOpacity={isFriend ? 1 : 0.88} disabled={isFriend} onPress={isFriend ? undefined : () => onPress(item)}>
         {highlight && <View style={dS.cardSpecialLine} />}
         {isSpecial && (

@@ -2121,8 +2121,8 @@ export function HomeScreen({ navigation, route }) {
                       )}
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }} numberOfLines={1}>{d._friendName}</Text>
                     </TouchableOpacity>
-                    {/* noStripe — 짙은 홈 배경에선 카드 옆 3px 띠가 테두리처럼 보여 홈에서만 뺀다(친구 탭은 그대로) */}
-                    <DiaryCard item={d} variant="friend" myUid={currentUid} noStripe
+                    {/* onDark — 짙은 홈 배경에선 카드 옆 3px 띠·0.5px 연베이지 테두리·흰 그림자 래퍼가 흰 선으로 보여 홈에서만 뺀다(친구 탭은 그대로) */}
+                    <DiaryCard item={d} variant="friend" myUid={currentUid} onDark
                       onOpenPhoto={(photos, index) => setFeedViewer({ photos, index })} />
                   </View>
                 );

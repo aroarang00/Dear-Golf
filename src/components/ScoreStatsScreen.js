@@ -632,7 +632,8 @@ function CourseScores({ scored }) {
                         {isBest && <Icon name="trophy" size={fs(12)} />}
                       </View>
                       {/* 베스트 점수 — 흰 카드 위라 연한 골드(#C9A84C)는 흐려 보임 → 진한 골드(CourseLogTab '베스트' 라벨과 동일) */}
-                      <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(13.5), color: isBest ? '#A8801E' : C.charcoal }}>{v.score}</Text>
+                      {/* 베스트만 볼드 14 — 나머지는 미디엄 13으로 한 단계 내려 베스트가 눈에 먼저 들어오게(사용자 2026-09-17) */}
+                      <Text style={{ width: 44, textAlign: 'center', fontFamily: isBest ? F.sysB : F.sysM, fontSize: fs(isBest ? 14 : 13), color: isBest ? '#A8801E' : C.charcoal }}>{v.score}</Text>
                     </View>
                   );
                 })}
