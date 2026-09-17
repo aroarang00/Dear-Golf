@@ -616,7 +616,8 @@ function CourseScores({ scored }) {
                 {expandable && <Text style={{ fontSize: fs(9), color: C.warmGray, marginLeft: 5 }}>{isOpen ? '▴' : '▾'}</Text>}
               </View>
               <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sys, fontSize: fs(12), color: C.warmGray }}>{r.count}</Text>
-              <Text style={{ width: 52, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(13.5), color: '#C9A84C' }}>{r.best}</Text>
+              {/* ★fs() 함정 — 13.5는 +3 보정 범위 밖이라 실제 13.5로, 평균 fs(12.5)=15.5보다 작았음 → 16.5(사용자 2026-09-17) */}
+              <Text style={{ width: 52, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(16.5), color: '#C9A84C' }}>{r.best}</Text>
               <Text style={{ width: 44, textAlign: 'center', fontFamily: F.sysM, fontSize: fs(12.5), color: C.charcoal }}>{r.avg}</Text>
             </TouchableOpacity>
             {expandable && isOpen && (
@@ -632,8 +633,10 @@ function CourseScores({ scored }) {
                         {isBest && <Icon name="trophy" size={fs(12)} />}
                       </View>
                       {/* 베스트 점수 — 흰 카드 위라 연한 골드(#C9A84C)는 흐려 보임 → 진한 골드(CourseLogTab '베스트' 라벨과 동일) */}
-                      {/* 베스트만 볼드 14 — 나머지는 미디엄 13으로 한 단계 내려 베스트가 눈에 먼저 들어오게(사용자 2026-09-17) */}
-                      <Text style={{ width: 44, textAlign: 'center', fontFamily: isBest ? F.sysB : F.sysM, fontSize: fs(isBest ? 14 : 13), color: isBest ? '#A8801E' : C.charcoal }}>{v.score}</Text>
+                      {/* 베스트만 볼드 — 나머지는 미디엄으로 한 단계 내려 베스트가 눈에 먼저 들어오게(사용자 2026-09-17).
+                          ★fs() 함정: 11~13은 +3 보정(BODY_BUMP)이라 fs(13)=16인데 fs(14)=14 — 베스트를 14로 줬더니 오히려 작아졌음.
+                          보정 범위 밖 크기끼리 비교해야 함: 나머지 fs(13)=16 / 베스트 fs(17)=17 */}
+                      <Text style={{ width: 44, textAlign: 'center', fontFamily: isBest ? F.sysB : F.sysM, fontSize: fs(isBest ? 17 : 13), color: isBest ? '#A8801E' : C.charcoal }}>{v.score}</Text>
                     </View>
                   );
                 })}
