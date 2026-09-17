@@ -9,6 +9,19 @@ import { toggleRoundLike, getRoundLikeState } from './round';
 
 const KEY = STORAGE_KEYS.pendingLikes;
 
+// ★앱 안 '내 좋아요' 공유 메모장(2026-09-17) — 홈 친구소식·친구 피드·친구 탭이 같은 글을 각자 불러와 카드마다
+//   하트 상태를 따로 기억해서, 한 화면에서 누르면 다른 화면은 옛 상태 그대로였다(사용자: "다시 눌러야 하고 반대도 마찬가지").
+//   어느 화면에서 누르든 여기에 먼저 적고, 모든 카드가 구독해 동시에 바뀐다. 세션 메모리만(서버 진실은 rounds.likes).
+const _myLikes = new Map();       // roundId → bool (이 세션에서 내가 정한 상태)
+const _subs = new Set();          // 변경 알림 콜백
+export function getMyLike(roundId) { return _myLikes.has(roundId) ? _myLikes.get(roundId) : null; }
+export function setMyLike(roundId, like) {
+  if (!roundId) return;
+  _myLikes.set(roundId, !!like);
+  _subs.forEach((fn) => { try { fn(roundId); } catch {} });
+}
+export function subscribeMyLikes(fn) { _subs.add(fn); return () => _subs.delete(fn); }
+
 // 동시 토글의 read-modify-write 경쟁 완화 — 큐 갱신을 순차 체인으로 직렬화.
 let _chain = Promise.resolve();
 function serialize(fn) {

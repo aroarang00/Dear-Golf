@@ -8,7 +8,7 @@ import { hofBgColor } from './HallOfFameCard';
 import { MediaCarousel } from './common/MediaCarousel';
 import { Icon } from './common/Icon'; // 좋아요 = 하트 아이콘(엄지 대체)
 import { WhoLikedModal } from './common/WhoLikedModal';
-import { queueLike } from '../utils/pendingLikes'; // 좋아요 유실 방지 — 대기 큐(약전파/앱종료에도 결국 반영)
+import { queueLike, getMyLike, setMyLike, subscribeMyLikes } from '../utils/pendingLikes'; // 좋아요 유실 방지 대기 큐 + 화면 간 공유 메모장
 import { showAppAlert } from './AppAlert'; // 좋아요 실패 안내 — 조용한 롤백이 '안 눌림'으로 보이던 것(2026-08-26)
 import { ownerVisibilityLabel } from '../utils/friendGroups';
 import { getPhotoRatio, feedFrameAspect, firstPhotoUri, ratiosReady } from '../utils/photoRatio';   // 사진에 맞는 카드 틀(4:3·1:1·4:5)
@@ -70,18 +70,24 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   const darkCard = onDark ? { borderWidth: 0 } : null;
 
   // 좋아요 상태 — 친구 변형에서만 의미. (훅은 항상 호출)
+  //   ★화면 간 공유(2026-09-17): 카드마다 useState로 따로 기억하던 것을 앱 공용 메모장(getMyLike)이 우선하게 바꿈.
+  //   홈 친구소식·친구 피드·친구 탭이 같은 글을 각자 불러와도, 한 곳에서 누르면 구독으로 전부 같이 바뀐다.
+  //   메모장에 없으면(이 세션에서 안 누름) 글 데이터의 likes로 판단.
   const likedInit = !!(myUid && (item.likes || []).includes(myUid));
-  const [liked, setLiked] = useState(likedInit);
+  const [, setLikeTick] = useState(0);   // 메모장 변경 알림 → 재렌더용(값 자체는 안 씀)
+  useEffect(() => subscribeMyLikes((rid) => { if (rid === item.id) setLikeTick((n) => n + 1); }), [item.id]);
+  const likeOverride = getMyLike(item.id);
+  const liked = likeOverride != null ? likeOverride : likedInit;
   const likeOthers = (item.likes || []).filter(u => u !== myUid).length;
   const likeCount = likeOthers + (liked ? 1 : 0);
   const onToggleLike = () => {
     const next = !liked;
-    setLiked(next);
+    setMyLike(item.id, next);   // 공유 메모장에 먼저 — 이 카드 포함 모든 화면의 같은 글 하트가 즉시 바뀜
     // 대기 큐 — 의도를 기기에 저장하고 반영 시도. 약전파/앱종료로 실패해도 유실 없이 나중에 재전송된다.
     //   'pending'(일시 실패)이면 하트 유지(큐가 처리). 'permanent'(권한·삭제)일 때만 되돌리고 안내.
     queueLike(item.id, next).then((res) => {
       if (res === 'permanent') {
-        setLiked(!next);
+        setMyLike(item.id, !next);
         showAppAlert('좋아요를 남길 수 없어요',
           '이 글에는 좋아요를 남길 수 없어요.\n(공개 범위 제한 글이거나 삭제된 글일 수 있어요)',
           [{ text: '확인' }]);
