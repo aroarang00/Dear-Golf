@@ -825,12 +825,41 @@ export function HomeScreen({ navigation, route }) {
   // ★2026-09-21 크림 불투명 카드로 — 달력·D-N·메모 세 장이 같은 반투명 유리라 "회색 판 세 장"으로 평면적(사용자 스샷).
   //   D-N만 크림(C.bgPrimary, 최근 기록 목록과 같은 톤)+그림자로 띄워 주인공을 만든다. 글씨는 전부 진한 색으로.
   const HERO_TXT_DIM = 'rgba(61,57,53,0.5)';   // 크림 위 보조 글씨(› 화살표 등)
-  const renderNextCard = (s) => {
+  // ★캐러셀 깊이(2026-09-21, 사용자 "선택되면 위로 올라오는 느낌") — 가운데 온 카드만 원래 크기, 옆으로 밀려난 카드는
+  //   95%·6px 아래로 내려앉는다 → 넘길 때 카드가 '올라왔다 내려가는' 움직임이 항상 보인다. scrollX는 네이티브 드라이버.
+  //   카드 위치: 인덱스 i의 시작 x = cardOffsetAt(i). D-0(당일)이면 첫 장이 전폭이라 첫 간격만 다르다. 스냅도 같은 오프셋.
+  const CARD_STEP = CARD_W + 10;                       // 카드 폭 + gap
+  const cardOffsetAt = (i) => (i <= 0 ? 0 : (isD0 ? (winW - SIDE_PAD * 2 + 10) : CARD_STEP) + (i - 1) * CARD_STEP);
+  const cardsScrollX = useRef(new Animated.Value(0)).current;
+  const cardDepthStyle = (i) => {
+    const lo = i === 0 ? -CARD_STEP : cardOffsetAt(i - 1);
+    const range = [lo, cardOffsetAt(i), cardOffsetAt(i + 1)];
+    return { transform: [
+      { scale: cardsScrollX.interpolate({ inputRange: range, outputRange: [0.95, 1, 0.95], extrapolate: 'clamp' }) },
+      { translateY: cardsScrollX.interpolate({ inputRange: range, outputRange: [6, 0, 6], extrapolate: 'clamp' }) },
+    ] };
+  };
+  // ★등장(2026-09-21) — 홈에 올 때(마운트·탭 복귀) 히어로 캐러셀이 아래에서 살짝 떠오르며 나타난다.
+  //   카드가 한 장뿐이면 깊이 효과가 안 보여서, 그 경우에도 '떠오름'이 있게. 380ms 한 번, 이후 정지.
+  const heroEnter = useRef(new Animated.Value(0)).current;
+  const playHeroEnter = () => {
+    heroEnter.setValue(0);
+    Animated.timing(heroEnter, { toValue: 1, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  };
+  useEffect(() => {
+    playHeroEnter();
+    if (!navigation?.addListener) return undefined;
+    return navigation.addListener('focus', playHeroEnter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const heroEnterStyle = { opacity: heroEnter, transform: [{ translateY: heroEnter.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] };
+  const renderNextCard = (s, i = 0) => {
     const names = (s.companions || []).map(c => (c?.name || '').trim()).filter(Boolean);
     const total = Number(s.members) || (names.length + 1);
     const shown = names.slice(0, 4);
     return (
-      <PressScale key={s.id} onPress={() => openScheduleSheet(s)}
+      <Animated.View key={s.id} style={cardDepthStyle(i)}>
+      <PressScale onPress={() => openScheduleSheet(s)}
         style={{ width: CARD_W }} shadow={{ radius: 20, bg: C.bgPrimary }} contentStyle={{ padding: 18 }}>
         <SurfaceLight radius={20} />
         {/* 골드 알약 — 다음 라운딩 · D-N (D-N은 여기 안에 작게) */}
@@ -894,6 +923,7 @@ export function HomeScreen({ navigation, route }) {
           );
         })()}
       </PressScale>
+      </Animated.View>
     );
   };
   // 체크인 배너 맥동 — 활성일 때만 루프(은은한 scale + 골드 오버레이 opacity 펄스). MyScheduleTab 코스버튼과 동일 톤.
@@ -1604,8 +1634,12 @@ export function HomeScreen({ navigation, route }) {
             )}
           </View>
           {/* (체크인 배너는 헤더 '이용 안내' 자리로 이동 — 박스 중복 제거) */}
-          <ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: SIDE_PAD, gap: 10 }}>
+          <Animated.View style={heroEnterStyle}>
+          <Animated.ScrollView ref={cardsScrollRef} horizontal showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: SIDE_PAD, gap: 10 }}
+            onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: cardsScrollX } } }], { useNativeDriver: true })}
+            scrollEventThrottle={16}
+            snapToOffsets={upcomingSchedules.map((_, i) => cardOffsetAt(i))} decelerationRate="fast">
             {/* D-0이면 첫 카드 전폭(이후 서브카드는 옆으로 스와이프해서 봄). 높이·패딩은 CARD_H/CARD_PAD 단일 소스로 D-N 카드와 항상 동일.
                 ★카드 높이 항상 고정(height) — 내용이 많아도 카드가 높아지지 않게(세부코스·확대 등). 넘침은 overflow hidden으로
                   경계 유지하되, 잘림이 안 보이게 내용은 폰트 축소(adjustsFontSizeToFit)·간격(flex)으로 CARD_H 안에 조정. iOS·안드 공통(2026-06-24). */}
@@ -1743,9 +1777,10 @@ export function HomeScreen({ navigation, route }) {
             ) : renderNextCard(next)}
 
             {/* 다가오는 라운딩 전부 — 같은 와이드 히어로 카드로 스와이프(개수 제한 없음, 일정 하나하나 다 소중히). D-0이면 그날 카드 뒤로. */}
-            {upcomingSchedules.slice(1).map(renderNextCard)}
+            {upcomingSchedules.slice(1).map((s, i) => renderNextCard(s, i + 1))}
 
-          </ScrollView>
+          </Animated.ScrollView>
+          </Animated.View>
 
           {/* 배너 큐가 하나라도 떠 있으면(topBanner) 아래 구분선+한줄메모/코멘트 카드를 숨김 — 좁은 화면 겹침 방지(다 처리하면 복원). 사용자 지정 2026-06-18, 큐로 통합 2026-07-23. */}
           {!topBanner && (<>
