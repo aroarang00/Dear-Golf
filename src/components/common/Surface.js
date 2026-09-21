@@ -32,19 +32,24 @@ export const LIFT_CONTACT = { shadowColor: '#000', shadowOffset: { width: 0, hei
 
 // shadow={{ radius, bg }}를 주면 두 겹 그림자 구조(바깥 Animated.View=ambient / 안쪽 View=contact+contentStyle)로 그린다.
 //   이때 style엔 폭·마진만, 패딩은 contentStyle로. shadow 없으면 예전처럼 style 하나.
-export function PressScale({ onPress, onLongPress, disabled, style, contentStyle, shadow, children, activeScale = 0.98, hitSlop, delayLongPress }) {
-  const v = useRef(new Animated.Value(1)).current;
-  const to = (x) => Animated.spring(v, { toValue: x, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+// mode: 'press'(기본) = 누르는 동안 0.98로 눌림 / 'lift' = 누르는 동안 5px 위로 떠오르며 1.01(사용자 2026-09-21 "선택되면 살짝 위로").
+//   내부 값 p(0→1)를 스프링으로 움직이고 scale·translateY를 보간 — 네이티브 드라이버.
+export function PressScale({ onPress, onLongPress, disabled, style, contentStyle, shadow, children, activeScale = 0.98, mode = 'press', hitSlop, delayLongPress }) {
+  const p = useRef(new Animated.Value(0)).current;
+  const to = (x) => Animated.spring(p, { toValue: x, useNativeDriver: true, speed: 40, bounciness: mode === 'lift' ? 6 : 0 }).start();
+  const scale = p.interpolate({ inputRange: [0, 1], outputRange: [1, mode === 'lift' ? 1.01 : activeScale] });
+  const translateY = p.interpolate({ inputRange: [0, 1], outputRange: [0, mode === 'lift' ? -5 : 0] });
+  const anim = { transform: [{ translateY }, { scale }] };
   const body = shadow ? (
-    <Animated.View style={[style, { borderRadius: shadow.radius, backgroundColor: shadow.bg }, LIFT_AMBIENT, { transform: [{ scale: v }] }]}>
+    <Animated.View style={[style, { borderRadius: shadow.radius, backgroundColor: shadow.bg }, LIFT_AMBIENT, anim]}>
       <View style={[{ borderRadius: shadow.radius, backgroundColor: shadow.bg }, LIFT_CONTACT, contentStyle]}>{children}</View>
     </Animated.View>
   ) : (
-    <Animated.View style={[style, contentStyle, { transform: [{ scale: v }] }]}>{children}</Animated.View>
+    <Animated.View style={[style, contentStyle, anim]}>{children}</Animated.View>
   );
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} disabled={disabled} hitSlop={hitSlop} delayLongPress={delayLongPress}
-      onPressIn={() => to(activeScale)} onPressOut={() => to(1)}>
+      onPressIn={() => to(1)} onPressOut={() => to(0)}>
       {body}
     </Pressable>
   );

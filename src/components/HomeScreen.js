@@ -831,7 +831,7 @@ export function HomeScreen({ navigation, route }) {
     const shown = names.slice(0, 4);
     return (
       <PressScale key={s.id} onPress={() => openScheduleSheet(s)}
-        style={{ width: CARD_W }} shadow={{ radius: 20, bg: C.bgPrimary }} contentStyle={{ padding: 18 }}>
+        style={{ width: CARD_W }} shadow={{ radius: 20, bg: C.bgPrimary }} contentStyle={{ padding: 18 }} mode="lift">
         <SurfaceLight radius={20} />
         {/* 골드 알약 — 다음 라운딩 · D-N (D-N은 여기 안에 작게) */}
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
