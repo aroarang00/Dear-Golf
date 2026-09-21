@@ -40,7 +40,7 @@ import { AlarmSetupModal, QuickMealPrompt } from './AlarmSetupModal';
 import { scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms, computeRoundTimeline } from '../utils/notifications';
 import { getTopComment } from '../utils/courseComments';
 import { isRoundDiary } from '../utils/diaryKind';
-import { courseKey } from '../utils/courseNameKey';   // 구장 매칭 기준 하나(normalizeCourseName) — 홈 '나도 가 본 구장'·비교 줄(2026-09-21)
+import { courseKey, findCourseByName } from '../utils/courseNameKey';   // 구장 매칭 기준 하나(normalizeCourseName) — 홈 '나도 가 본 구장'·비교 줄(2026-09-21)
 import { firstPhotoUri } from '../utils/photoRatio';
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { ScoreBanner, ScoreStatsScreen } from './ScoreStatsScreen';
@@ -144,7 +144,16 @@ export function HomeScreen({ navigation, route }) {
   useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
   // 코스 지도 프리페치 — 마스터(477곳)·100대를 홈에서 미리 당겨 모듈 캐시에 적재(fire-and-forget).
   //   코스 탭은 lazy 마운트라 탭 연 뒤에야 로드가 시작돼 핀이 2~3초 늦게 뜨던 것(사용자 2026-08-26).
-  useEffect(() => { getGolfCourses().catch(() => {}); getTop100Courses().catch(() => {}); }, []);
+  // 구장 DB 목록 — '나도 가 본 구장'·비교 줄의 구장 키 통일용(표기가 갈린 같은 구장을 하나로). 프리페치 결과 재사용(추가 read 0).
+  const [courseDb, setCourseDb] = useState([]);
+  useEffect(() => { getGolfCourses().then(l => setCourseDb(Array.isArray(l) ? l : [])).catch(() => {}); getTop100Courses().catch(() => {}); }, []);
+  // 구장 키 — DB에서 찾아지면 kakaoId(같은 구장의 표기 차이 '신라CC'/'여주신라CC'를 하나로), 못 찾으면 이름 정규화 키.
+  //   ★"누구 글엔 뜨고 누구 글엔 안 뜬다"(사용자 2026-09-21) = 같은 구장을 친구마다 다르게 적어서. 이름 문자열로만 비교하면 못 합친다.
+  const resolveCourseKey = (name) => {
+    if (!name) return '';
+    const c = courseDb.length ? findCourseByName(courseDb, name) : null;
+    return c?.kakaoId ? `id:${c.kakaoId}` : courseKey(name);
+  };
   // 홈 스크롤 원위치 — 다른 탭 갔다 오면 맨 위부터(사용자 2026-08-27, 코스 탭 blur 리셋과 동일 컨벤션).
   //   blur에서 애니메이션 없이 올려 돌아올 때 이미 맨 위 상태로 보인다. 재탭(tabPress)도 동일.
   const homeScrollRef = useRef(null);
@@ -865,7 +874,7 @@ export function HomeScreen({ navigation, route }) {
               <TouchableOpacity onPress={() => { setSelectedSchedule(s); setShowWeatherFull(true); }} activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 4 }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
-                <WeatherGlyph icon={info.icon || '⛅'} size={fs(25)} />
+                <WeatherGlyph icon={info.icon || '⛅'} size={fs(25)} tone="light" />
                 <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
                   {info.wx || '날씨'}<Text style={{ color: HERO_TXT_DIM }}> ›</Text>
                 </Text>
@@ -1367,7 +1376,7 @@ export function HomeScreen({ navigation, route }) {
   const myCourseStats = useMemo(() => {
     const m = new Map();
     (diaries || []).filter(isRoundDiary).forEach(d => {
-      const k = courseKey(d.course);
+      const k = resolveCourseKey(d.course);
       if (!k) return;
       const e = m.get(k) || { count: 0, best: null, scored: [] };
       e.count += 1;
@@ -1379,7 +1388,8 @@ export function HomeScreen({ navigation, route }) {
     });
     m.forEach(e => e.scored.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)));
     return m;
-  }, [diaries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diaries, courseDb]);
   // 내 평균 — 스코어 배너(ScoreBanner)와 같은 식: 타수 있는 라운딩 전체 평균, 반올림. 숫자가 서로 어긋나지 않게.
   const myScored = useMemo(() => (diaries || []).filter(isRoundDiary).map(d => d.score).filter(v => typeof v === 'number' && v > 0), [diaries]);
   const myAvgScore = myScored.length ? Math.round(myScored.reduce((a, b) => a + b, 0) / myScored.length) : null;
@@ -1387,7 +1397,7 @@ export function HomeScreen({ navigation, route }) {
   //   good: true=줄었다(잘 침) / false=늘었다 / null=같다
   const heroCompare = (hero) => {
     if (!hero || typeof hero.score !== 'number' || hero.score <= 0) return null;
-    const st = myCourseStats.get(courseKey(hero.course));
+    const st = myCourseStats.get(resolveCourseKey(hero.course));
     const prev = st ? st.scored.find(r => r.date && r.date < (hero.date || '')) : null;
     if (prev) {
       const diff = hero.score - prev.score;
@@ -2156,7 +2166,7 @@ export function HomeScreen({ navigation, route }) {
                       onOpenPhoto={(photos, index) => setFeedViewer({ photos, index })} />
                     {/* "나도 가 본 구장" — 친구 글을 내 기록과 연결(2026-09-21). 내 라운딩이 그 구장에 있을 때만. 일상(구장 없음)은 자동 제외 */}
                     {(() => {
-                      const st = d.course ? myCourseStats.get(courseKey(d.course)) : null;
+                      const st = d.course ? myCourseStats.get(resolveCourseKey(d.course)) : null;
                       if (!st || !st.count) return null;
                       return (
                         <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.82)', marginTop: 9, marginLeft: 4, textShadowColor: 'rgba(0,0,0,0.45)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>

@@ -32,10 +32,19 @@ export function findCourseByName(list, name) {
   if (exact) return exact;
   return list.find(c => {
     const got = normalizeCourseName(c?.name);
-    if (!got || got.length < 2 || !want.startsWith(got)) return false;
-    const tail = want.slice(got.length);            // 예: '포천'
-    if (!tail || tail.length > 5) return false;
+    if (!got || got.length < 2) return false;
     const loc = String(c?.loc || '').replace(/\s+/g, '');
-    return !!loc && loc.includes(tail);             // 주소에 그 지역명이 있어야 인정
+    if (!loc) return false;
+    if (want.startsWith(got)) {
+      const tail = want.slice(got.length);            // 예: '포천'
+      return !!tail && tail.length <= 5 && loc.includes(tail);   // 주소에 그 지역명이 있어야 인정
+    }
+    // ★지역명이 앞에 붙은 경우(2026-09-21) — '여주신라CC' vs DB '신라CC'(주소 여주시). 홈 '나도 가 본 구장'이
+    //   같은 구장인데 친구 글 표기에 따라 뜨다 말다 해서. 남는 머리가 2~5자이고 주소에 실제로 있을 때만(1자는 우연 일치 위험).
+    if (want.endsWith(got)) {
+      const head = want.slice(0, want.length - got.length);
+      return head.length >= 2 && head.length <= 5 && loc.includes(head);
+    }
+    return false;
   }) || null;
 }

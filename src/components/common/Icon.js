@@ -9,6 +9,10 @@ import { C } from '../../constants/colors';
 // 날씨 아이콘 멀티컬러 — 각 path에 직접 stroke 지정(Icon의 단색 color 무시). 어두운 카드/날씨화면 기준.
 // sun=앰버골드(버터 UI와 분리돼 '태양' 포인트로 살게, 2026-06-21). 버터(#F5E6A8) → #F2B441
 const WXC = { sun: '#F2B441', cloud: '#FFFFFF', rain: '#7FB3E0', snow: '#CFE3F2' };
+// ★밝은 배경용(2026-09-21) — 홈 D-N 카드가 크림 불투명이 되면서 흰 구름이 사라짐(사용자). tone="light"로 선택.
+//   구름=웜그레이(크림 위에 보이면서 '흐림' 느낌), 해·비·눈은 한 단계 진하게.
+const WXC_LIGHT = { sun: '#D9971E', cloud: '#9A948C', rain: '#4F8FC4', snow: '#7FB0D6' };
+const wxc = (tone) => (tone === 'light' ? WXC_LIGHT : WXC);
 // 통일 구름 — 흐림·비·눈 공용(같은 채움 구름, 같은 크기/위치). 비·눈은 아래에 빗줄기/눈송이만 추가.
 const WX_CLOUD = { d: 'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z', tf: 'translate(-1.5 -4.9) scale(1.125)' };
 const ICONS = {
@@ -302,44 +306,44 @@ const ICONS = {
   // ☀️ 맑음 — 해(원 + 광선 8개). 광선은 길고 굵게(작은 크기서도 햇살 보이게).
   //   ★iOS 경로 파서가 'M12 1.8V5.4'처럼 숫자 뒤 V/H를 못 읽어 광선 Path를 통째로 누락(원만 남음) →
   //     공백 있는 L 명령으로 변환. 중첩 G 상속도 iOS서 불안정해 각 요소에 fill/stroke 직접 지정. ([[rn-platform-gotchas]])
-  sun: () => (
+  sun: (c, tone) => (
     <>
-      <Circle cx="12" cy="12" r="3.9" fill="none" stroke={WXC.sun} strokeWidth="2.2" />
+      <Circle cx="12" cy="12" r="3.9" fill="none" stroke={wxc(tone).sun} strokeWidth="2.2" />
       <Path
         d="M12 1.8 L12 5.4 M12 18.6 L12 22.2 M1.8 12 L5.4 12 M18.6 12 L22.2 12 M4.6 4.6 L7.1 7.1 M16.9 16.9 L19.4 19.4 M4.6 19.4 L7.1 16.9 M16.9 7.1 L19.4 4.6"
-        fill="none" stroke={WXC.sun} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+        fill="none" stroke={wxc(tone).sun} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
       />
     </>
   ),
   // ☁️ 흐림 — 통일 구름
-  cloud: () => (
-    <Path d={WX_CLOUD.d} fill={WXC.cloud} stroke="none" transform={WX_CLOUD.tf} />
+  cloud: (c, tone) => (
+    <Path d={WX_CLOUD.d} fill={wxc(tone).cloud} stroke="none" transform={WX_CLOUD.tf} />
   ),
   // 🌤️·⛅ 구름조금 — 해 + 구름(해가 보이게 우하단 구름 합성, 전체 1.1배)
   //   sun과 동일하게 iOS 파서 안전(공백 L)·요소별 속성 직접 지정. 좌표는 기존과 동일.
-  cloudSun: () => (
+  cloudSun: (c, tone) => (
     <G transform="translate(-1.2 -1.2) scale(1.1)">
       <Path
         d="M12 2 L12 4 M4.93 4.93 L6.34 6.34 M20 12 L22 12 M19.07 4.93 L17.66 6.34 M15.947 12.65 a4 4 0 0 0 -5.925 -4.128"
-        fill="none" stroke={WXC.sun} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+        fill="none" stroke={wxc(tone).sun} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
       />
-      <Path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z" fill={WXC.cloud} stroke="none" />
+      <Path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z" fill={wxc(tone).cloud} stroke="none" />
     </G>
   ),
   // 🌧️·🌦️ 비 — 통일 구름 + 빗줄기 (iOS 파서 안전: 공백 L + 요소별 속성 직접)
-  rain: () => (
+  rain: (c, tone) => (
     <>
-      <Path d={WX_CLOUD.d} fill={WXC.cloud} stroke="none" transform={WX_CLOUD.tf} />
+      <Path d={WX_CLOUD.d} fill={wxc(tone).cloud} stroke="none" transform={WX_CLOUD.tf} />
       <Path d="M8 17.6 L8 21.2 M12 18.6 L12 22.2 M16 17.6 L16 21.2"
-        fill="none" stroke={WXC.rain} strokeLinecap="round" strokeLinejoin="round" />
+        fill="none" stroke={wxc(tone).rain} strokeLinecap="round" strokeLinejoin="round" />
     </>
   ),
   // ❄️·🌨️ 눈 — 통일 구름 + 눈송이(둥근 점=strokeLinecap round 필수). iOS 파서 안전: 공백 L.
-  snow: () => (
+  snow: (c, tone) => (
     <>
-      <Path d={WX_CLOUD.d} fill={WXC.cloud} stroke="none" transform={WX_CLOUD.tf} />
+      <Path d={WX_CLOUD.d} fill={wxc(tone).cloud} stroke="none" transform={WX_CLOUD.tf} />
       <Path d="M8 18 L8.01 18 M8 21.2 L8.01 21.2 M12 19.4 L12.01 19.4 M12 22.6 L12.01 22.6 M16 18 L16.01 18 M16 21.2 L16.01 21.2"
-        fill="none" stroke={WXC.snow} strokeLinecap="round" strokeLinejoin="round" />
+        fill="none" stroke={wxc(tone).snow} strokeLinecap="round" strokeLinejoin="round" />
     </>
   ),
   // 🚗 교통 — 옆에서 본 스포티 쿠페(낮은 루프·눕힌 윈드실드·패스트백). 토이 느낌 줄임.
@@ -674,13 +678,13 @@ const WX_ICON = {
   '🌧️': 'rain', '🌦️': 'rain',
   '❄️': 'snow', '🌨️': 'snow',
 };
-export function WeatherGlyph({ icon, size = 22 }) {
+export function WeatherGlyph({ icon, size = 22, tone }) {   // tone="light" — 크림 등 밝은 배경 위(홈 D-N 카드)
   const name = WX_ICON[icon];
-  if (name) return <Icon name={name} size={size} strokeWidth={1.8} />;
+  if (name) return <Icon name={name} size={size} strokeWidth={1.8} tone={tone} />;
   return <Text style={{ fontSize: size }}>{icon}</Text>; // 매핑 없는 이모지는 그대로
 }
 
-export function Icon({ name, size = 22, color = C.charcoal, strokeWidth = 1.8 }) {
+export function Icon({ name, size = 22, color = C.charcoal, strokeWidth = 1.8, tone }) {
   const render = ICONS[name];
   if (!render) return null;
   return (
@@ -688,7 +692,7 @@ export function Icon({ name, size = 22, color = C.charcoal, strokeWidth = 1.8 })
     // 부모 상속(none) 대신 SVG 기본값(검정 채움)으로 떨어짐(크루 좋아요 취소→검정 하트, 실기기 보고) → 교체 시 강제 리마운트.
     <Svg key={name} width={size} height={size} viewBox="0 0 24 24">
       <G fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
-        {render(color)}
+        {render(color, tone)}
       </G>
     </Svg>
   );
