@@ -93,7 +93,7 @@ export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible 
   const SPARK_W = Dimensions.get('window').width - 16 * 2 - 16 * 2;   // margin16*2 + padding16*2
 
   return (
-    <PressScale style={[{ marginHorizontal: 16, marginVertical: 8, backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14 }, style]}
+    <PressScale style={[{ marginHorizontal: 16, marginVertical: 8 }, style]} shadow={{ radius: 12, bg: C.navy }} contentStyle={{ paddingHorizontal: 16, paddingVertical: 14 }}
       onPress={onPress}>
       <SurfaceLight radius={12} tone="dark" />
       {/* 상단 — 제목 + 평균·베스트·핸디 */}

@@ -35,7 +35,7 @@ export function LedgerBanner({ diaries = [], onPress, style }) {
 
   return (
     <PressScale onPress={onPress}
-      style={[{ backgroundColor: C.charcoalDeep, borderRadius: 16, padding: 18 }, style]}>
+      style={style} shadow={{ radius: 16, bg: C.charcoalDeep }} contentStyle={{ padding: 18 }}>
       <SurfaceLight radius={16} tone="dark" />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

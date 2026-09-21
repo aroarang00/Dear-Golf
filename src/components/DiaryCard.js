@@ -6,7 +6,7 @@ import { dS } from '../styles/dS';
 import { getTagColor } from '../utils/helpers';
 import { hofBgColor } from './HallOfFameCard';
 import { MediaCarousel } from './common/MediaCarousel';
-import { SurfaceLight } from './common/Surface';   // 카드 표면 빛(2026-09-21)
+import { SurfaceLight, LIFT_AMBIENT, LIFT_CONTACT } from './common/Surface';   // 카드 표면 빛(2026-09-21)
 import { Icon } from './common/Icon'; // 좋아요 = 하트 아이콘(엄지 대체)
 import { WhoLikedModal } from './common/WhoLikedModal';
 import { queueLike, getMyLike, setMyLike, subscribeMyLikes } from '../utils/pendingLikes'; // 좋아요 유실 방지 대기 큐 + 화면 간 공유 메모장
@@ -62,7 +62,10 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
     // cardShadow: iOS 입체감 래퍼(카드 overflow:hidden 회피). 친구 4갈래 공통 통과 지점.
     //   onDark(홈)에선 흰 배경 래퍼가 카드 가장자리에 흰 선으로 비쳐 투명 래퍼로(짙은 배경엔 그림자도 안 보임).
     //   2026-09-21: 홈에서도 그림자 — 사진 배경 위 카드가 평면적이라(사용자). 래퍼 배경을 카드와 같은 흰색으로 맞춰 흰 선 재발 없음.
-    const shadowed = <View style={onDark ? { borderRadius: 14, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 } : dS.cardShadow}>{children}</View>;
+    //   2026-09-21 3단계: 홈은 그림자 두 겹(ambient 바깥 + contact 안쪽, 같은 흰 배경·radius).
+    const shadowed = onDark
+      ? <View style={[{ borderRadius: 14, backgroundColor: '#fff' }, LIFT_AMBIENT]}><View style={[{ borderRadius: 14, backgroundColor: '#fff' }, LIFT_CONTACT]}>{children}</View></View>
+      : <View style={dS.cardShadow}>{children}</View>;
     return onReport ? (
       <Pressable onLongPress={() => onReport(item)} delayLongPress={350}>{shadowed}</Pressable>
     ) : shadowed;

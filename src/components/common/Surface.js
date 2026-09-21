@@ -24,13 +24,28 @@ export function SurfaceLight({ radius = 16, tone = 'light' }) {
   );
 }
 
-export function PressScale({ onPress, onLongPress, disabled, style, children, activeScale = 0.98, hitSlop, delayLongPress }) {
+// 그림자 두 겹(2026-09-21, 입체감 3단계) — 실제 물체 그림자처럼 '멀리 넓게 퍼지는 연한 그림자(ambient)' +
+//   '바로 아래 좁고 진한 그림자(contact)'. iOS는 뷰당 그림자 하나라 바깥/안쪽 뷰에 나눠 준다(둘 다 같은 radius·배경색 필요).
+//   안드는 elevation 하나뿐이라 바깥에만(안쪽 0 — 겹치면 이중 그늘). ★overflow:hidden 뷰엔 못 씀(iOS가 그림자까지 자름).
+export const LIFT_AMBIENT = { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 16, elevation: 8 };
+export const LIFT_CONTACT = { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 3, elevation: 0 };
+
+// shadow={{ radius, bg }}를 주면 두 겹 그림자 구조(바깥 Animated.View=ambient / 안쪽 View=contact+contentStyle)로 그린다.
+//   이때 style엔 폭·마진만, 패딩은 contentStyle로. shadow 없으면 예전처럼 style 하나.
+export function PressScale({ onPress, onLongPress, disabled, style, contentStyle, shadow, children, activeScale = 0.98, hitSlop, delayLongPress }) {
   const v = useRef(new Animated.Value(1)).current;
   const to = (x) => Animated.spring(v, { toValue: x, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  const body = shadow ? (
+    <Animated.View style={[style, { borderRadius: shadow.radius, backgroundColor: shadow.bg }, LIFT_AMBIENT, { transform: [{ scale: v }] }]}>
+      <View style={[{ borderRadius: shadow.radius, backgroundColor: shadow.bg }, LIFT_CONTACT, contentStyle]}>{children}</View>
+    </Animated.View>
+  ) : (
+    <Animated.View style={[style, contentStyle, { transform: [{ scale: v }] }]}>{children}</Animated.View>
+  );
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} disabled={disabled} hitSlop={hitSlop} delayLongPress={delayLongPress}
       onPressIn={() => to(activeScale)} onPressOut={() => to(1)}>
-      <Animated.View style={[style, { transform: [{ scale: v }] }]}>{children}</Animated.View>
+      {body}
     </Pressable>
   );
 }
