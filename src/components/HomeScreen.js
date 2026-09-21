@@ -40,6 +40,7 @@ import { AlarmSetupModal, QuickMealPrompt } from './AlarmSetupModal';
 import { scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms, computeRoundTimeline } from '../utils/notifications';
 import { getTopComment } from '../utils/courseComments';
 import { isRoundDiary } from '../utils/diaryKind';
+import { courseKey } from '../utils/courseNameKey';   // 구장 매칭 기준 하나(normalizeCourseName) — 홈 '나도 가 본 구장'·비교 줄(2026-09-21)
 import { firstPhotoUri } from '../utils/photoRatio';
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { ScoreBanner, ScoreStatsScreen } from './ScoreStatsScreen';
@@ -1358,6 +1359,46 @@ export function HomeScreen({ navigation, route }) {
   const _schedDaySet = new Set((schedules || []).map(s => { const d = new Date(parseSchedDate(s)); d.setHours(0, 0, 0, 0); return d.getTime(); }));
   // ★내 피드 최신(2026-08-24) — 내 라운딩 기록(일상/모멘트 제외) 최근 4개. diaries는 date desc라 slice가 최신.
   const myFeed = (diaries || []).filter(isRoundDiary).slice(0, 4);
+  // ★홈만의 연결(2026-09-21, 사용자 "친구소식·내 피드 뭔가 특별한 아이디어") — 내 기록과 친구 글을 엮는다.
+  //   myCourseStats: 구장키 → { count, best, scored:[{date,score}] 최신순 }.
+  //   · 친구 소식 카드 아래 "나도 가 본 구장 · 3번 · 내 베스트 96타"
+  //   · 최근 기록 히어로 "이 구장 지난번보다 -3타"(없으면 "내 평균보다 +3타")
+  //   구장 매칭은 courseKey(=normalizeCourseName) 하나만 쓴다 — 화면마다 기준이 갈리면 카운팅이 틀어진다([[project_deargolf_course_name_matching]]).
+  const myCourseStats = useMemo(() => {
+    const m = new Map();
+    (diaries || []).filter(isRoundDiary).forEach(d => {
+      const k = courseKey(d.course);
+      if (!k) return;
+      const e = m.get(k) || { count: 0, best: null, scored: [] };
+      e.count += 1;
+      if (typeof d.score === 'number' && d.score > 0) {
+        e.scored.push({ date: d.date || '', score: d.score });
+        if (e.best == null || d.score < e.best) e.best = d.score;
+      }
+      m.set(k, e);
+    });
+    m.forEach(e => e.scored.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)));
+    return m;
+  }, [diaries]);
+  // 내 평균 — 스코어 배너(ScoreBanner)와 같은 식: 타수 있는 라운딩 전체 평균, 반올림. 숫자가 서로 어긋나지 않게.
+  const myScored = useMemo(() => (diaries || []).filter(isRoundDiary).map(d => d.score).filter(v => typeof v === 'number' && v > 0), [diaries]);
+  const myAvgScore = myScored.length ? Math.round(myScored.reduce((a, b) => a + b, 0) / myScored.length) : null;
+  // 히어로(최신 기록) 비교 한 줄 — ①같은 구장의 직전 타수 대비 ②없으면 내 평균 대비(기록이 2개 이상일 때만). 첫 기록이면 없음.
+  //   good: true=줄었다(잘 침) / false=늘었다 / null=같다
+  const heroCompare = (hero) => {
+    if (!hero || typeof hero.score !== 'number' || hero.score <= 0) return null;
+    const st = myCourseStats.get(courseKey(hero.course));
+    const prev = st ? st.scored.find(r => r.date && r.date < (hero.date || '')) : null;
+    if (prev) {
+      const diff = hero.score - prev.score;
+      if (diff === 0) return { text: '이 구장 지난번과 같은 타수', good: null };
+      return { text: `이 구장 지난번보다 ${diff > 0 ? '+' : ''}${diff}타`, good: diff < 0 };
+    }
+    if (myAvgScore == null || myScored.length < 2) return null;
+    const diff = hero.score - myAvgScore;
+    if (diff === 0) return { text: '내 평균과 같아요', good: null };
+    return { text: `내 평균보다 ${diff > 0 ? '+' : ''}${diff}타`, good: diff < 0 };
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0a1e10' }}>
@@ -1985,6 +2026,7 @@ export function HomeScreen({ navigation, route }) {
                이전 2건은 기존 컴팩트 행. 최신이 주인공이라는 정보 위계 + 사진 감성. 사진 없으면 크림 카드 폴백 */
             const hero = myFeed[0];
             const rest = myFeed.slice(1, 3);
+            const heroCmp = heroCompare(hero);   // "이 구장 지난번보다 -3타" — 숫자 하나로 카드가 이야기가 되게(2026-09-21)
             const heroUri = resolvePhotoUri(firstPhotoUri(hero.photos));
             const openDiary = (d) => navigation.navigate(ROUTES.MY, { openDiaryId: d.id, returnToHome: true });
             const scoreBadge = (score, big) => (typeof score === 'number' ? (
@@ -2018,6 +2060,9 @@ export function HomeScreen({ navigation, route }) {
                         {hero.memo ? <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginBottom: 4 }}>"{hero.memo}"</Text> : null}
                         <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(17), color: '#fff' }}>{hero.course}</Text>
                         <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>{hero.date}</Text>
+                        {heroCmp ? (
+                          <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(12.5), marginTop: 5, color: heroCmp.good === null ? 'rgba(255,255,255,0.9)' : heroCmp.good ? '#B8E09A' : '#F2B8A0' }}>{heroCmp.text}</Text>
+                        ) : null}
                       </View>
                       {scoreBadge(hero.score, true)}
                     </View>
@@ -2032,6 +2077,9 @@ export function HomeScreen({ navigation, route }) {
                       <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>{hero.course}</Text>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginTop: 3 }}>{hero.date}</Text>
                       {hero.memo ? <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, marginTop: 3 }}>"{hero.memo}"</Text> : null}
+                      {heroCmp ? (
+                        <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(12.5), marginTop: 4, color: heroCmp.good === null ? C.warmGray : heroCmp.good ? '#5E8A46' : '#B5573F' }}>{heroCmp.text}</Text>
+                      ) : null}
                     </View>
                     {scoreBadge(hero.score, true)}
                   </View>
@@ -2106,6 +2154,16 @@ export function HomeScreen({ navigation, route }) {
                     {/* onDark — 짙은 홈 배경에선 카드 옆 3px 띠·0.5px 연베이지 테두리·흰 그림자 래퍼가 흰 선으로 보여 홈에서만 뺀다(친구 탭은 그대로) */}
                     <DiaryCard item={d} variant="friend" myUid={currentUid} onDark
                       onOpenPhoto={(photos, index) => setFeedViewer({ photos, index })} />
+                    {/* "나도 가 본 구장" — 친구 글을 내 기록과 연결(2026-09-21). 내 라운딩이 그 구장에 있을 때만. 일상(구장 없음)은 자동 제외 */}
+                    {(() => {
+                      const st = d.course ? myCourseStats.get(courseKey(d.course)) : null;
+                      if (!st || !st.count) return null;
+                      return (
+                        <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.82)', marginTop: 9, marginLeft: 4, textShadowColor: 'rgba(0,0,0,0.45)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
+                          <Text style={{ fontFamily: F.sysB, color: C.butter }}>나도 가 본 구장</Text> · {st.count}번{st.best != null ? ` · 내 베스트 ${st.best}타` : ''}
+                        </Text>
+                      );
+                    })()}
                   </View>
                 );
               })}
