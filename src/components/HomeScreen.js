@@ -45,6 +45,7 @@ import { resolvePhotoUri } from '../utils/photoStorage';
 import { ScoreBanner, ScoreStatsScreen } from './ScoreStatsScreen';
 import { LedgerBanner } from './LedgerBanner';       // 골프 가계부 요약 카드(스코어 추이 아래, 2026-08-26)
 import { GolfLedgerModal } from './GolfLedgerModal'; // 카드 탭 → 가계부
+import { HomeCalendarStrip } from './common/HomeCalendarStrip'; // 홈 상단 달력 — 주간 스와이프 + 월 펼침(2026-09-21)
 import { DiaryCard } from './DiaryCard';                   // 친구 소식 미리보기 카드 — 친구 피드와 같은 카드 그대로(2026-08-26)
 import { PhotoViewer } from './common/PhotoViewer';        // 친구 소식 카드 사진 탭 → 전체화면(핀치줌)
 import { loadFriendData } from '../utils/friendGroups';
@@ -1353,17 +1354,8 @@ export function HomeScreen({ navigation, route }) {
   const _today = new Date();
   const todayLabel = `${_today.getMonth() + 1}월 ${_today.getDate()}일 (${WEEKDAYS[_today.getDay()]})`;
   // ★하단 주간 스트립(2026-08-24) — 이번 주 일~토 7칸, 오늘 강조, 일정 있는 날 점(schedules 날짜 매칭).
-  const _weekBase = new Date(_today); _weekBase.setHours(0, 0, 0, 0);
-  const _todayMid = _weekBase.getTime();
-  const _weekStart = new Date(_weekBase); _weekStart.setDate(_weekBase.getDate() - _weekBase.getDay());
+  // 일정 있는 날(자정 ms) 집합 — HomeCalendarStrip의 점 표시용. 주간/월 계산은 컴포넌트 안으로 이동(2026-09-21)
   const _schedDaySet = new Set((schedules || []).map(s => { const d = new Date(parseSchedDate(s)); d.setHours(0, 0, 0, 0); return d.getTime(); }));
-  const weekStrip = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(_weekStart); d.setDate(_weekStart.getDate() + i);
-    const t = d.getTime();
-    return { day: d.getDate(), month: d.getMonth() + 1, dow: d.getDay(), isToday: t === _todayMid, hasEvent: _schedDaySet.has(t) };
-  });
-  // 스트립 월 라벨 — 몇 월인지 안 보인다는 지적(사용자 2026-08-26). 주가 두 달에 걸치면 "8월 · 9월"
-  const stripMonthLabel = [...new Set(weekStrip.map(wd => wd.month))].map(m => `${m}월`).join(' · ');
   // ★내 피드 최신(2026-08-24) — 내 라운딩 기록(일상/모멘트 제외) 최근 4개. diaries는 date desc라 slice가 최신.
   const myFeed = (diaries || []).filter(isRoundDiary).slice(0, 4);
 
@@ -1401,26 +1393,9 @@ export function HomeScreen({ navigation, route }) {
           <Text style={homeS.hdrGreeting}>
             안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
           </Text>
-          {/* ★주간 스트립(2026-08-24) — 인사말 아래, 콘텐츠와 같이 스크롤. 이번 주 7일·오늘 강조·일정 있는 날 점. 탭→일정 캘린더.
-              상단에 월 라벨(2026-08-26) — 몇 월인지 안 보인다는 지적 */}
-          {/* ★상자 벗김(2026-09-21) — 달력·D-N·메모 반투명 판 3장이 겹쳐 평면적(사용자 스샷). 달력은 사진 위에 글자만 두고
-              선택일 원만 남긴다 → 위쪽에 판이 하나 줄어 크림 D-N 카드가 주인공이 된다. 하늘(밝은 배경) 위 가독성은 글자 그림자로. */}
-          <View style={{ marginTop: 16, paddingVertical: 12, paddingHorizontal: 4 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginLeft: 12, marginBottom: 8, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{stripMonthLabel}</Text>
-            <View style={{ flexDirection: 'row' }}>
-            {weekStrip.map((wd, i) => (
-              <TouchableOpacity key={i} onPress={() => setShowScheduleScreen(true)} activeOpacity={0.7} style={{ flex: 1, alignItems: 'center' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: wd.isToday ? C.butter : 'rgba(255,255,255,0.75)', marginBottom: 6, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{WEEKDAYS[wd.dow]}</Text>
-                <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: wd.isToday ? C.butter : 'transparent' }}>
-                  <Text style={wd.isToday
-                    ? { fontFamily: F.sysB, fontSize: fs(15.5), color: '#16281c' }
-                    : { fontFamily: F.sysM, fontSize: fs(15.5), color: '#fff', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{wd.day}</Text>
-                </View>
-                <View style={{ width: 6, height: 6, borderRadius: 3, marginTop: 6, backgroundColor: wd.hasEvent ? '#8FB06B' : 'transparent' }} />
-              </TouchableOpacity>
-            ))}
-            </View>
-          </View>
+          {/* ★주간 스트립(2026-08-24) → HomeCalendarStrip(2026-09-21): 주간 줄을 옆으로 넘기고, 월 라벨 탭하면 월 달력 펼침.
+              상자 없음(사진 위 글자+그림자) — 홈 위쪽 반투명 판을 줄여 크림 D-N 카드가 주인공. 날짜 탭→일정 캘린더. */}
+          <HomeCalendarStrip schedDaySet={_schedDaySet} onDayPress={() => setShowScheduleScreen(true)} />
           {/* 당일 체크인 카드 배너 — 박스가 많아 정신없어, 이용안내 띠 '자리'에 대신 노출(둘 다 안 띄움). 활성 아니면 이용안내 띠. */}
           {checkinActive ? (
             /* 그림자/elevation 제거 — 배경 없는 둥근 뷰에 elevation을 주면 안드서 그림자가 '네모난 짙은 박스'로
