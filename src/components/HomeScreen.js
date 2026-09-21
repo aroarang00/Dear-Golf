@@ -810,44 +810,47 @@ export function HomeScreen({ navigation, route }) {
   //   구성: 골드 알약(다음 라운딩·D-N) → 구장명 크게(주인공) → 동반자+인원 → 날씨·교통 칩 2개. '정보를 정확히 깔끔하게'.
   //   카드 몸통 탭→일정 시트 / 구장명 탭→코스 / 칩 탭→날씨·교통 상세. D-0(당일) 카드는 아래 별도 분기 유지.
   const CARD_W = Math.max(0, winW - SIDE_PAD * 2 - 40);   // 40 = 다음 카드 피크 여백(gap 10 포함 → 우측 ~30px 보임)
-  const HERO_BG = 'rgba(255,255,255,0.10)';   // 사진이 비치는 글래시 카드(홈 다른 카드와 통일) — 초록 대신
+  // ★2026-09-21 크림 불투명 카드로 — 달력·D-N·메모 세 장이 같은 반투명 유리라 "회색 판 세 장"으로 평면적(사용자 스샷).
+  //   D-N만 크림(C.bgPrimary, 최근 기록 목록과 같은 톤)+그림자로 띄워 주인공을 만든다. 글씨는 전부 진한 색으로.
+  const HERO_TXT_DIM = 'rgba(61,57,53,0.5)';   // 크림 위 보조 글씨(› 화살표 등)
   const renderNextCard = (s) => {
     const names = (s.companions || []).map(c => (c?.name || '').trim()).filter(Boolean);
     const total = Number(s.members) || (names.length + 1);
     const shown = names.slice(0, 4);
     return (
       <TouchableOpacity key={s.id} activeOpacity={0.9} onPress={() => openScheduleSheet(s)}
-        style={{ width: CARD_W, backgroundColor: HERO_BG, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 20, padding: 18 }}>
+        style={[{ width: CARD_W, backgroundColor: C.bgPrimary, borderRadius: 20, padding: 18 }, homeS.lift]}>
         {/* 골드 알약 — 다음 라운딩 · D-N (D-N은 여기 안에 작게) */}
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.butter, borderRadius: 20, paddingHorizontal: 11, paddingVertical: 4 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#22301F' }}>다음 라운딩</Text>
-            <Text style={{ fontFamily: F.en, fontSize: fs(17), color: '#22301F' }}>D-{freshDDay(s)}</Text>
+          {/* 알약 — 크림 카드 위에선 버터가 묻혀 네이비 바탕+버터 글씨(최근 기록 '타수' 뱃지와 같은 조합) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.navy, borderRadius: 20, paddingHorizontal: 11, paddingVertical: 4 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter }}>다음 라운딩</Text>
+            <Text style={{ fontFamily: F.en, fontSize: fs(17), color: C.butter }}>D-{freshDDay(s)}</Text>
           </View>
           {s.groupId && unreadComments[s.groupId] > 0 ? <View style={{ marginLeft: 8 }}>{commentBadge(s.groupId)}</View> : null}
         </View>
         {/* 구장명 = 주인공. 탭하면 코스 페이지 */}
         <TouchableOpacity activeOpacity={canOpenCourse(s) ? 0.7 : 1} onPress={() => handleCardCoursePress(s)}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(22), lineHeight: fs(28), color: '#fff', marginTop: 13, textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCourseName(s.course)}
-            {canOpenCourse(s) ? <Text style={{ fontSize: fs(14), color: 'rgba(255,255,255,0.6)' }}> ›</Text> : null}
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(22), lineHeight: fs(28), color: C.charcoal, marginTop: 13 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCourseName(s.course)}
+            {canOpenCourse(s) ? <Text style={{ fontSize: fs(14), color: HERO_TXT_DIM }}> ›</Text> : null}
           </Text>
         </TouchableOpacity>
-        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: 'rgba(255,255,255,0.85)', marginTop: 3 }} numberOfLines={1}>
+        <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.textSecondary, marginTop: 3 }} numberOfLines={1}>
           {s.date.slice(5)} {s.day} · {s.time}{(s.subCourse || '').trim() ? ` · ${s.subCourse.trim()}` : ''}
         </Text>
         {/* 동반자 이니셜 + 인원 — 구분선 위 */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 15, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.18)' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 15, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(61,57,53,0.12)' }}>
           {shown.length > 0 && (
             <View style={{ flexDirection: 'row' }}>
               {shown.map((nm, i) => (
-                <View key={i} style={{ width: 27, height: 27, borderRadius: 13.5, marginLeft: i === 0 ? 0 : -8, borderWidth: 2, borderColor: 'rgba(28,34,28,0.5)', backgroundColor: 'rgba(245,230,168,0.95)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: '#22301F' }}>{nm.slice(0, 1)}</Text>
+                <View key={i} style={{ width: 27, height: 27, borderRadius: 13.5, marginLeft: i === 0 ? 0 : -8, borderWidth: 2, borderColor: C.bgPrimary, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10), color: C.butter }}>{nm.slice(0, 1)}</Text>
                 </View>
               ))}
             </View>
           )}
-          <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.9)' }}>
-            <Text style={{ fontFamily: F.sysB, color: C.butter }}>{total}명</Text> 라운딩
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: C.charcoal }}>
+            <Text style={{ fontFamily: F.sysB, color: C.navy }}>{total}명</Text> 라운딩
           </Text>
         </View>
         {/* 날씨·교통 — 박스 버튼 2개 → 실제 정보 텍스트 한 줄('박스 안에 또 버튼' 지적, 2026-08-26).
@@ -861,17 +864,17 @@ export function HomeScreen({ navigation, route }) {
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 4 }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
                 <WeatherGlyph icon={info.icon || '⛅'} size={fs(25)} />
-                <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>
-                  {info.wx || '날씨'}<Text style={{ color: 'rgba(255,255,255,0.55)' }}> ›</Text>
+                <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
+                  {info.wx || '날씨'}<Text style={{ color: HERO_TXT_DIM }}> ›</Text>
                 </Text>
               </TouchableOpacity>
-              <View style={{ width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 13 }} />
+              <View style={{ width: 1, height: 12, backgroundColor: 'rgba(61,57,53,0.2)', marginHorizontal: 13 }} />
               <TouchableOpacity onPress={() => { setSelectedSchedule(s); setShowTrafficFull(true); }} activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 4, right: 6 }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
-                <Icon name="car" size={fs(25)} color="#fff" strokeWidth={1.8} />
-                <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>
-                  {info.drive ? formatDriveMin(info.drive) : '가는 길'}<Text style={{ color: 'rgba(255,255,255,0.55)' }}> ›</Text>
+                <Icon name="car" size={fs(25)} color={C.charcoal} strokeWidth={1.8} />
+                <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>
+                  {info.drive ? formatDriveMin(info.drive) : '가는 길'}<Text style={{ color: HERO_TXT_DIM }}> ›</Text>
                 </Text>
               </TouchableOpacity>
             </View>
@@ -2058,7 +2061,7 @@ export function HomeScreen({ navigation, route }) {
 
               {/* 이전 기록 — 컴팩트 행(기존 스타일), 타수는 우측 뱃지로 */}
               {rest.length > 0 && (
-                <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 2, marginTop: 10 }}>
+                <View style={[{ backgroundColor: C.bgPrimary, borderRadius: 16, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 2, marginTop: 10 }, homeS.lift]}>
                 {rest.map((d) => {
                   const uri = resolvePhotoUri(firstPhotoUri(d.photos));
                   return (
@@ -2087,11 +2090,11 @@ export function HomeScreen({ navigation, route }) {
           {/* ★스코어 추이(2026-08-24) — 공용 ScoreBanner 재사용(스파크라인+평균/베스트/핸디+추세문구). 탭→상세 통계.
               2026-08-26: 다른 섹션과 같은 리듬(강한 타이틀→카드)으로 타이틀 신설 + 섹션 간격 44 통일 */}
           <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, marginTop: 60, marginBottom: 14, paddingHorizontal: SIDE_PAD }}>스코어 추이</Text>
-          <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)} style={{ marginHorizontal: SIDE_PAD, marginTop: 0, marginBottom: 0 }} />
+          <ScoreBanner diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)} style={[{ marginHorizontal: SIDE_PAD, marginTop: 0, marginBottom: 0 }, homeS.lift]} />
           {/* ★골프 가계부(2026-08-26, A안) — 이번 달 지출 요약 카드. 스코어 추이 아래(경기력 묶음 뒤에 돈).
               내 돈이라 홈('나') 소속 — 모임 돈(정산)은 모임 탭. 섹션 리듬(fs21 타이틀+간격 60) 동일 */}
           <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: '#fff', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4, marginTop: 60, marginBottom: 14, paddingHorizontal: SIDE_PAD }}>골프 가계부</Text>
-          <LedgerBanner diaries={diaries} onPress={() => setShowLedger(true)} style={{ marginHorizontal: SIDE_PAD }} />
+          <LedgerBanner diaries={diaries} onPress={() => setShowLedger(true)} style={[{ marginHorizontal: SIDE_PAD }, homeS.lift]} />
           {/* ★친구 소식(2026-08-26 개편) — 친구 피드와 같은 미리보기 카드(DiaryCard variant='friend') 그대로 최근 4개.
               사진 크게 + 홈에서 바로 좋아요. 카드 위에 친구 이름(아바타) 한 줄로 누구 소식인지 표시.
               전체 최신 4개 노출(사용자 2026-09-12, 2개→4개). 더 많은 소식은 '전체보기'로. */}

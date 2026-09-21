@@ -60,7 +60,8 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   const wrapFriend = (children) => {
     // cardShadow: iOS 입체감 래퍼(카드 overflow:hidden 회피). 친구 4갈래 공통 통과 지점.
     //   onDark(홈)에선 흰 배경 래퍼가 카드 가장자리에 흰 선으로 비쳐 투명 래퍼로(짙은 배경엔 그림자도 안 보임).
-    const shadowed = <View style={onDark ? { borderRadius: 14 } : dS.cardShadow}>{children}</View>;
+    //   2026-09-21: 홈에서도 그림자 — 사진 배경 위 카드가 평면적이라(사용자). 래퍼 배경을 카드와 같은 흰색으로 맞춰 흰 선 재발 없음.
+    const shadowed = <View style={onDark ? { borderRadius: 14, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 } : dS.cardShadow}>{children}</View>;
     return onReport ? (
       <Pressable onLongPress={() => onReport(item)} delayLongPress={350}>{shadowed}</Pressable>
     ) : shadowed;
