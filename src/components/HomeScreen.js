@@ -8,7 +8,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'; // 확대 시 콘텐츠가 탭바 덮는 것 방지(하단 여백)
 import * as Notifications from 'expo-notifications'; // DM 푸시 포그라운드 수신 → 안읽음 뱃지 즉시 갱신
 import { Image as ExpoImage } from 'expo-image'; // 스토어 광고 카드 상품 사진(storeAds[].img)
-import { LinearGradient } from 'expo-linear-gradient'; // 최근 기록 히어로 카드 하단 그라데이션(2026-08-26) ※Animated.View 안에 넣지 말 것(런타임 에러, 853줄 참고)
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';   // 한줄 메모 '젖빛 유리' — 뒤 사진을 실제로 흐림(2026-09-22). 일정 탭이 이미 쓰는 모듈(OTA 가능) // 최근 기록 히어로 카드 하단 그라데이션(2026-08-26) ※Animated.View 안에 넣지 말 것(런타임 에러, 853줄 참고)
 import { loadStoreAds } from '../utils/storeConfig'; // 홈 캐러셀 광고 원격 로드(config/storeAds)
 import { C, F, fs } from '../constants/colors';
 import { ROUTES } from '../constants/routes';
@@ -1820,8 +1821,14 @@ export function HomeScreen({ navigation, route }) {
             // 유리 래퍼(2026-09-21) — 사진이 비치는 반투명 유리 + 입체감(표면 빛 glass·얇은 접지 그림자). 크림 쪽지는 사용자 "별로".
             //   카드(memoCard)는 overflow:hidden이라 그림자를 여기서. 큰 ambient 그림자는 유리 너머로 비쳐 탁해져서 contact만.
             //   SurfaceLight는 카드보다 먼저(아래 깔림) — 카드 배경이 투명이라 빛이 비친다.
+            //   ★2026-09-22 "뿌옇다"(사용자) — 반투명 흰색을 사진 위에 얹으면 우유 탄 듯 흐려진다. 대신 진짜 블러(BlurView)로 뒤 사진을
+            //   흐리게 하고 옅은 짙은 틴트만 얹어 '젖빛 유리' — 글씨는 또렷, 카드는 유리답게. 그림자는 유리 너머로 비쳐 탁해서 뺐다.
+            //   안드는 experimentalBlurMethod 없으면 블러 없이 틴트만 되므로 dimezisBlurView 지정(작은 영역이라 부담 적음).
             const glassWrap = (node) => (
-              <View style={[{ marginHorizontal: SIDE_PAD, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.10)' }, LIFT_CONTACT]}>
+              <View style={{ marginHorizontal: SIDE_PAD, borderRadius: 14, overflow: 'hidden' }}>
+                <BlurView intensity={28} tint="dark" experimentalBlurMethod="dimezisBlurView"
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(12,24,16,0.22)' }} />
                 <SurfaceLight radius={14} tone="glass" />
                 {node}
               </View>
