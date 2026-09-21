@@ -840,6 +840,22 @@ export function HomeScreen({ navigation, route }) {
       { translateY: cardsScrollX.interpolate({ inputRange: range, outputRange: [6, 0, 6], extrapolate: 'clamp' }) },
     ] };
   };
+  // ★접히는 헤더(2026-09-22, 사용자 "헤더가 같이 스크롤되면 안 예쁘다") — 큰 헤더(로고·인사말·달력)는 내용과 함께
+  //   올라가고, 큰 타이틀이 상단을 벗어나면 그 자리에 얇은 고정 바(작은 로고+날씨 · 오늘 날짜 · D-N)가 나타난다.
+  //   ScrollView 자식 구조는 그대로(fragile) — 바는 루트에 절대배치, 스크롤 y는 네이티브 드라이버로 받아 opacity/translate만.
+  //   pointerEvents는 JS 상태(hdrCollapsed)로 — 투명한 바가 아래 터치를 가로채지 않게. 바 탭=맨 위로.
+  const homeScrollY = useRef(new Animated.Value(0)).current;
+  const [hdrCollapsed, setHdrCollapsed] = useState(false);
+  const HDR_COLLAPSE_AT = 64;
+  const onHomeScroll = useMemo(() => Animated.event([{ nativeEvent: { contentOffset: { y: homeScrollY } } }], {
+    useNativeDriver: true,
+    listener: (e) => { const c = e.nativeEvent.contentOffset.y > HDR_COLLAPSE_AT; setHdrCollapsed(prev => (prev === c ? prev : c)); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []);
+  const hdrBarStyle = {
+    opacity: homeScrollY.interpolate({ inputRange: [HDR_COLLAPSE_AT - 24, HDR_COLLAPSE_AT + 24], outputRange: [0, 1], extrapolate: 'clamp' }),
+    transform: [{ translateY: homeScrollY.interpolate({ inputRange: [HDR_COLLAPSE_AT - 24, HDR_COLLAPSE_AT + 24], outputRange: [-8, 0], extrapolate: 'clamp' }) }],
+  };
   // ★등장(2026-09-21) — 홈에 올 때(마운트·탭 복귀) 히어로 캐러셀이 아래에서 살짝 떠오르며 나타난다.
   //   카드가 한 장뿐이면 깊이 효과가 안 보여서, 그 경우에도 '떠오름'이 있게. 380ms 한 번, 이후 정지.
   const heroEnter = useRef(new Animated.Value(0)).current;
@@ -1449,10 +1465,11 @@ export function HomeScreen({ navigation, route }) {
             "삼단바 위부터만 스크롤"되는 어정쩡한 경계가 생김 → top edge를 빼고 콘텐츠 paddingTop:insets.top으로
             흡수해 화면 최상단부터 콘텐츠 전체가 스크롤되게. 배경(HomeBgSlider)은 그대로 고정 배경.
             하단은 SafeArea 안 함 — 탭바가 자체 처리하고 안드로이드 navigation bar는 bottomArea가 처리 */}
-        <ScrollView
+        <Animated.ScrollView
           ref={homeScrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, paddingBottom: tabBarHeight + 24 }}
+          onScroll={onHomeScroll} scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}>
         <TripleStripe style={{ marginTop: Platform.OS === 'android' ? 8 : 0 }} />
         <View style={homeS.hdr}>
@@ -2235,8 +2252,26 @@ export function HomeScreen({ navigation, route }) {
           {/* 하단 여백 22→8 — 캐러셀 점과 하단 탭 사이가 너무 벌어 보임(사용자 2026-07-03) */}
           <View style={{ height: 8 }} />
         </View>
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
+
+      {/* ★접힌 헤더 바(2026-09-22) — 큰 헤더가 스크롤로 지나가면 나타나는 얇은 고정 바. 탭하면 맨 위로. */}
+      <Animated.View pointerEvents={hdrCollapsed ? 'auto' : 'none'}
+        style={[{ position: 'absolute', top: 0, left: 0, right: 0, paddingTop: insets.top, backgroundColor: 'rgba(8,24,14,0.9)',
+          borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.12)' }, hdrBarStyle]}>
+        <TouchableOpacity activeOpacity={0.85} onPress={() => homeScrollRef.current?.scrollTo({ y: 0, animated: true })}
+          style={{ height: 44, flexDirection: 'row', alignItems: 'center', paddingHorizontal: SIDE_PAD }}>
+          <Text style={{ fontFamily: F.brand, fontSize: fs(20), color: '#fff', includeFontPadding: false }} allowFontScaling={false}>Dear Golf</Text>
+          <View style={{ marginLeft: 8 }}><WeatherGlyph icon={wxEmoji} size={fs(20)} /></View>
+          <View style={{ flex: 1 }} />
+          <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: 'rgba(255,255,255,0.8)' }} numberOfLines={1}>{todayLabel}</Text>
+          {next ? (
+            <View style={{ marginLeft: 8, backgroundColor: C.butter, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(11.5), color: '#22301F' }}>{isD0 ? '오늘 라운딩' : `D-${freshDDay(next)}`}</Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* ★스코어 추이 상세 — 홈 배너 탭 시 통계 화면(추세·마일스톤·분포·구장별) */}
       <ScoreStatsScreen visible={scoreStatsOpen} onClose={() => setScoreStatsOpen(false)}
