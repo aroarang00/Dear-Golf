@@ -1782,9 +1782,19 @@ export function HomeScreen({ navigation, route }) {
               ? { height: Math.round(fs(isFirstVisit ? (isAnd ? 84 : 110) : (!myMemo ? (isAnd ? 78 : 94) : (isAnd ? 72 : 92)))), minHeight: 0 }
               : null;
 
+            // 쪽지 래퍼(2026-09-21) — 크림 배경·마진·그림자 두 겹·표면 빛. 카드(memoCard)는 overflow:hidden이라 그림자를 여기서.
+            //   SurfaceLight는 카드보다 먼저(아래 깔림) — 카드 배경이 투명이라 빛이 비친다.
+            const liftWrap = (node) => (
+              <View style={[{ marginHorizontal: SIDE_PAD, borderRadius: 14, backgroundColor: C.bgPrimary }, LIFT_AMBIENT]}>
+                <View style={[{ borderRadius: 14, backgroundColor: C.bgPrimary }, LIFT_CONTACT]}>
+                  <SurfaceLight radius={14} />
+                  {node}
+                </View>
+              </View>
+            );
             const labelCourseTxt = (label) => (
               <Text style={[homeS.memoCardCourse, { fontSize: fs(11) }]} numberOfLines={1}>
-                {label} · <Text style={{ color: 'rgba(255,255,255,0.55)' }}>{courseLabel}</Text>
+                {label} · <Text style={{ color: C.warmGray }}>{courseLabel}</Text>
               </Text>
             );
 
@@ -1807,7 +1817,7 @@ export function HomeScreen({ navigation, route }) {
                     </>
                   ) : (
                     <>
-                      <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 골퍼 코멘트가 없어요</Text>
+                      <Text style={[homeS.memoTxt, { color: C.warmGray, borderLeftColor: 'rgba(61,57,53,0.2)' }]} numberOfLines={1}>아직 골퍼 코멘트가 없어요</Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8', marginTop: 8, alignSelf: 'flex-start' }}>첫 번째 코멘트의 주인공이 되어보세요</Text>
                     </>
                   )}
@@ -1825,7 +1835,7 @@ export function HomeScreen({ navigation, route }) {
                   <Text style={homeS.memoCardCourse} numberOfLines={1}>{courseLabel}</Text>
                 </View>
                 <View style={homeS.memoCardBottom}>
-                  <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 미기록 구장이에요</Text>
+                  <Text style={[homeS.memoTxt, { color: C.warmGray, borderLeftColor: 'rgba(61,57,53,0.2)' }]} numberOfLines={1}>아직 미기록 구장이에요</Text>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.55)', marginTop: 8, lineHeight: 16 }} numberOfLines={2}>기록하면 메모를 다음 방문에 보여드려요</Text>
                 </View>
               </View>
@@ -1848,7 +1858,7 @@ export function HomeScreen({ navigation, route }) {
                   {/* 상태(왼쪽)와 안내(오른쪽 칩)를 다른 요소로 분리 — 나란히 두면서 글씨 크기만 다르면
                       '맞추다 만 것'처럼 보인다. 칩 배경을 깔아 크기 차이가 의도로 읽히게 한다(사용자 2026-08-05). */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 메모가 없어요</Text>
+                    <Text style={[homeS.memoTxt, { color: C.warmGray, borderLeftColor: 'rgba(61,57,53,0.2)' }]} numberOfLines={1}>아직 메모가 없어요</Text>
                     {!roundEnded && (
                       <View style={{ flexShrink: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
                         <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.6)' }} numberOfLines={1}>다녀와서 기록하면 보여드려요</Text>
@@ -1951,7 +1961,7 @@ export function HomeScreen({ navigation, route }) {
               ? [firstVisitMemoCard]
               : [(!myMemo ? noMemoCard : myMemoCard)];
 
-            if (slides.length === 1) return <View>{slides[0]}</View>;
+            if (slides.length === 1) return liftWrap(slides[0]);
 
             const slideIdx = Math.min(cardSlide, slides.length - 1);
             // 점 색: 기본(버터) · 골퍼코멘트(하늘) · 스토어(골드)
@@ -1962,7 +1972,7 @@ export function HomeScreen({ navigation, route }) {
             return (
               <View style={{ height: SLIDE_FIX.height + DOTS_H }}>
                 <TouchableOpacity activeOpacity={0.9} onPress={toggleCardSlide}>
-                  {slides[slideIdx]}
+                  {liftWrap(slides[slideIdx])}
                 </TouchableOpacity>
                 <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'center', marginTop: 8 }}>
                   {slides.map((_, i) => (
