@@ -38,24 +38,23 @@ export const homeS = StyleSheet.create({
   subDate:         { fontFamily: F.sysM, fontSize: fs(10), color: 'rgba(255,255,255,0.75)', marginTop: 2, includeFontPadding: false },
   subDDay:         { fontFamily: F.en, fontSize: isAndroid ? fs(24) : fs(28), color: 'rgba(245,230,168,0.8)', lineHeight: isAndroid ? 26 : 30, includeFontPadding: false },
   // 한줄메모·골퍼코멘트 캐러셀 높이 동일화 — 둘 다 같은 minHeight(닉네임은 top 우상단으로 빠져 본문 2줄이 안에 들어옴). 캐러셀 스왑 시 높이 안 튐.
-  // ★2026-09-21 한줄 메모 카드 = 크림 '쪽지'(주변 카드가 전부 떠 있는 크림/흰 카드가 되자 반투명 유리만 밋밋, 사용자).
-  //   배경(크림)·마진·그림자 두 겹·표면 빛은 HomeScreen의 liftWrap 래퍼가 담당 — 이 카드는 overflow:hidden이라
-  //   자기 그림자를 iOS가 잘라내서 래퍼가 필요하다. 그래서 여기 배경은 투명, 마진 없음.
+  // ★2026-09-21 한줄 메모 = '투명 유리 + 입체감'(크림 쪽지는 사용자 "별로"). 유리 배경·마진·표면 빛(glass)·얇은 그림자는
+  //   HomeScreen의 glassWrap 래퍼가 담당(이 카드는 overflow:hidden이라 그림자가 잘림). 여기 배경은 투명, 테두리·마진 없음.
   memoCard:        { backgroundColor: 'transparent', borderRadius: 14, overflow: 'hidden', minHeight: isAndroid ? 66 : 90 },
-  memoCardFirst:   { backgroundColor: 'rgba(200,217,230,0.28)' },
-  memoCardTop:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: isAndroid ? 11 : 14, paddingVertical: isAndroid ? 5 : 8, borderBottomWidth: 0.5, borderBottomColor: 'rgba(61,57,53,0.12)' },
+  memoCardFirst:   { borderColor: 'rgba(200,217,230,0.2)', backgroundColor: 'rgba(200,217,230,0.08)' },
+  memoCardTop:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: isAndroid ? 11 : 14, paddingVertical: isAndroid ? 5 : 8, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.08)' },
   memoCardBottom:  { paddingHorizontal: isAndroid ? 11 : 14, paddingTop: isAndroid ? 5 : 8, paddingBottom: isAndroid ? 6 : 10, position: 'relative', overflow: 'hidden' },
   memoBadgeFirst:  { backgroundColor: '#6B1E2A', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   memoBadgeVisit:  { backgroundColor: '#3D3935', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   memoBadgeComment:{ backgroundColor: C.navy, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   memoBadgeTxt:    { fontFamily: F.sys, fontSize: fs(9), color: '#fff', letterSpacing: 1 }, // 기본 화이트(한줄메모) — 첫방문·골퍼코멘트는 각 use에서 색 지정
-  memoCardCourse:  { fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary },
-  memoMain:        { fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal, marginBottom: 3 },
-  memoSub:         { fontFamily: F.sys, fontSize: fs(11), color: C.warmGray },
-  memoScore:       { fontFamily: F.sys, fontSize: fs(11), color: '#A8801E', marginBottom: 5 },
-  memoTxt:         { fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, borderLeftWidth: 2, borderLeftColor: 'rgba(107,30,42,0.6)', paddingLeft: 8, lineHeight: isAndroid ? 15 : 18 },
+  memoCardCourse:  { fontFamily: F.sys, fontSize: fs(12), color: 'rgba(255,255,255,0.6)' },
+  memoMain:        { fontFamily: F.sysSb, fontSize: fs(14), color: 'rgba(255,255,255,0.85)', marginBottom: 3 },
+  memoSub:         { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.6)' },
+  memoScore:       { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(245,230,168,0.6)', marginBottom: 5 },
+  memoTxt:         { fontFamily: F.sysM, fontSize: fs(12), color: '#fff', borderLeftWidth: 2, borderLeftColor: 'rgba(107,30,42,0.6)', paddingLeft: 8, lineHeight: isAndroid ? 15 : 18 },
   commentCard:     { backgroundColor: 'transparent', borderRadius: 14, overflow: 'hidden', minHeight: isAndroid ? 66 : 90 },
-  commentTxt:      { fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, borderLeftWidth: 2, borderLeftColor: 'rgba(26,61,82,0.35)', paddingLeft: 8, lineHeight: isAndroid ? 15 : 18 },
-  commentWho:      { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: isAndroid ? 4 : 6, marginLeft: 10 },
-  commentWhoTop:   { fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginLeft: 6, maxWidth: 110 }, // 닉네임 top 우상단(본문 높이 안 늘리게)
+  commentTxt:      { fontFamily: F.sysM, fontSize: fs(12), color: '#fff', borderLeftWidth: 2, borderLeftColor: 'rgba(200,217,230,0.3)', paddingLeft: 8, lineHeight: isAndroid ? 15 : 18 },
+  commentWho:      { fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.4)', marginTop: isAndroid ? 4 : 6, marginLeft: 10 },
+  commentWhoTop:   { fontFamily: F.sys, fontSize: fs(10), color: 'rgba(255,255,255,0.4)', marginLeft: 6, maxWidth: 110 }, // 닉네임 top 우상단(본문 높이 안 늘리게)
 });

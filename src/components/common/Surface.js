@@ -10,16 +10,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 //  · PressScale — 누르는 동안 0.98로 살짝 눌렸다 놓으면 돌아오는 카드(눈이 아니라 손으로 느끼는 입체감).
 //    TouchableOpacity 자리에 그대로 쓴다(onPress·disabled·style 동일). style은 안쪽 Animated.View에 간다.
 export function SurfaceLight({ radius = 16, tone = 'light' }) {
+  //   'glass'(사진 위 반투명 유리 카드 — 홈 한줄 메모): 위 흰빛 조금·아래 그늘 조금·윤곽선은 유리 두께처럼 옅게.
   const dark = tone === 'dark';
-  const colors = dark
-    ? ['rgba(255,255,255,0.12)', 'rgba(255,255,255,0)', 'rgba(0,0,0,0.16)']
-    : ['rgba(255,255,255,0.65)', 'rgba(255,255,255,0)', 'rgba(61,57,53,0.07)'];
+  const glass = tone === 'glass';
+  const colors = glass
+    ? ['rgba(255,255,255,0.16)', 'rgba(255,255,255,0)', 'rgba(0,0,0,0.10)']
+    : dark
+      ? ['rgba(255,255,255,0.12)', 'rgba(255,255,255,0)', 'rgba(0,0,0,0.16)']
+      : ['rgba(255,255,255,0.65)', 'rgba(255,255,255,0)', 'rgba(61,57,53,0.07)'];
+  const topLine = glass ? 'rgba(255,255,255,0.38)' : dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.95)';
+  const bottomLine = glass ? 'rgba(0,0,0,0.22)' : dark ? 'rgba(0,0,0,0.28)' : 'rgba(61,57,53,0.13)';
   const inset = Math.round(radius * 0.6);   // 모서리 곡선 안쪽에서 선이 끝나게
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
       <LinearGradient colors={colors} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
-      <View style={{ position: 'absolute', top: 0, left: inset, right: inset, height: 1, backgroundColor: dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.95)' }} />
-      <View style={{ position: 'absolute', bottom: 0, left: inset, right: inset, height: 2, backgroundColor: dark ? 'rgba(0,0,0,0.28)' : 'rgba(61,57,53,0.13)' }} />
+      <View style={{ position: 'absolute', top: 0, left: inset, right: inset, height: 1, backgroundColor: topLine }} />
+      <View style={{ position: 'absolute', bottom: 0, left: inset, right: inset, height: 2, backgroundColor: bottomLine }} />
     </View>
   );
 }
