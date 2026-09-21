@@ -8,7 +8,7 @@ import { C } from '../../constants/colors';
 //   사용: <Icon name="flag" size={18} color={C.burgundy} />
 // 날씨 아이콘 멀티컬러 — 각 path에 직접 stroke 지정(Icon의 단색 color 무시). 어두운 카드/날씨화면 기준.
 // sun=앰버골드(버터 UI와 분리돼 '태양' 포인트로 살게, 2026-06-21). 버터(#F5E6A8) → #F2B441
-const WXC = { sun: '#F2B441', cloud: '#FFFFFF', rain: '#7FB3E0', snow: '#CFE3F2' };
+const WXC = { sun: '#F2B441', cloud: '#FFFFFF', cloudLine: 'none', rain: '#7FB3E0', snow: '#CFE3F2' };
 // ★밝은 배경용(2026-09-21) — 홈 D-N 카드가 크림 불투명이 되면서 흰 구름이 사라짐(사용자). tone="light"로 선택.
 //   구름=웜그레이(크림 위에 보이면서 '흐림' 느낌), 해·비·눈은 한 단계 진하게.
 //   구름을 회색 몸통으로 했더니 "흐린 날 같다"(사용자) → 흰 몸통 + 얇은 회색 윤곽(cloudLine). 날씨 의미는 모양이, 색은 중립.
@@ -318,7 +318,7 @@ const ICONS = {
   ),
   // ☁️ 흐림 — 통일 구름
   cloud: (c, tone) => (
-    <Path d={WX_CLOUD.d} fill={wxc(tone).cloud} stroke={tone === 'light' ? WXC_LIGHT.cloudLine : 'none'} strokeWidth={1.4} strokeLinejoin="round" transform={WX_CLOUD.tf} />
+    <Path d={WX_CLOUD.d} fill={wxc(tone).cloud} stroke={wxc(tone).cloudLine} strokeWidth={1.4} strokeLinejoin="round" transform={WX_CLOUD.tf} />
   ),
   // 🌤️·⛅ 구름조금 — 해 + 구름(해가 보이게 우하단 구름 합성, 전체 1.1배)
   //   sun과 동일하게 iOS 파서 안전(공백 L)·요소별 속성 직접 지정. 좌표는 기존과 동일.
@@ -328,13 +328,13 @@ const ICONS = {
         d="M12 2 L12 4 M4.93 4.93 L6.34 6.34 M20 12 L22 12 M19.07 4.93 L17.66 6.34 M15.947 12.65 a4 4 0 0 0 -5.925 -4.128"
         fill="none" stroke={wxc(tone).sun} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
       />
-      <Path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z" fill={wxc(tone).cloud} stroke={tone === 'light' ? WXC_LIGHT.cloudLine : 'none'} strokeWidth={1.4} strokeLinejoin="round" />
+      <Path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z" fill={wxc(tone).cloud} stroke={wxc(tone).cloudLine} strokeWidth={1.4} strokeLinejoin="round" />
     </G>
   ),
   // 🌧️·🌦️ 비 — 통일 구름 + 빗줄기 (iOS 파서 안전: 공백 L + 요소별 속성 직접)
   rain: (c, tone) => (
     <>
-      <Path d={WX_CLOUD.d} fill={wxc(tone).cloud} stroke={tone === 'light' ? WXC_LIGHT.cloudLine : 'none'} strokeWidth={1.4} strokeLinejoin="round" transform={WX_CLOUD.tf} />
+      <Path d={WX_CLOUD.d} fill={wxc(tone).cloud} stroke={wxc(tone).cloudLine} strokeWidth={1.4} strokeLinejoin="round" transform={WX_CLOUD.tf} />
       <Path d="M8 17.6 L8 21.2 M12 18.6 L12 22.2 M16 17.6 L16 21.2"
         fill="none" stroke={wxc(tone).rain} strokeLinecap="round" strokeLinejoin="round" />
     </>
@@ -342,7 +342,7 @@ const ICONS = {
   // ❄️·🌨️ 눈 — 통일 구름 + 눈송이(둥근 점=strokeLinecap round 필수). iOS 파서 안전: 공백 L.
   snow: (c, tone) => (
     <>
-      <Path d={WX_CLOUD.d} fill={wxc(tone).cloud} stroke={tone === 'light' ? WXC_LIGHT.cloudLine : 'none'} strokeWidth={1.4} strokeLinejoin="round" transform={WX_CLOUD.tf} />
+      <Path d={WX_CLOUD.d} fill={wxc(tone).cloud} stroke={wxc(tone).cloudLine} strokeWidth={1.4} strokeLinejoin="round" transform={WX_CLOUD.tf} />
       <Path d="M8 18 L8.01 18 M8 21.2 L8.01 21.2 M12 19.4 L12.01 19.4 M12 22.6 L12.01 22.6 M16 18 L16.01 18 M16 21.2 L16.01 21.2"
         fill="none" stroke={wxc(tone).snow} strokeLinecap="round" strokeLinejoin="round" />
     </>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { C, F, fs } from '../../constants/colors';
 import { WEEKDAYS } from '../../constants/data';
@@ -37,6 +37,9 @@ export function HomeCalendarStrip({ schedDaySet, onDayPress }) {
   }, []);
   const toggleMonth = () => {
     setMonthOpen(v => { storage.save(STORAGE_KEYS.homeCalMonthOpen, !v); return !v; });
+    // 펼침/접힘 시 페이저가 '오늘 장'으로 리마운트되는데 scrollTo(animated:false)는 스크롤 이벤트를 안 내므로 상태도 같이 초기화
+    //   (안 하면 라벨·'오늘' 글씨가 지난 장 기준으로 남는다 — 리뷰 2026-09-22)
+    setWeekPage(PAST_WEEKS); setMonthPage(PAST_MONTHS);
   };
 
   // 페이저는 폭을 알아야 그릴 수 있다 — 첫 장(오늘)으로 즉시 이동(안드는 contentOffset prop이 안 먹어 scrollTo)
@@ -45,6 +48,7 @@ export function HomeCalendarStrip({ schedDaySet, onDayPress }) {
     const t = setTimeout(() => {
       weekRef.current?.scrollTo({ x: PAST_WEEKS * w, animated: false });
       monthRef.current?.scrollTo({ x: PAST_MONTHS * w, animated: false });
+      setWeekPage(PAST_WEEKS); setMonthPage(PAST_MONTHS);   // 폭 변경 리마운트도 '오늘 장'이므로 상태 동기화
     }, 0);
     return () => clearTimeout(t);
   }, [w, monthOpen, loaded]);   // loaded — 저장값 복원이 폭 측정보다 늦게 끝나도 첫 장으로 맞춘다
@@ -54,21 +58,24 @@ export function HomeCalendarStrip({ schedDaySet, onDayPress }) {
   const has = (d) => !!schedDaySet && schedDaySet.has(midnight(d).getTime());
   const isRed = (d) => d.getDay() === 0 || !!holidayName(dateKey(d));
 
-  // ── 주간 페이지들 ──
-  const weekStart0 = new Date(today); weekStart0.setDate(today.getDate() - today.getDay());
-  const weekPages = Array.from({ length: PAST_WEEKS + FUTURE_WEEKS + 1 }, (_, p) => {
-    const start = new Date(weekStart0); start.setDate(weekStart0.getDate() + (p - PAST_WEEKS) * 7);
-    return Array.from({ length: 7 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
-  });
-  // ── 월 페이지들 ──
-  const monthPages = Array.from({ length: PAST_MONTHS + FUTURE_MONTHS + 1 }, (_, p) => {
+  // ── 주간·월 페이지들 — 날짜가 바뀔 때만 재계산(홈은 자주 리렌더되므로 매번 400개 Date를 만들지 않게, 리뷰 2026-09-22) ──
+  const weekPages = useMemo(() => {
+    const weekStart0 = new Date(today); weekStart0.setDate(today.getDate() - today.getDay());
+    return Array.from({ length: PAST_WEEKS + FUTURE_WEEKS + 1 }, (_, p) => {
+      const start = new Date(weekStart0); start.setDate(weekStart0.getDate() + (p - PAST_WEEKS) * 7);
+      return Array.from({ length: 7 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayMs]);
+  const monthPages = useMemo(() => Array.from({ length: PAST_MONTHS + FUTURE_MONTHS + 1 }, (_, p) => {
     const first = new Date(today.getFullYear(), today.getMonth() + (p - PAST_MONTHS), 1);
     const days = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
     const cells = Array(first.getDay()).fill(null);
     for (let i = 1; i <= days; i++) cells.push(new Date(first.getFullYear(), first.getMonth(), i));
     while (cells.length % 7) cells.push(null);
     return { first, cells };
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [todayMs]);
 
   // 라벨 — 주간은 그 주가 걸친 달("8월 · 9월"), 월은 그 달. 올해가 아니면 연도도.
   const yearOf = (d) => (d.getFullYear() !== today.getFullYear() ? `${d.getFullYear()}년 ` : '');
@@ -82,7 +89,6 @@ export function HomeCalendarStrip({ schedDaySet, onDayPress }) {
   };
 
   const dayCell = (d, { compact }) => {
-    if (!d) return <View key={`e${Math.random()}`} style={{ flex: 1 }} />;
     const isToday = d.getTime() === todayMs;
     const numColor = isToday ? '#16281c' : (isRed(d) ? RED : '#fff');
     return (
@@ -106,7 +112,8 @@ export function HomeCalendarStrip({ schedDaySet, onDayPress }) {
       })}
     </View>
   );
-  const pageEnd = (setter) => (e) => { if (w) setter(Math.max(0, Math.round(e.nativeEvent.contentOffset.x / w))); };
+  // ★상한도 클램프 — iOS 바운스로 마지막 장 너머까지 튕기면 round가 길이를 넘어 pages[idx]가 undefined(라벨 계산 크래시).
+  const pageEnd = (setter, count) => (e) => { if (w) setter(Math.min(count - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / w)))); };
 
   return (
     <View style={{ marginTop: 16, paddingVertical: 12, paddingHorizontal: 4 }} onLayout={e => { const x = Math.round(e.nativeEvent.layout.width) - 8; if (x > 0 && x !== w) setW(x); }}>
@@ -124,7 +131,7 @@ export function HomeCalendarStrip({ schedDaySet, onDayPress }) {
       </View>
       {w > 0 && loaded && (monthOpen ? (
         <ScrollView key={`m${w}`} ref={monthRef} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={pageEnd(setMonthPage)} onScrollEndDrag={pageEnd(setMonthPage)}>
+          onMomentumScrollEnd={pageEnd(setMonthPage, monthPages.length)} onScrollEndDrag={pageEnd(setMonthPage, monthPages.length)}>
           {monthPages.map(({ first, cells }) => (
             <View key={first.getTime()} style={{ width: w }}>
               {weekdayRow(null)}
@@ -138,7 +145,7 @@ export function HomeCalendarStrip({ schedDaySet, onDayPress }) {
         </ScrollView>
       ) : (
         <ScrollView key={`w${w}`} ref={weekRef} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={pageEnd(setWeekPage)} onScrollEndDrag={pageEnd(setWeekPage)}>
+          onMomentumScrollEnd={pageEnd(setWeekPage, weekPages.length)} onScrollEndDrag={pageEnd(setWeekPage, weekPages.length)}>
           {weekPages.map((days) => (
             <View key={days[0].getTime()} style={{ width: w }}>
               {weekdayRow(days)}

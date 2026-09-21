@@ -68,6 +68,14 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
   const [sel, setSel] = useState(null);          // 핀 탭 선택 골프장 → 하단 카드
   const [regionChip, setRegionChip] = useState('전체'); // ※region/줌 state는 두지 않는다 — 팬·줌은 JS 리렌더 0
   const [myLoc, setMyLoc] = useState(null);      // {lat,lng} — 거리 표시·내 위치 이동
+  // 내 위치 마커 스냅샷 — 안드는 tracks true를 계속 두면 매 프레임 재래스터(배터리·성능). 마운트 1.5초 뒤 false(핀과 같은 규칙), iOS는 상시 true.
+  const [myLocTrack, setMyLocTrack] = useState(true);
+  useEffect(() => {
+    if (!myLoc || Platform.OS === 'ios') return undefined;
+    setMyLocTrack(true);
+    const t = setTimeout(() => setMyLocTrack(false), 1500);
+    return () => clearTimeout(t);
+  }, [myLoc]);
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -226,7 +234,7 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
             tracksViewChanges 상시 true, zIndex 998(선택 강조 바로 아래). identifier 없음 → onMarkerPress에서 무시됨. */}
         {myLoc && Number.isFinite(myLoc.lat) && Number.isFinite(myLoc.lng) && (
           <Marker key="my-loc" coordinate={{ latitude: myLoc.lat, longitude: myLoc.lng }}
-            anchor={{ x: 0.5, y: 0.32 }} zIndex={998} tracksViewChanges>
+            anchor={{ x: 0.5, y: 0.32 }} zIndex={998} tracksViewChanges={Platform.OS === 'ios' ? true : myLocTrack}>
             <View style={{ alignItems: 'center' }}>
               <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(26,61,82,0.22)', alignItems: 'center', justifyContent: 'center' }}>
                 <View style={{ width: 15, height: 15, borderRadius: 7.5, backgroundColor: C.navy, borderWidth: 2.5, borderColor: '#fff',

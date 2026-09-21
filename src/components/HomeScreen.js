@@ -151,10 +151,18 @@ export function HomeScreen({ navigation, route }) {
   useEffect(() => { getGolfCourses().then(l => setCourseDb(Array.isArray(l) ? l : [])).catch(() => {}); getTop100Courses().catch(() => {}); }, []);
   // 구장 키 — DB에서 찾아지면 kakaoId(같은 구장의 표기 차이 '신라CC'/'여주신라CC'를 하나로), 못 찾으면 이름 정규화 키.
   //   ★"누구 글엔 뜨고 누구 글엔 안 뜬다"(사용자 2026-09-21) = 같은 구장을 친구마다 다르게 적어서. 이름 문자열로만 비교하면 못 합친다.
+  //   ★이름당 1회만 DB를 훑는다(캐시, courseDb 바뀌면 리셋) — findCourseByName이 477개 이름을 매번 정규화하므로
+  //     기록 150개×카드마다 부르면 안드에서 버벅였을 것(리뷰 2026-09-22).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const courseKeyCache = useMemo(() => new Map(), [courseDb]);   // courseDb가 바뀌면 새 Map — 의도된 의존성
   const resolveCourseKey = (name) => {
     if (!name) return '';
+    const hit = courseKeyCache.get(name);
+    if (hit !== undefined) return hit;
     const c = courseDb.length ? findCourseByName(courseDb, name) : null;
-    return c?.kakaoId ? `id:${c.kakaoId}` : courseKey(name);
+    const k = c?.kakaoId ? `id:${c.kakaoId}` : courseKey(name);
+    courseKeyCache.set(name, k);
+    return k;
   };
   // 홈 스크롤 원위치 — 다른 탭 갔다 오면 맨 위부터(사용자 2026-08-27, 코스 탭 blur 리셋과 동일 컨벤션).
   //   blur에서 애니메이션 없이 올려 돌아올 때 이미 맨 위 상태로 보인다. 재탭(tabPress)도 동일.
@@ -1411,7 +1419,7 @@ export function HomeScreen({ navigation, route }) {
   const todayLabel = `${_today.getMonth() + 1}월 ${_today.getDate()}일 (${WEEKDAYS[_today.getDay()]})`;
   // ★하단 주간 스트립(2026-08-24) — 이번 주 일~토 7칸, 오늘 강조, 일정 있는 날 점(schedules 날짜 매칭).
   // 일정 있는 날(자정 ms) 집합 — HomeCalendarStrip의 점 표시용. 주간/월 계산은 컴포넌트 안으로 이동(2026-09-21)
-  const _schedDaySet = new Set((schedules || []).map(s => { const d = new Date(parseSchedDate(s)); d.setHours(0, 0, 0, 0); return d.getTime(); }));
+  const _schedDaySet = useMemo(() => new Set((schedules || []).map(s => { const d = new Date(parseSchedDate(s)); d.setHours(0, 0, 0, 0); return d.getTime(); })), [schedules]); // 참조 안정 — 달력 스트립 불필요 리렌더 방지
   // ★내 피드 최신(2026-08-24) — 내 라운딩 기록(일상/모멘트 제외) 최근 4개. diaries는 date desc라 slice가 최신.
   const myFeed = (diaries || []).filter(isRoundDiary).slice(0, 4);
   // ★홈만의 연결(2026-09-21, 사용자 "친구소식·내 피드 뭔가 특별한 아이디어") — 내 기록과 친구 글을 엮는다.

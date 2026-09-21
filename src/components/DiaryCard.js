@@ -63,8 +63,10 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
     //   onDark(홈)에선 흰 배경 래퍼가 카드 가장자리에 흰 선으로 비쳐 투명 래퍼로(짙은 배경엔 그림자도 안 보임).
     //   2026-09-21: 홈에서도 그림자 — 사진 배경 위 카드가 평면적이라(사용자). 래퍼 배경을 카드와 같은 흰색으로 맞춰 흰 선 재발 없음.
     //   2026-09-21 3단계: 홈은 그림자 두 겹(ambient 바깥 + contact 안쪽, 같은 흰 배경·radius).
+    //   래퍼 배경은 카드 실제 색을 따른다 — 특별(골드 프레임) 카드는 크림(dS.cardSpecial)이라 흰 래퍼면 모서리에 흰 테가 비침(리뷰 2026-09-22)
+    const wrapBg = highlight ? '#F5F0E4' : '#fff';
     const shadowed = onDark
-      ? <View style={[{ borderRadius: 14, backgroundColor: '#fff' }, LIFT_AMBIENT]}><View style={[{ borderRadius: 14, backgroundColor: '#fff' }, LIFT_CONTACT]}>{children}</View></View>
+      ? <View style={[{ borderRadius: 14, backgroundColor: wrapBg }, LIFT_AMBIENT]}><View style={[{ borderRadius: 14, backgroundColor: wrapBg }, LIFT_CONTACT]}>{children}</View></View>
       : <View style={dS.cardShadow}>{children}</View>;
     return onReport ? (
       <Pressable onLongPress={() => onReport(item)} delayLongPress={350}>{shadowed}</Pressable>

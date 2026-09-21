@@ -24,9 +24,7 @@ export const homeS = StyleSheet.create({
   hdrGreetingName: { fontFamily: F.sysSb, color: C.butter },
   bottomArea:      { paddingBottom: 0 },
   secLabel:        { fontFamily: F.sysSb, fontSize: fs(12), color: 'rgba(255,255,255,0.6)', letterSpacing: 2, paddingHorizontal: SIDE_PAD, marginBottom: 8 },
-  // ★카드 입체감(2026-09-21) — 사진 배경 위 단색 카드가 색종이처럼 평면적이라(사용자) 부드러운 그림자로 배경과 분리.
-  //   iOS는 shadow*, 안드는 elevation. ★overflow:hidden인 뷰엔 못 씀(iOS가 그림자까지 잘라냄) — 래퍼에 줄 것.
-  lift:            { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
+  // 카드 그림자는 src/components/common/Surface.js(LIFT_AMBIENT/LIFT_CONTACT)가 단일 원본 — 여기 따로 두지 않는다(2026-09-22)
   mainCard:        { width: isAndroid ? 210 : 232, height: CARD_H, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16, padding: CARD_PAD },
   // D-0 카드 내부 박스(정보·날씨교통·함께식사 공용) — 카드 안에 또렷한 박스로 구분
   cardBox:         { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11 },

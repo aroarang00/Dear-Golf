@@ -56,11 +56,13 @@ export async function loadFriendRounds(friendUid) {
   const qs = [
     // ★Q1(친구공개)은 실패를 삼키지 않는다 — 오프라인의 빈 캐시(getDocsOnline이 throw)·권한 오류를 []로
     //   흡수하면 프로필이 '아직 공개된 기록이 없어요'로 위장된다. 호출부(FriendsTab)가 실패 안내+재시도를 띄운다.
+    //   단 던지는 건 '오프라인(unavailable)'뿐 — 권한 거부·인덱스 미배포 같은 다른 오류까지 던지면 Q2(그룹 글)도 버려지고
+    //   온라인인데 "인터넷 연결" 안내가 뜬다(리뷰 2026-09-22). 그런 오류는 예전처럼 이 쿼리만 비운다.
     getDocsOnline(query(base,
       where('ownerUid', '==', friendUid),
       where('visibility', '==', 'friends'),
       orderBy('date', 'desc'),
-    )),
+    )).catch((e) => { if (e?.code === 'unavailable') throw e; return null; }),
   ];
   if (me) {
     qs.push(getDocs(query(base,
