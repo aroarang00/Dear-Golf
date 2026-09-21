@@ -1403,14 +1403,18 @@ export function HomeScreen({ navigation, route }) {
           </Text>
           {/* ★주간 스트립(2026-08-24) — 인사말 아래, 콘텐츠와 같이 스크롤. 이번 주 7일·오늘 강조·일정 있는 날 점. 탭→일정 캘린더.
               상단에 월 라벨(2026-08-26) — 몇 월인지 안 보인다는 지적 */}
-          <View style={{ marginTop: 16, backgroundColor: 'rgba(0,0,0,0.24)', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 4 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: 'rgba(255,255,255,0.78)', marginLeft: 12, marginBottom: 8 }}>{stripMonthLabel}</Text>
+          {/* ★상자 벗김(2026-09-21) — 달력·D-N·메모 반투명 판 3장이 겹쳐 평면적(사용자 스샷). 달력은 사진 위에 글자만 두고
+              선택일 원만 남긴다 → 위쪽에 판이 하나 줄어 크림 D-N 카드가 주인공이 된다. 하늘(밝은 배경) 위 가독성은 글자 그림자로. */}
+          <View style={{ marginTop: 16, paddingVertical: 12, paddingHorizontal: 4 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: 'rgba(255,255,255,0.85)', marginLeft: 12, marginBottom: 8, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{stripMonthLabel}</Text>
             <View style={{ flexDirection: 'row' }}>
             {weekStrip.map((wd, i) => (
               <TouchableOpacity key={i} onPress={() => setShowScheduleScreen(true)} activeOpacity={0.7} style={{ flex: 1, alignItems: 'center' }}>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: wd.isToday ? C.butter : 'rgba(255,255,255,0.6)', marginBottom: 6 }}>{WEEKDAYS[wd.dow]}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: wd.isToday ? C.butter : 'rgba(255,255,255,0.75)', marginBottom: 6, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{WEEKDAYS[wd.dow]}</Text>
                 <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: wd.isToday ? C.butter : 'transparent' }}>
-                  <Text style={{ fontFamily: wd.isToday ? F.sysB : F.sysM, fontSize: fs(15.5), color: wd.isToday ? '#16281c' : '#fff' }}>{wd.day}</Text>
+                  <Text style={wd.isToday
+                    ? { fontFamily: F.sysB, fontSize: fs(15.5), color: '#16281c' }
+                    : { fontFamily: F.sysM, fontSize: fs(15.5), color: '#fff', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{wd.day}</Text>
                 </View>
                 <View style={{ width: 6, height: 6, borderRadius: 3, marginTop: 6, backgroundColor: wd.hasEvent ? '#8FB06B' : 'transparent' }} />
               </TouchableOpacity>
