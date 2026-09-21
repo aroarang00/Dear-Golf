@@ -872,12 +872,9 @@ export function HomeScreen({ navigation, route }) {
           </View>
           {s.groupId && unreadComments[s.groupId] > 0 ? <View style={{ marginLeft: 8 }}>{commentBadge(s.groupId)}</View> : null}
         </View>
-        {/* 구장명 = 주인공. 탭하면 코스 페이지 */}
-        <TouchableOpacity activeOpacity={canOpenCourse(s) ? 0.7 : 1} onPress={() => handleCardCoursePress(s)}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(22), lineHeight: fs(28), color: C.charcoal, marginTop: 13 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCourseName(s.course)}
-            {canOpenCourse(s) ? <Text style={{ fontSize: fs(14), color: HERO_TXT_DIM }}> ›</Text> : null}
-          </Text>
-        </TouchableOpacity>
+        {/* 구장명 = 주인공. ★별도 탭 없음(2026-09-22) — 몸통=일정 시트/이름=코스 상세 두 갈래가 애매(사용자).
+            카드 어디를 눌러도 일정 시트가 열리고, 코스 상세는 시트 안 '구장' 버튼으로(닫으면 이 일정으로 복귀). */}
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(22), lineHeight: fs(28), color: C.charcoal, marginTop: 13 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCourseName(s.course)}</Text>
         <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.textSecondary, marginTop: 3 }} numberOfLines={1}>
           {s.date.slice(5)} {s.day} · {s.time}{(s.subCourse || '').trim() ? ` · ${s.subCourse.trim()}` : ''}
         </Text>
@@ -1689,10 +1686,10 @@ export function HomeScreen({ navigation, route }) {
                       </View>
                     ) : (
                       <View style={{ flex: 1, paddingTop: 2 }}>
-                        {/* 구장+날짜 탭 → 코스 페이지 */}
-                        <TouchableOpacity activeOpacity={canOpenCourse(next) ? 0.7 : 1} onPress={() => handleCardCoursePress(next)}>
+                        {/* 구장+날짜 탭 → 일정 시트(코스 상세는 시트 안 버튼으로 — D-N 카드와 같은 규칙, 2026-09-22) */}
+                        <TouchableOpacity activeOpacity={0.7} onPress={() => openScheduleSheet(next)}>
                           <Text style={[homeS.cardCourse, { marginBottom: 0, fontSize: fs(Platform.OS === 'android' ? 21 : 20), lineHeight: Platform.OS === 'android' ? 27 : 25 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>{displayCourseName(next.course)}
-                            {canOpenCourse(next) ? <Text style={{ fontSize: fs(12), color: 'rgba(200,217,230,0.6)' }}> ›</Text> : null}
+                            <Text style={{ fontSize: fs(12), color: 'rgba(200,217,230,0.6)' }}> ›</Text>
                           </Text>
                           <Text style={[homeS.cardDate, { marginTop: 4 }]}>{next.date.slice(5)} {next.day} · {next.time} · {next.members}명</Text>
                         </TouchableOpacity>
