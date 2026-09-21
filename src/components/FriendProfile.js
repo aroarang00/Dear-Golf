@@ -28,7 +28,7 @@ import { DiagContext } from '../utils/diag';   // ★임시 진단(2026-09-17) �
 // 친구 풀 프로필 — 프로필 / 라운딩 피드. 헤더 옵션에서 알림/숨기기/삭제 처리.
 // 옵션 액션시트는 자체 오버레이로 표시 (Modal 위 Modal 충돌 회피)
 // 피드 카드는 MY와 동일한 DiaryCard(variant='friend') 재사용 — 정보만 선별 ([[friend-feed-design]])
-export function FriendProfile({ friend, visible, feedLoading, friendGroups = [], onSaveMeta, onClose, muted, onToggleMute, onHide, onDelete, onBlock }) {
+export function FriendProfile({ friend, visible, feedLoading, feedFailed = false, onRetryFeed, friendGroups = [], onSaveMeta, onClose, muted, onToggleMute, onHide, onDelete, onBlock }) {
   const [gradeOpen, setGradeOpen] = useState(false);
   const [mannerOpen, setMannerOpen] = useState(false);
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false);
@@ -318,6 +318,20 @@ export function FriendProfile({ friend, visible, feedLoading, friendGroups = [],
               <View style={{ paddingHorizontal: 16 }}>
                 {feedLoading ? (
                   <LoadingState label="라운딩 기록 불러오는 중" />
+                ) : feedFailed ? (
+                  /* 로드 실패(오프라인 등) — '아직 공개된 기록이 없어요'로 위장하지 않는다([[read-failure-disguise]], 2026-09-21) */
+                  <View style={{ alignItems: 'center', paddingVertical: 28 }}>
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal, marginBottom: 5 }}>
+                      기록을 불러오지 못했어요
+                    </Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', lineHeight: 18, marginBottom: 14 }}>
+                      인터넷 연결을 확인하고{'\n'}다시 시도해주세요
+                    </Text>
+                    <TouchableOpacity onPress={() => onRetryFeed && onRetryFeed()} activeOpacity={0.8}
+                      style={{ borderWidth: 1.2, borderColor: C.charcoal, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 20 }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>다시 시도</Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : (
                   <View style={{ alignItems: 'center', paddingVertical: 28 }}>
                     <Text style={{ fontSize: fs(30), marginBottom: 10 }}>🌱</Text>

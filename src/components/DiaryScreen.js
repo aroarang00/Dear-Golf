@@ -16,6 +16,7 @@ import { LoadingState } from './common/LoadingState';
 import { showAppAlert } from './AppAlert';
 import { showToast } from './AppToast';
 import { HallOfFameCard } from './HallOfFameCard';
+import { DiagContext } from '../utils/diag';   // ★임시 진단(2026-09-21) — 첫 카드 흐림 추적 오버레이, 내 기록에도 스위치. 원인 잡으면 제거
 import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, trackTopMedals, SHAREABLE_MILESTONE_MIN } from './MilestoneCard';
 import { loadFriendData, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { ShareMomentModal } from './ShareMomentModal';
@@ -102,6 +103,7 @@ export function DiaryScreen({ route, navigation }) {
   const { diaries, hydrated: diariesHydrated, loadFailed: diariesLoadFailed, addDiary, editDiary, removeDiary, reloadDiaries } = React.useContext(DiariesContext);
   // 친구 좋아요 표시용 — 내 다이어리 likes(uid)를 닉네임으로 해석 (좋아요는 친구만 가능)
   const [friendNameByUid, setFriendNameByUid] = useState({});
+  const [diagOn, setDiagOn] = useState(false);   // ★임시 진단 — 보기 방식 줄 왼쪽 빈 곳을 길게 누르면 사진 위에 로드 정보 표시
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showLedger, setShowLedger] = useState(false); // 골프 가계부
@@ -767,6 +769,7 @@ export function DiaryScreen({ route, navigation }) {
 
   // 루트 inset은 View+paddingTop(useSafeAreaInsets)으로 — SafeAreaView 컴포넌트는 탭 포커스 시 top inset을 늦게 적용해 콘텐츠가 '툭' 떨어지던 버그(2026-06-15)
   return (
+    <DiagContext.Provider value={diagOn}>
     <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
       {/* 전체 스크롤(인스타식) — 명함·통계·필터·카드를 한 ScrollView에 담아 함께 스크롤. 명함·통계·💰⚙️💬는
           위로 밀려 사라지고, 필터 줄(인덱스 2)만 stickyHeaderIndices로 상단 고정(사용자 결정 2026-06-13).
@@ -890,7 +893,11 @@ export function DiaryScreen({ route, navigation }) {
               아이콘만 두니 요약보기도, 돋보기도 못 찾는다는 피드백 → 셋 다 '글자'로 내려 한 줄에 모음.
               필터 칩(무엇을 볼까)과 보기 방식(어떻게 볼까)을 줄로 분리. sticky 인덱스 2 블록 안이라 함께 고정된다. */}
           <View style={dS.viewModeRow}>
-            <View style={{ flex: 1 }} />
+            {/* ★임시 진단 스위치(2026-09-21) — 이 빈 자리를 길게 누르면 켜짐(켜지면 '진단' 글자가 보임). 원인 잡으면 빈 View로 되돌릴 것 */}
+            <Text onLongPress={() => setDiagOn((v) => !v)} delayLongPress={600}
+              style={{ flex: 1, fontFamily: F.sysSb, fontSize: fs(11), letterSpacing: 1.5, color: diagOn ? '#2E8B57' : 'transparent' }}>
+              {diagOn ? '진단 켜짐' : '진단'}
+            </Text>
             <TouchableOpacity activeOpacity={0.7} onPress={() => { if (compact) toggleCompact(); }}
               accessibilityLabel="사진 카드로 보기"
               hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={dS.viewModeBtn}>
@@ -1262,5 +1269,6 @@ export function DiaryScreen({ route, navigation }) {
           } catch (e) { if (__DEV__) console.warn('[DiaryScreen] avatar persist fail', e?.message); }
         }} />
     </View>
+    </DiagContext.Provider>
   );
 }

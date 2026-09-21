@@ -144,6 +144,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState([]);
   const [friendsLoaded, setFriendsLoaded] = useState(false); // 첫 로드 완료 전 빈 가이드 숨김(깜빡임 방지)
+  // 로드 실패(오프라인 등) — 친구 0명 가이드로 위장하지 않고 안내+재시도([[read-failure-disguise]], 2026-09-21)
+  const [friendsLoadFailed, setFriendsLoadFailed] = useState(false);
   // 친구 그룹·별명 (내 private 메타 — owner-only). 표시 이름·그룹 지정에 사용 ([[friend_groups]])
   const [friendData, setFriendData] = useState({ friendGroups: DEFAULT_FRIEND_GROUPS, friendMeta: {} });
   const [groupFilter, setGroupFilter] = useState('all'); // 그룹 필터칩 (전체/그룹들) ([[friend_groups]])
@@ -170,6 +172,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
   const [favorites, setFavorites] = useState({});    // 즐겨찾기 — { [uid]: true }, Firestore users.favoriteUids 영속
   const [profileFriend, setProfileFriend] = useState(null);
   const [feedLoading, setFeedLoading] = useState(false);   // 친구 프로필 피드 로드 중
+  const [feedFailed, setFeedFailed] = useState(false);     // 친구 프로필 피드 로드 실패 — '기록 없음'으로 위장 금지(2026-09-21)
   const [searchOpen, setSearchOpen] = useState(false);   // 검색 입력 펼침 — 평소엔 🔍 아이콘만(자리 절약). 숨긴 친구는 ⚙ 관리 시트로 이동
   const [gradeModalKey, setGradeModalKey] = useState(null);   // 신뢰 등급 설명 팝업
   const [finder, setFinder] = useState(null);   // 친구 찾기 화면 — null 또는 진입 탭
@@ -294,6 +297,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
           loadMyFriends(), loadReceivedRequests(), loadSentRequests(), loadFriendData(),
         ]);
         if (cancelled) return;
+        setFriendsLoadFailed(false);
         const friendMeta = fdata.friendMeta || {};
         setFriendData(fdata);
         // 3) 상대 uid 모음 → users 문서 한 번에 fetch (Promise.all)
@@ -375,6 +379,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
         }));
       } catch (e) {
         if (__DEV__) console.warn('[FriendsTab] initial load failed', e);
+        // 기존 목록(프리페치 시드 등)은 그대로 두고 실패만 표시 — 목록이 비어 있을 때만 화면이 안내로 바뀐다
+        if (!cancelled) setFriendsLoadFailed(true);
       } finally {
         if (!cancelled) setFriendsLoaded(true); // 첫 로드 완료 — 빈 가이드 깜빡임 방지 ([[home-empty-state-flash]])
       }
@@ -519,7 +525,14 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
       return next;
     });
     setProfileFriend(f);
+    loadProfileFeed(f);
+  };
+
+  // 프로필 피드 로드 — 실패(오프라인의 빈 캐시 등)는 '아직 공개된 기록이 없어요'로 위장하지 않고
+  //   feedFailed로 알려 프로필이 안내+'다시 시도'를 띄운다([[read-failure-disguise]], 2026-09-21).
+  const loadProfileFeed = async (f) => {
     setFeedLoading(true);
+    setFeedFailed(false);
     try {
       // 친구공개 라운드를 그대로 피드로 — DiaryCard(variant='friend')가 photos·likes·starRating 등 전체 필드를 읽음
       const feed = await loadFriendRounds(f.id);
@@ -527,6 +540,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
       setProfileFriend(prev => (prev && prev.id === f.id ? { ...prev, feed } : prev));
     } catch (e) {
       if (__DEV__) console.warn('[FriendsTab] loadFriendRounds failed', e?.message);
+      setFeedFailed(true);
     } finally {
       setFeedLoading(false);
     }
@@ -839,7 +853,20 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
         )}
 
         {/* 숨긴 친구 목록은 ⚙ 친구 관리 시트로 이동(메인 노출 0) — "숨겼는데 계속 보이는 모순" 해소 ([[project_fullscroll_profile]]) */}
-        {!friendsLoaded ? <LoadingState /> : visible.length === 0 ? (
+        {!friendsLoaded ? <LoadingState /> : (friendsLoadFailed && friends.length === 0) ? (
+          /* 로드 실패(오프라인 등) — 친구 0명 가이드로 위장하지 않는다([[read-failure-disguise]], 2026-09-21).
+             데이터는 서버에 멀쩡하다는 안심 문구 + 다시 시도(초기 로드 effect 재실행) */
+          <View style={{ marginTop: 18, backgroundColor: '#fff', borderRadius: 14, padding: 20, alignItems: 'center' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, marginBottom: 6 }}>친구 목록을 불러오지 못했어요</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', lineHeight: 19, marginBottom: 14 }}>
+              인터넷 연결을 확인해주세요{'\n'}친구 목록은 안전하게 저장돼 있어요
+            </Text>
+            <TouchableOpacity onPress={() => setReloadKey(k => k + 1)} activeOpacity={0.8}
+              style={{ borderWidth: 1.2, borderColor: C.navy, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 22 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.navy }}>다시 시도</Text>
+            </TouchableOpacity>
+          </View>
+        ) : visible.length === 0 ? (
           effFilter !== 'all' && !q ? (
             /* 빈 그룹 — 친구 0명 가이드가 아니라 그룹 지정법 안내(칩 상시 노출로 이 상태가 정상 경로가 됨) */
             <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', paddingVertical: 36, lineHeight: 19 }}>
@@ -921,6 +948,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
         friend={profileFriend}
         visible={!!profileFriend}
         feedLoading={feedLoading}
+        feedFailed={feedFailed}
+        onRetryFeed={() => profileFriend && loadProfileFeed(profileFriend)}
         friendGroups={friendData.friendGroups}
         onSaveMeta={handleSaveFriendMeta}
         onClose={() => setProfileFriend(null)}

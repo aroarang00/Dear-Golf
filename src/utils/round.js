@@ -3,7 +3,7 @@ import {
   addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
   arrayUnion, arrayRemove, writeBatch,
 } from 'firebase/firestore';
-import { db, getUid } from './firebase';
+import { db, getUid, getDocsOnline } from './firebase';
 import { uploadRoundMedia, uploadRoundMediaBestEffort } from './roundMedia';
 import { resolveGroupAudience } from './friendGroups';
 
@@ -37,7 +37,8 @@ export async function loadMyRounds() {
     where('ownerUid', '==', uid),
     orderBy('date', 'desc'),
   );
-  const snap = await getDocs(q);
+  // ★getDocsOnline — 오프라인의 '빈 캐시'를 실패로 취급(빈 배열이면 피드가 '기록 없음'으로 위장, 2026-09-21)
+  const snap = await getDocsOnline(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
@@ -53,11 +54,13 @@ export async function loadFriendRounds(friendUid) {
   const me = await getUid();
   const base = collection(db, COLLECTION);
   const qs = [
-    getDocs(query(base,
+    // ★Q1(친구공개)은 실패를 삼키지 않는다 — 오프라인의 빈 캐시(getDocsOnline이 throw)·권한 오류를 []로
+    //   흡수하면 프로필이 '아직 공개된 기록이 없어요'로 위장된다. 호출부(FriendsTab)가 실패 안내+재시도를 띄운다.
+    getDocsOnline(query(base,
       where('ownerUid', '==', friendUid),
       where('visibility', '==', 'friends'),
       orderBy('date', 'desc'),
-    )).catch(() => null),
+    )),
   ];
   if (me) {
     qs.push(getDocs(query(base,

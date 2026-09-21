@@ -3,7 +3,7 @@ import {
   addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
   arrayUnion, arrayRemove, increment, runTransaction, onSnapshot,
 } from 'firebase/firestore';
-import { db, getUid } from './firebase';
+import { db, getUid, getDocsOnline } from './firebase';
 
 // =============================================================
 // roundups/{postId} — 라운딩 모집글
@@ -32,7 +32,7 @@ export async function loadAllRoundups() {
     where('scope', '==', 'all'),
     orderBy('createdAt', 'desc'),
   );
-  const snap = await getDocs(q);
+  const snap = await getDocsOnline(q);   // 오프라인 빈 캐시=실패 → 라운지가 '모집 없음'으로 위장 안 함(2026-09-21)
   // 주최자 소프트 취소(cancelledByHost) 모집은 라운지 목록에서 숨김 (문서는 보존 — 매너평가·보관용)
   return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !p.cancelledByHost);
 }

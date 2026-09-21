@@ -2,7 +2,7 @@ import {
   collection, query, where, getDocs, getDoc, setDoc, updateDoc, deleteDoc, doc,
   serverTimestamp, arrayUnion, arrayRemove, limit as fsLimit, documentId,
 } from 'firebase/firestore';
-import { db, getUid } from './firebase';
+import { db, getUid, getDocsOnline } from './firebase';
 import { createNotification } from './roundupNotifications';
 import { getKakaoFriends } from './kakaoAuth';
 import { loadFriendData } from './friendGroups';
@@ -38,7 +38,7 @@ export async function loadMyFriends() {
     where('users', 'array-contains', uid),
     where('status', '==', 'accepted'),
   );
-  const snap = await getDocs(q);
+  const snap = await getDocsOnline(q);   // 오프라인 빈 캐시=실패(2026-09-21)
   return snap.docs.map(d => {
     const data = d.data();
     const otherUid = data.users.find(u => u !== uid);
@@ -117,7 +117,7 @@ export async function loadReceivedRequests() {
     where('recipientUid', '==', uid),
     where('status', '==', 'pending'),
   );
-  const snap = await getDocs(q);
+  const snap = await getDocsOnline(q);   // 오프라인 빈 캐시=실패(2026-09-21)
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
@@ -130,7 +130,7 @@ export async function loadSentRequests() {
     where('requesterUid', '==', uid),
     where('status', '==', 'pending'),
   );
-  const snap = await getDocs(q);
+  const snap = await getDocsOnline(q);   // 오프라인 빈 캐시=실패(2026-09-21)
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 

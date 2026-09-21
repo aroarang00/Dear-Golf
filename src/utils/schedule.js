@@ -1,8 +1,8 @@
 import {
-  collection, query, where, orderBy, getDocs,
+  collection, query, where, orderBy,
   addDoc, setDoc, updateDoc, deleteDoc, doc, serverTimestamp,
 } from 'firebase/firestore';
-import { db, getUid } from './firebase';
+import { db, getUid, getDocsOnline } from './firebase';
 
 // =============================================================
 // schedules/{scheduleId} — 라운딩 예정 일정 (본인만 read/write)
@@ -32,7 +32,8 @@ export async function loadMySchedules() {
     where('ownerUid', '==', uid),
     orderBy('date', 'asc'),
   );
-  const snap = await getDocs(q);
+  // ★getDocsOnline — 오프라인의 '빈 캐시'를 실패로 취급(빈 배열이면 화면이 '일정 없음'으로 위장, 2026-09-21)
+  const snap = await getDocsOnline(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, getDocs } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 import { getStorage } from 'firebase/storage';
 import * as fbAuth from 'firebase/auth';
@@ -58,4 +58,21 @@ export const authReady = new Promise((resolve) => {
 // 현재 uid — 로그인 완료 전 호출되면 authReady를 기다린다.
 export async function getUid() {
   return auth.currentUser?.uid || (await authReady);
+}
+
+// ★목록 읽기는 이걸로 — getDocs는 오프라인이면 실패 대신 '캐시'를 돌려준다(SDK 설계: source=default는
+//   서버에 못 닿으면 로컬 캐시로 폴백하고 에러를 내지 않는다). RN + JS SDK는 영구 persistence가 없어
+//   캐시가 늘 비어 있으므로 → 빈 배열이 돌아오고, 호출부는 '데이터 없음'으로 오인·loadFailed도 안 잡힌다.
+//   갤럭시 유저 "입력한 일정·기록이 다 사라져 보인다" 반복 제보(2026-09-21)의 원인. 특히 화면 포커스 재조회가
+//   빈 캐시를 받아 멀쩡히 보이던 목록을 []로 덮어쓰고 있었다.
+//   → 캐시에서 온 빈 결과는 '실패'로 던져 호출부가 기존 데이터를 유지하고 재시도 안내를 띄우게 한다.
+//   (캐시에서 온 비어 있지 않은 결과는 그대로 — 같은 세션에서 받아둔 실데이터라 보여도 된다.)
+export async function getDocsOnline(q) {
+  const snap = await getDocs(q);
+  if (snap.metadata?.fromCache && snap.empty) {
+    const e = new Error('offline-empty-cache');
+    e.code = 'unavailable';
+    throw e;
+  }
+  return snap;
 }
