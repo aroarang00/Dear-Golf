@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
+import { SurfaceLight, PressScale } from './common/Surface';   // 카드 표면 빛 + 눌림 반응(2026-09-21)
 import { C, F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { loadMyExpenses } from '../utils/golfExpense';
@@ -33,8 +34,9 @@ export function LedgerBanner({ diaries = [], onPress, style }) {
   const perRound = roundItems.length ? roundItems.reduce((s, it) => s + (it.spend || 0), 0) / roundItems.length : 0;
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85}
+    <PressScale onPress={onPress}
       style={[{ backgroundColor: C.charcoalDeep, borderRadius: 16, padding: 18 }, style]}>
+      <SurfaceLight radius={16} tone="dark" />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Icon name="wallet" size={fs(15)} color={GOLD} strokeWidth={1.9} />
@@ -55,6 +57,6 @@ export function LedgerBanner({ diaries = [], onPress, style }) {
           라운딩 기록에 비용을 적거나{'\n'}회비·용품 지출을 더하면 여기에 모여요
         </Text>
       )}
-    </TouchableOpacity>
+    </PressScale>
   );
 }

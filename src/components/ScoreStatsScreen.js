@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Dimensions, Animated, Easing } from 'react-native';
+import { SurfaceLight, PressScale } from './common/Surface';   // 카드 표면 빛 + 눌림 반응(2026-09-21)
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Polyline, Circle, Line, G, Text as SvgText } from 'react-native-svg';
 import { C, F, fs } from '../constants/colors';
@@ -92,8 +93,9 @@ export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible 
   const SPARK_W = Dimensions.get('window').width - 16 * 2 - 16 * 2;   // margin16*2 + padding16*2
 
   return (
-    <TouchableOpacity style={[{ marginHorizontal: 16, marginVertical: 8, backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14 }, style]}
-      activeOpacity={0.85} onPress={onPress}>
+    <PressScale style={[{ marginHorizontal: 16, marginVertical: 8, backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14 }, style]}
+      onPress={onPress}>
+      <SurfaceLight radius={12} tone="dark" />
       {/* 상단 — 제목 + 평균·베스트·핸디 */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>내 스코어</Text>
@@ -140,7 +142,7 @@ export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible 
           </View>
         </>
       )}
-    </TouchableOpacity>
+    </PressScale>
   );
 }
 

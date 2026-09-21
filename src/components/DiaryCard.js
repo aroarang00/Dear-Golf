@@ -6,6 +6,7 @@ import { dS } from '../styles/dS';
 import { getTagColor } from '../utils/helpers';
 import { hofBgColor } from './HallOfFameCard';
 import { MediaCarousel } from './common/MediaCarousel';
+import { SurfaceLight } from './common/Surface';   // 카드 표면 빛(2026-09-21)
 import { Icon } from './common/Icon'; // 좋아요 = 하트 아이콘(엄지 대체)
 import { WhoLikedModal } from './common/WhoLikedModal';
 import { queueLike, getMyLike, setMyLike, subscribeMyLikes } from '../utils/pendingLikes'; // 좋아요 유실 방지 대기 큐 + 화면 간 공유 메모장
@@ -315,6 +316,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
         //   글은 이 카드의 '더보기'로 본다. 사진 탭은 PhotoViewer 전체화면 보기 전용 ([[friend-feed-design]]).
         return wrapFriend(
           <View style={momentCard}>
+            <SurfaceLight radius={14} />
             {photoEl(false)}
             {/* 날짜·더보기·좋아요 한 줄 — 별도 좋아요 줄 제거(라운딩 사진카드와 통일, 카드 안 길어지게) ([[friend_feed_design]]) */}
             <View style={[dS.toggleBtn, { backgroundColor: '#fff', flexDirection: 'row',
@@ -340,6 +342,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
         <>
         <View style={dS.cardShadow}>
         <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
+          <SurfaceLight radius={14} />
           {photoEl(false)}
           {/* 날짜·더보기·좋아요 한 줄 — 친구 일상 사진카드와 동일(좋아요를 바 안 우측으로). '한 줄 아래' 해소. 더보기는 좌측이라 FAB와 안 겹침 */}
           <View style={[dS.toggleBtn, { backgroundColor: '#fff', flexDirection: 'row',
@@ -377,6 +380,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
     if (isFriend) {
       return wrapFriend(
         <View style={momentCard}>
+          <SurfaceLight radius={14} />
           {textBody}
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingBottom: 10, marginTop: -4 }}>
             {likeButton}
@@ -388,6 +392,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
       <>
       <View style={dS.cardShadow}>
       <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
+        <SurfaceLight radius={14} />
         {textBody}
       </TouchableOpacity>
       </View>
@@ -411,6 +416,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
       {shell(
         <TouchableOpacity style={[dS.card, darkCard, highlight && dS.cardSpecial]} activeOpacity={isFriend ? 1 : 0.88}
           disabled={isFriend} onPress={isFriend ? undefined : () => onPress(item)}>
+          <SurfaceLight radius={14} />
           {highlight && <View style={dS.cardSpecialLine} />}
           {photoHero(isFriend
             ? (i => onOpenPhoto && onOpenPhoto(item.photos, i))
@@ -441,6 +447,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
     {shell(
       <TouchableOpacity style={[dS.card, darkCard, highlight ? dS.cardSpecial : (onDark ? null : { borderLeftWidth: 3, borderLeftColor: lineColor })]}
         activeOpacity={isFriend ? 1 : 0.88} disabled={isFriend} onPress={isFriend ? undefined : () => onPress(item)}>
+        <SurfaceLight radius={14} />
         {highlight && <View style={dS.cardSpecialLine} />}
         {isSpecial && (
           <View style={[dS.specialNoPhoto, { backgroundColor: hofBgColor(item.special) }]}>

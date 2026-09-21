@@ -47,7 +47,8 @@ import { ScoreBanner, ScoreStatsScreen } from './ScoreStatsScreen';
 import { LedgerBanner } from './LedgerBanner';       // 골프 가계부 요약 카드(스코어 추이 아래, 2026-08-26)
 import { GolfLedgerModal } from './GolfLedgerModal'; // 카드 탭 → 가계부
 import { HomeCalendarStrip } from './common/HomeCalendarStrip'; // 홈 상단 달력 — 주간 스와이프 + 월 펼침(2026-09-21)
-import { DiaryCard } from './DiaryCard';                   // 친구 소식 미리보기 카드 — 친구 피드와 같은 카드 그대로(2026-08-26)
+import { DiaryCard } from './DiaryCard';
+import { SurfaceLight, PressScale } from './common/Surface';   // 카드 표면 빛 + 눌림 반응(2026-09-21)                   // 친구 소식 미리보기 카드 — 친구 피드와 같은 카드 그대로(2026-08-26)
 import { PhotoViewer } from './common/PhotoViewer';        // 친구 소식 카드 사진 탭 → 전체화면(핀치줌)
 import { loadFriendData } from '../utils/friendGroups';
 import { DMListScreen } from './DMListScreen';
@@ -829,8 +830,9 @@ export function HomeScreen({ navigation, route }) {
     const total = Number(s.members) || (names.length + 1);
     const shown = names.slice(0, 4);
     return (
-      <TouchableOpacity key={s.id} activeOpacity={0.9} onPress={() => openScheduleSheet(s)}
+      <PressScale key={s.id} onPress={() => openScheduleSheet(s)}
         style={[{ width: CARD_W, backgroundColor: C.bgPrimary, borderRadius: 20, padding: 18 }, homeS.lift]}>
+        <SurfaceLight radius={20} />
         {/* 골드 알약 — 다음 라운딩 · D-N (D-N은 여기 안에 작게) */}
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {/* 알약 — 크림 카드 위에선 버터가 묻혀 네이비 바탕+버터 글씨(최근 기록 '타수' 뱃지와 같은 조합) */}
@@ -891,7 +893,7 @@ export function HomeScreen({ navigation, route }) {
             </View>
           );
         })()}
-      </TouchableOpacity>
+      </PressScale>
     );
   };
   // 체크인 배너 맥동 — 활성일 때만 루프(은은한 scale + 골드 오버레이 opacity 펄스). MyScheduleTab 코스버튼과 동일 톤.
@@ -2057,7 +2059,7 @@ export function HomeScreen({ navigation, route }) {
               </View>
 
               {/* 히어로 — 최신 라운딩 */}
-              <TouchableOpacity onPress={() => openDiary(hero)} activeOpacity={0.9}
+              <PressScale onPress={() => openDiary(hero)}
                 style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: C.bgPrimary }}>
                 {heroUri ? (
                   <View>
@@ -2094,11 +2096,12 @@ export function HomeScreen({ navigation, route }) {
                     {scoreBadge(hero.score, true)}
                   </View>
                 )}
-              </TouchableOpacity>
+              </PressScale>
 
               {/* 이전 기록 — 컴팩트 행(기존 스타일), 타수는 우측 뱃지로 */}
               {rest.length > 0 && (
                 <View style={[{ backgroundColor: C.bgPrimary, borderRadius: 16, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 2, marginTop: 10 }, homeS.lift]}>
+                <SurfaceLight radius={16} />
                 {rest.map((d) => {
                   const uri = resolvePhotoUri(firstPhotoUri(d.photos));
                   return (
