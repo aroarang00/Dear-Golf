@@ -193,7 +193,7 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
         }}
         onMarkerPress={(e) => { const c = pinIndex.get(String(e?.nativeEvent?.id)); if (c) setSel(c); }}
         onPress={(e) => { if (e?.nativeEvent?.action === 'marker-press') return; setSel(null); }}
-        showsUserLocation={!!myLoc}
+        showsUserLocation={false}     // 기본 파란 점 — 전국 뷰에선 핀 사이에 묻혀 있는지도 몰랐음(사용자 2026-09-21) → 아래 전용 마커로
         showsMyLocationButton={false} // 기본 내위치 버튼 — 우리 '내 위치' 필과 중복이라 제거(우상단 겹침 지적 2026-08-27)
         showsCompass={false}          // 나침반 — 회전을 잠갔으니(rotateEnabled false) 무의미, 안내 버튼 아래 겹치던 것 제거
         toolbarEnabled={false}
@@ -217,6 +217,24 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
               alignItems: 'center', justifyContent: 'center',
               shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, shadowOffset: { width: 0, height: 2 }, elevation: 4 }}>
               <Icon name="green" size={18} color="#fff" strokeWidth={2.2} />
+            </View>
+          </Marker>
+        )}
+
+        {/* 내 위치 — OS 기본 파란 점 대신 전용 마커(2026-09-21). 네이비 점+흰 테두리+연한 후광, 아래 '내 위치' 라벨.
+            전국 뷰에서도 라벨 덕에 바로 찾는다. 선택 강조와 같은 방식의 별도 마커 1개(정적 핀 무변경 규칙 유지),
+            tracksViewChanges 상시 true, zIndex 998(선택 강조 바로 아래). identifier 없음 → onMarkerPress에서 무시됨. */}
+        {myLoc && Number.isFinite(myLoc.lat) && Number.isFinite(myLoc.lng) && (
+          <Marker key="my-loc" coordinate={{ latitude: myLoc.lat, longitude: myLoc.lng }}
+            anchor={{ x: 0.5, y: 0.32 }} zIndex={998} tracksViewChanges>
+            <View style={{ alignItems: 'center' }}>
+              <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(26,61,82,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 15, height: 15, borderRadius: 7.5, backgroundColor: C.navy, borderWidth: 2.5, borderColor: '#fff',
+                  shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 3 }} />
+              </View>
+              <View style={{ marginTop: 1, backgroundColor: C.navy, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2.5, borderWidth: 1, borderColor: '#fff' }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(10.5), color: '#fff' }}>내 위치</Text>
+              </View>
             </View>
           </Marker>
         )}
