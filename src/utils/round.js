@@ -254,7 +254,7 @@ export async function createRound(data) {
 export async function updateRound(roundId, data) {
   if (!roundId) throw new Error('roundId required');
   const ref = doc(db, COLLECTION, roundId);
-  const { ownerUid, id, createdAt, likes, ...updatable } = data; // 변경 금지·별도관리(likes) 필드 제거
+  const { ownerUid, id, createdAt, likes, commentCount, ...updatable } = data; // 변경 금지·별도관리(likes·commentCount) 필드 제거 — 낡은 댓글 수를 되쓰지 않게
   // 공개범위 바뀌면 그룹 audience 일관성 — group이면 스냅샷 유지, 아니면 비움 ([[friend_groups]])
   if (updatable.visibility) {
     if (updatable.visibility === 'group') {

@@ -181,6 +181,12 @@ service cloud.firestore {
     //   · 친구 feed    : where('ownerUid','==', 친구uid).where('visibility','==','friends')
     // 위 형태로 필터해야 list 쿼리가 통과함.
     match /rounds/{roundId} {
+      // 글을 볼 수 있는 사람 — read 조건과 같은 식(주인 / 친구공개+친구 / 그룹공개+수신자). 댓글·댓글 수 권한의 기준(2026-09-22).
+      function canSeeRound(r) {
+        return r.ownerUid == request.auth.uid
+          || (r.visibility == 'friends' && areFriends(request.auth.uid, r.ownerUid))
+          || (r.visibility == 'group' && request.auth.uid in r.get('audienceUids', []));
+      }
       allow read: if isSignedIn() && (
         resource.data.ownerUid == request.auth.uid
         || (resource.data.visibility == 'friends'
@@ -206,9 +212,34 @@ service cloud.firestore {
             && request.auth.uid in resource.data.get('audienceUids', [])
             && changedKeysWithin(['likes', 'updatedAt'])
             && selfMembershipToggled('likes'))
+        // 댓글 수(commentCount) ±1 — 글을 볼 수 있는 사람이 댓글을 달거나 지울 때 배치로 함께 온다(roundComments.js).
+        //   좋아요와 같은 '자기 몫만' 원칙: 딱 1 늘거나 1 줄어드는 것만, 0 아래로는 못 내린다.
+        || (canSeeRound(resource.data)
+            && changedKeysWithin(['commentCount'])
+            && (request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1
+                || (resource.data.get('commentCount', 0) > 0
+                    && request.resource.data.commentCount == resource.data.get('commentCount', 0) - 1)))
       );
       allow delete: if isSignedIn()
         && resource.data.ownerUid == request.auth.uid;
+
+      // ===== 댓글 서브컬렉션 — rounds/{roundId}/comments/{commentId} (2026-09-22, 친구 피드 댓글) =====
+      //   필드: { authorUid, authorName, body(≤300), createdAt }. 읽기·쓰기 = 부모 글을 볼 수 있는 사람.
+      //   삭제 = 작성자 본인 또는 글 주인(내 글에 달린 부적절한 댓글 정리). 수정 없음(지우고 다시).
+      match /comments/{commentId} {
+        function parentRound() {
+          return get(/databases/$(database)/documents/rounds/$(roundId)).data;
+        }
+        allow read: if isSignedIn() && canSeeRound(parentRound());
+        allow create: if isSignedIn() && canSeeRound(parentRound())
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0 && request.resource.data.body.size() <= 300;
+        allow delete: if isSignedIn() && (
+          resource.data.authorUid == request.auth.uid
+          || parentRound().ownerUid == request.auth.uid
+        );
+      }
     }
 
     // ===== roundScoreShares — 동반자 스코어 공유 (Phase C, docs/companion-design.md §11) =====
