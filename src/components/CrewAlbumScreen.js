@@ -99,8 +99,9 @@ const GalleryTile = React.memo(function GalleryTile({ m, cell, index, onOpen }) 
   );
 });
 
-// 사진 없는 글의 타일 바탕 — 사진 타일과 크기를 맞춰 격자가 안 흔들리게, 흰 카드·크림 공지와도 구분되는 옅은 세이지.
-const TEXT_TILE_BG = '#E7EEDF';
+// 사진 없는 글의 타일 — 사진 타일과 크기를 맞춰 격자가 안 흔들리게. ★바탕은 카드와 같은 흰색(2026-09-22):
+//   옛 옅은 세이지(#E7EEDF)는 흰 카드 안에서 '색 네모 + 흰 띠(이름·하트)' 두 겹으로 읽혔다(사용자 "왜 이중으로 보이지").
+const TEXT_TILE_BG = '#FFFFFF';
 
 // 게시글 그리드 카드(2열) — '글 하나'가 한 칸. 대표 사진 정사각 + 작성자 + 글 첫 줄 + ♥·댓글.
 //   1열 큰 카드는 한 화면에 한 개 반쯤 들어와, 글이 쌓이면 훑기가 힘들었다 → 너나픽 그리드 톤으로 (사용자 2026-08-02).
@@ -127,8 +128,8 @@ const PostGridCard = React.memo(function PostGridCard({ p, cell, onOpen, onToggl
             isHost={p.roundupIsHost} hostIsFriend={p.roundupHostIsFriend}
             onPress={(rid) => onOpenRoundup?.(rid, p.roundupHost)} />
         ) : (
-          <View style={{ width: cell, height: cell, backgroundColor: TEXT_TILE_BG, padding: 13, justifyContent: 'center' }}>
-            <Text numberOfLines={5} style={{ fontFamily: F.sysM, fontSize: fs(14), color: INK, lineHeight: fs(21) }}>{p.text}</Text>
+          <View style={{ width: cell, height: cell, backgroundColor: TEXT_TILE_BG, paddingHorizontal: 13, paddingTop: 16, paddingBottom: 6, justifyContent: 'center' }}>
+            <Text numberOfLines={5} style={{ fontFamily: F.sysM, fontSize: fs(14.5), color: INK, lineHeight: fs(22) }}>{p.text}</Text>
           </View>
         )}
         {more > 0 && (
