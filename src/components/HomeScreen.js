@@ -89,7 +89,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 //   쇼핑·예약 등 커머스·유틸은 이 레일이 아니라 별도 가로 액션줄로 분리 예정([[home-shopping-reservation-buttons]]).
 //   안드는 상태바와 안 붙게, iOS는 공간 여유라 더 내리고 버튼·간격을 크게. 한 곳만 고치면 둘이 같이 움직임.
 const _railAnd = Platform.OS === 'android';
-const RAIL_TOP = _railAnd ? 28 : 38;
+const RAIL_TOP = _railAnd ? 16 : 26;    // 2026-09-23 12px 위로 — 사용자 "알림 종 위치를 좀 올리고 싶다"(지금은 종만 이 좌표를 쓴다)
 const RAIL_STEP = _railAnd ? 80 : 88;
 const RAIL_BTN = _railAnd ? 44 : 50;     // 버튼 원 지름
 const RAIL_ICON = _railAnd ? 26 : 30;    // 크루 라인 아이콘
