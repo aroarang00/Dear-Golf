@@ -466,6 +466,13 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
   const [paste, setPaste] = useState('');      // 카드문자·정산 메시지 붙여넣기
   const [instr, setInstr] = useState('');      // 총무 요구사항 — "김이사는 빼줘" 같은 자연어(기본은 1/n·100원 올림)
   const [showPaste, setShowPaste] = useState(false);
+  // ★접힘 3종(2026-09-22 "정산 과정이 너무 복잡") — 한 화면에 두 갈래 입력과 설명문 10줄이 다 보이던 것을 줄인다.
+  //   kindOpen: 종류 3버튼+나 포함 토글(라운딩을 고르면 자동으로 정해지니 평소엔 한 줄 요약만)
+  //   instrOpen: 선입금에서 요구사항 칸(선입금은 숫자 하나가 본류, 예외가 있을 때만 편다)
+  //   manualAmtOpen: 식사정산에서 1인당/총액 숫자칸(식사는 영수증·문자가 본류)
+  const [kindOpen, setKindOpen] = useState(false);
+  const [instrOpen, setInstrOpen] = useState(false);
+  const [manualAmtOpen, setManualAmtOpen] = useState(false);
   const [photos, setPhotos] = useState([]);    // 첨부한 영수증 URI — 계산할 때 문자와 함께 보낸다
   const [aiMembers, setAiMembers] = useState(null); // AI가 계산한 사람별 금액(있으면 이걸 쓴다)
   const [aiItems, setAiItems] = useState([]);   // AI가 읽은 품목별 내역(그린피·식사…)
@@ -848,28 +855,71 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
             </>
           )}
 
-          <Text style={sec}>무엇을 걷나요</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {SETTLE_KINDS.map(k => {
-              const on = kind === k.key;
-              return (
-                <TouchableOpacity key={k.key} activeOpacity={0.8}
-                  onPress={() => {
-                    if (k.key === kind) return;
-                    // 선입금↔사후정산은 금액의 의미가 반대라(1인당 vs 총액) 이전 계산을 그대로 두면 틀린 값이 남는다.
-                    setKind(k.key); setAiMembers(null); setAiItems([]); setAiNote(''); setTotal(''); setPerHead('');
-                    setIncludeSelf(k.key === 'meal');   // 식사로 바꾸면 나 포함 켜기, 아니면 끄기
-                  }}
-                  style={{ flex: 1, paddingVertical: 12, borderRadius: 11, alignItems: 'center',
-                    backgroundColor: on ? '#6B1E2A' : C.bgSecondary,
-                    }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: on ? C.butter : C.charcoal }}>
-                    {k.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+          {/* 종류 + 나 포함 — 라운딩을 고르면 자동으로 정해진다(예정=선입금·나 제외, 지난=식사·나 포함).
+              그래서 평소엔 한 줄 요약만 두고 '바꾸기'로 편다(2026-09-22 — 3버튼+토글이 늘 펼쳐져 화면이 무거웠다). */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={[sec, { flex: 1, marginBottom: 0 }]} numberOfLines={1}>
+              {settleKindLabel(kind)}
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: C.textSecondary }}>
+                {'  ·  '}{includeSelf ? `나(${myName}) 포함` : '나 제외'}
+              </Text>
+            </Text>
+            <TouchableOpacity onPress={() => setKindOpen(v => !v)} activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: kindOpen ? C.warmGray : '#6B1E2A' }}>
+                {kindOpen ? '접기' : '바꾸기'}
+              </Text>
+            </TouchableOpacity>
           </View>
+          {kindOpen && (
+            <>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                {SETTLE_KINDS.map(k => {
+                  const on = kind === k.key;
+                  return (
+                    <TouchableOpacity key={k.key} activeOpacity={0.8}
+                      onPress={() => {
+                        if (k.key === kind) return;
+                        // 선입금↔사후정산은 금액의 의미가 반대라(1인당 vs 총액) 이전 계산을 그대로 두면 틀린 값이 남는다.
+                        setKind(k.key); setAiMembers(null); setAiItems([]); setAiNote(''); setTotal(''); setPerHead('');
+                        setIncludeSelf(k.key === 'meal');   // 식사로 바꾸면 나 포함 켜기, 아니면 끄기
+                      }}
+                      style={{ flex: 1, paddingVertical: 12, borderRadius: 11, alignItems: 'center',
+                        backgroundColor: on ? '#6B1E2A' : C.bgSecondary,
+                        }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: on ? C.butter : C.charcoal }}>
+                        {k.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* 나 포함 — 식사정산 1/n은 총무 몫도 나눠야 총액÷N이 맞다(빼면 남들이 총무 몫까지 더 냄).
+                  선입금은 남들 금액은 그대로고, 명단에 나를 넣어 '나도 냈다'를 정산서에 보여준다(사용자 2026-07-23).
+                  어느 쪽이든 내 행은 '확인'으로 저장돼 독촉·남은금액에서 빠진다. */}
+              <TouchableOpacity onPress={() => setIncludeSelf(v => !v)} activeOpacity={0.7}
+                style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10,
+                  backgroundColor: C.bgSecondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13 }}>
+                <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 11,
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: includeSelf ? '#6B1E2A' : 'transparent',
+                  borderWidth: includeSelf ? 0 : 1.5, borderColor: C.warmGray }}>
+                  {includeSelf && <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>✓</Text>}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>
+                    나({myName})도 {kind === 'meal' ? '1/n에 포함' : '명단에 넣기'}
+                  </Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 2 }}>
+                    {kind === 'meal'
+                      ? (includeSelf ? `총 ${names.length}명으로 나눠요` : '나를 빼고 나눠요 (남들이 내 몫까지 더 냄)')
+                      : (includeSelf ? '나도 낸 걸로 정산서에 표시돼요' : '나는 명단에서 빠져요')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          )}
 
           {/* 명단 — 자동으로 채워져 있고, 빠진 사람만 고치면 된다 */}
           <View style={{ height: 22 }} />
@@ -895,7 +945,8 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
             })}
           </View>
 
-          {/* 목록에 없는 사람 추가 — 앱을 안 쓰는 동반자가 대부분이라 이 경로가 늘 필요하다 */}
+          {/* 목록에 없는 사람 추가 — 앱을 안 쓰는 동반자가 대부분이라 이 경로가 늘 필요하다.
+              "앱 안 써도 이름만" 안내문은 폼에서 빼고 안내 시트(book)에만 둔다(2026-09-22). */}
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
             <AppTextInput value={newName} onChangeText={setNewName}
               onSubmitEditing={addTypedName} returnKeyType="done" blurOnSubmit={false}
@@ -909,145 +960,109 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
                 color: newName.trim() ? C.butter : C.warmGray }}>추가</Text>
             </TouchableOpacity>
           </View>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 7, lineHeight: fs(16) }}>
-            앱을 안 쓰는 사람도 이름만 넣으면 돼요. 정산서는 카톡으로 보낼 수 있어요
-          </Text>
-
-          {/* 나 포함 — 식사정산 1/n은 총무 몫도 나눠야 총액÷N이 맞다(빼면 남들이 총무 몫까지 더 냄).
-              선입금은 남들 금액은 그대로고, 명단에 나를 넣어 '나도 냈다'를 정산서에 보여준다(사용자 2026-07-23).
-              어느 쪽이든 내 행은 '확인'으로 저장돼 독촉·남은금액에서 빠진다. */}
-          <TouchableOpacity onPress={() => setIncludeSelf(v => !v)} activeOpacity={0.7}
-            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14,
-              backgroundColor: C.bgSecondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13 }}>
-            <View style={{ width: 22, height: 22, borderRadius: 6, marginRight: 11,
-              alignItems: 'center', justifyContent: 'center',
-              backgroundColor: includeSelf ? '#6B1E2A' : 'transparent',
-              borderWidth: includeSelf ? 0 : 1.5, borderColor: C.warmGray }}>
-              {includeSelf && <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>✓</Text>}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>
-                나({myName})도 {kind === 'meal' ? '1/n에 포함' : '명단에 넣기'}
-              </Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 2 }}>
-                {kind === 'meal'
-                  ? (includeSelf ? `총 ${names.length}명으로 나눠요` : '나를 빼고 나눠요 (남들이 내 몫까지 더 냄)')
-                  : (includeSelf ? '나도 낸 걸로 정산서에 표시돼요' : '나는 명단에서 빠져요')}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
           <View style={divider} />
 
           <Text style={sec}>얼마를 걷나요</Text>
 
+          {/* ★종류별로 본류를 가른다(2026-09-22 "정산 과정이 너무 복잡").
+              전엔 골드 AI 카드(요구사항+예시+규칙+촬영/갤러리/붙여넣기)와 직접 입력 숫자칸이 나란히 있어
+              어디에 써야 하는지 갈렸다. 선입금 = 1인당 숫자 하나가 본류(아직 결제 전이라 영수증·문자가 없다),
+              요구사항은 '예외가 있으면 적기'로 접어둔다. 식사 정산 = 영수증·문자·요구사항이 본류, 숫자칸은 접어둔다.
+              예시 문구·100원 올림 규칙·붙여넣기 안내는 폼에서 빼고 안내 시트(book)에만 둔다. */}
+          {kind === 'prepay' && (
+            <>
+              <Text style={hint}>1인당 (전원 동일)</Text>
+              <AppTextInput value={perHead} keyboardType="number-pad"
+                onChangeText={t => { setPerHead(t.replace(/[^0-9]/g, '')); if (t) setTotal(''); }}
+                placeholder="40000"
+                style={[box, { paddingHorizontal: 14, paddingVertical: 12, fontFamily: F.sysB, fontSize: fs(15.5), color: C.charcoal }]} />
+              {!instrOpen && (
+                <TouchableOpacity onPress={() => setInstrOpen(true)} activeOpacity={0.7}
+                  style={{ paddingVertical: 12, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#6B1E2A' }}>예외가 있으면 적기 (면제·추가)</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+
           {/* ── AI 영역 (골드) ── 가계부·예정 라운딩과 같은 관례: 골드 카드 안 = AI, 밖 = 직접 입력.
-              여기만 다른 점은 '요구사항'을 받는다는 것 — 정산은 총무마다 규칙이 달라서 값만 읽어선 못 채운다. */}
+              선입금에선 '예외 적기'를 눌렀을 때만 뜨고 촬영/갤러리/붙여넣기는 없다. 식사 정산에선 항상 뜬다. */}
+          {(kind !== 'prepay' || instrOpen) && (
           <View style={{ borderRadius: 16,
-            backgroundColor: 'rgba(201,168,76,0.08)', padding: 12, marginBottom: 16 }}>
+            backgroundColor: 'rgba(201,168,76,0.08)', padding: 12, marginTop: kind === 'prepay' ? 4 : 0, marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: GOLD_DEEP,
                 alignItems: 'center', justifyContent: 'center' }}>
                 {aiBusy ? <Spinner size={16} color="#FFFFFF" /> : <Icon name="sparkle" size={15} color="#FFFFFF" strokeWidth={1.8} />}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>AI로 계산</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
+                  {kind === 'prepay' ? '예외가 있으면' : 'AI로 계산'}
+                </Text>
+                {/* ★계산 버튼을 두지 않는다(사용자 2026-07-22) — 적어놓고 '걷기 시작'을 누르면 그때 계산한다.
+                    어디를 눌러야 하는지는 여기 한 줄로만 말한다(입력칸만 있고 누를 게 없으면 막힌 것처럼 보인다). */}
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, marginTop: 1 }}>
-                  {aiBusy ? 'AI가 계산하고 있어요...'
-                    : kind === 'prepay' ? '1인당 얼마인지 적으면 전원에게 똑같이 매겨드려요'
-                    : '어떻게 나눌지 적으면 사람별로 계산해드려요'}
+                  {aiBusy ? 'AI가 계산하고 있어요...' : "적어두면 '걷기 시작'에서 한 번에 계산해요"}
                 </Text>
               </View>
             </View>
 
-            {/* 요구사항 — 이게 이 화면의 핵심. 총무가 실제로 겪는 상황을 예시로 든다(사용자 2026-07-22).
-                말로 하듯 적으면 되고, 계좌를 같이 붙여넣으면 계좌칸까지 채워진다. */}
+            {/* 요구사항 — 총무가 실제로 겪는 상황을 placeholder 예시로만 보여준다(사용자 2026-07-22: 금액 박힌 예시 버튼 금지). */}
             <AppTextInput value={instr} onChangeText={v => { setInstr(v); if (aiError) setAiError(''); }} multiline
-              placeholder={kind === 'prepay' ? '1인당 얼마인지 적어주세요' : '어떻게 나눌지 적어주세요'}
+              placeholder={kind === 'prepay'
+                ? '예) 김이사는 참가비 면제, 박부장은 3만원 더'
+                : '예) 김이사는 술 안 마셔서 빼줘 · 점심은 3명, 저녁은 전원'}
               placeholderTextColor={C.warmGray}
-              style={{ minHeight: fs(76), backgroundColor: '#FFFFFF',
+              style={{ minHeight: fs(kind === 'prepay' ? 56 : 76), backgroundColor: '#FFFFFF',
                 borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12, textAlignVertical: 'top',
                 fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, lineHeight: fs(20) }} />
-            {/* 예시 — 탭해서 넣는 버튼으로 뒀더니 금액이 박혀 오히려 잘못 유도했다(사용자 2026-07-22:
-                "캐디피가 인당 5만원 넘기 힘든데 금액을 박아주는 건 맞지 않아, 경우가 다 다르다").
-                넣어주지 말고 '이렇게 쓰면 된다'만 보여준다. placeholder에 넣으면 잘리므로 입력칸 밖에 둔다. */}
-            <View style={{ marginTop: 9 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: GOLD_DEEP, marginBottom: 4 }}>
-                이렇게 적으면 돼요
-              </Text>
-              {(kind === 'prepay'
-                ? ['캐디피 인당 4만원, 참가비 2만원', '김이사는 참가비 면제', '박부장은 3만원 더']
-                : ['김이사는 술 안 마셔서 빼줘', '점심은 3명, 저녁은 전원', '천원 단위로 올려줘']
-              ).map(ex => (
-                <Text key={ex} style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, lineHeight: fs(18) }}>
-                  · {ex}
-                </Text>
-              ))}
-            </View>
-            {/* 기본 규칙을 밝혀둔다 — 총무 관행은 100원 절사지만 그러면 버린 만큼을 총무가 떠안는다.
-                기본을 올림으로 바꾼 이상 말없이 바꾸면 안 된다(사용자 2026-07-22). 절사도 여전히 되고,
-                요구사항 칸에 "100원 절사"라고 쓰면 그대로 버린다. */}
+
             {kind !== 'prepay' && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 8, lineHeight: fs(17) }}>
-                따로 안 적으면 1/n 하고 100원 단위로 올려요{'\n'}
-                남는 잔돈은 정산서에 그대로 밝혀지고, "100원 절사"라고 적으면 버립니다
-              </Text>
+              <>
+                {/* 금액 출처 — 촬영 / 갤러리 / 붙여넣기 (가계부와 동일 3분할) */}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  {[
+                    { key: 'camera', icon: 'camera', label: '촬영', onPress: () => addPhotos('camera') },
+                    { key: 'gallery', icon: 'image', label: '갤러리', onPress: () => addPhotos('gallery') },
+                    { key: 'paste', icon: 'clipboard', label: '붙여넣기', onPress: () => setShowPaste(v => !v) },
+                  ].map(m => {
+                    const active = m.key === 'paste' && showPaste;
+                    return (
+                      <TouchableOpacity key={m.key} activeOpacity={0.8} onPress={m.onPress} disabled={aiBusy}
+                        style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12,
+                          backgroundColor: active ? 'rgba(201,168,76,0.18)' : '#FFFFFF' }}>
+                        <Icon name={m.icon} size={21} color={GOLD_DEEP} strokeWidth={1.8} />
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{m.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* 첨부한 영수증 — 고른 즉시 계산하지 않고 여기 쌓아뒀다가 문자와 함께 한 번에 보낸다 */}
+                {photos.length > 0 && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                    {photos.map((uri, i) => (
+                      <TouchableOpacity key={uri} activeOpacity={0.7}
+                        onPress={() => setPhotos(prev => prev.filter(x => x !== uri))}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFFFF',
+                          borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7 }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: GOLD_DEEP }}>영수증 {i + 1}</Text>
+                        <Text style={{ fontSize: fs(12), color: C.textSecondary }}>✕</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {showPaste && !aiBusy && (
+                  <AppTextInput value={paste} onChangeText={v => { setPaste(v); if (aiError) setAiError(''); }} multiline
+                    placeholder={'카드결제 문자나 정산 메시지를 붙여넣어 주세요'}
+                    placeholderTextColor={C.warmGray}
+                    style={{ minHeight: fs(70), backgroundColor: '#FFFFFF',
+                      borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, textAlignVertical: 'top',
+                      fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, lineHeight: fs(20) }} />
+                )}
+              </>
             )}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, marginTop: 9, lineHeight: fs(16) }}>
-              카드 문자·계좌번호를 같이 붙여넣으면 금액과 계좌까지 정리해드려요{'\n'}
-              1차·2차처럼 여러 건이면 문자를 이어서 붙여넣거나, 영수증을 {RECEIPT_MAX}장까지 골라주세요
-            </Text>
-
-            {/* 금액 출처 — 촬영 / 갤러리 / 붙여넣기 (가계부와 동일 3분할) */}
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-              {[
-                { key: 'camera', icon: 'camera', label: '촬영', onPress: () => addPhotos('camera') },
-                { key: 'gallery', icon: 'image', label: '갤러리', onPress: () => addPhotos('gallery') },
-                { key: 'paste', icon: 'clipboard', label: '붙여넣기', onPress: () => setShowPaste(v => !v) },
-              ].map(m => {
-                const active = m.key === 'paste' && showPaste;
-                return (
-                  <TouchableOpacity key={m.key} activeOpacity={0.8} onPress={m.onPress} disabled={aiBusy}
-                    style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12,
-                      backgroundColor: active ? 'rgba(201,168,76,0.18)' : '#FFFFFF' }}>
-                    <Icon name={m.icon} size={21} color={GOLD_DEEP} strokeWidth={1.8} />
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>{m.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* 첨부한 영수증 — 고른 즉시 계산하지 않고 여기 쌓아뒀다가 문자와 함께 한 번에 보낸다 */}
-            {photos.length > 0 && (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-                {photos.map((uri, i) => (
-                  <TouchableOpacity key={uri} activeOpacity={0.7}
-                    onPress={() => setPhotos(prev => prev.filter(x => x !== uri))}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFFFF',
-                      borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: GOLD_DEEP }}>영수증 {i + 1}</Text>
-                    <Text style={{ fontSize: fs(12), color: C.textSecondary }}>✕</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {showPaste && !aiBusy && (
-              <AppTextInput value={paste} onChangeText={v => { setPaste(v); if (aiError) setAiError(''); }} multiline
-                placeholder={'카드결제 문자나 정산 메시지를 붙여넣어 주세요'}
-                placeholderTextColor={C.warmGray}
-                style={{ minHeight: fs(70), backgroundColor: '#FFFFFF',
-                  borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, textAlignVertical: 'top',
-                  fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, lineHeight: fs(20) }} />
-            )}
-
-            {/* ★계산 버튼을 두지 않는다(사용자 2026-07-22) — 적어놓고 '걷기 시작'을 누르면 그때 계산한다.
-                버튼을 따로 두면 안 누르고 넘어가서 아무 일도 안 일어난 것처럼 보였다. 대신 어디를 눌러야
-                하는지는 말해줘야 한다 — 입력칸만 있고 누를 게 없으면 그것대로 막힌 것처럼 보인다. */}
-            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: GOLD_DEEP, marginTop: 12,
-              textAlign: 'center', lineHeight: fs(17) }}>
-              적어두면 맨 아래 '걷기 시작'을 누를 때 한 번에 계산해드려요
-            </Text>
 
             {!!aiError && !aiBusy && (
               <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: '#6B1E2A', marginTop: 9 }}>{aiError}</Text>
@@ -1056,29 +1071,33 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
               <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: GOLD_DEEP, marginTop: 9 }}>{aiNote}</Text>
             )}
           </View>
+          )}
 
-          {/* ── 직접 입력 (골드 밖) ──
-              선입금은 '1인당'이 본류라 총액칸을 아예 안 보여준다 — 나누는 개념이 아니다(사용자 2026-07-22).
-              식사정산은 총액을 나누는 게 본류. */}
-          <Text style={hint}>직접 입력</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={hint}>{kind === 'prepay' ? '1인당 (전원 동일)' : '1인당'}</Text>
-              <AppTextInput value={perHead} keyboardType="number-pad"
-                onChangeText={t => { setPerHead(t.replace(/[^0-9]/g, '')); if (t) setTotal(''); }}
-                placeholder="150000"
-                style={[box, { paddingHorizontal: 14, paddingVertical: 12, fontFamily: F.sysB, fontSize: fs(15.5), color: C.charcoal }]} />
-            </View>
-            {kind !== 'prepay' && (
+          {/* ── 직접 입력 (골드 밖) — 식사 정산에서만, 접힌 채로 시작. 영수증·문자 없이 총액만 아는 경우가 있다.
+              선입금은 위의 1인당 칸이 곧 직접 입력이라 여기 없다(총액 개념이 아니다 — 사용자 2026-07-22). */}
+          {kind !== 'prepay' && (manualAmtOpen || !!total || !!perHead ? (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}>
-                <Text style={hint}>또는 총액</Text>
+                <Text style={hint}>총액</Text>
                 <AppTextInput value={total} keyboardType="number-pad"
                   onChangeText={t => { setTotal(t.replace(/[^0-9]/g, '')); if (t) setPerHead(''); }}
                   placeholder="600000"
                   style={[box, { paddingHorizontal: 14, paddingVertical: 12, fontFamily: F.sysB, fontSize: fs(15.5), color: C.charcoal }]} />
               </View>
-            )}
-          </View>
+              <View style={{ flex: 1 }}>
+                <Text style={hint}>또는 1인당</Text>
+                <AppTextInput value={perHead} keyboardType="number-pad"
+                  onChangeText={t => { setPerHead(t.replace(/[^0-9]/g, '')); if (t) setTotal(''); }}
+                  placeholder="150000"
+                  style={[box, { paddingHorizontal: 14, paddingVertical: 12, fontFamily: F.sysB, fontSize: fs(15.5), color: C.charcoal }]} />
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={() => setManualAmtOpen(true)} activeOpacity={0.7}
+              style={{ paddingVertical: 8, alignItems: 'center' }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#6B1E2A' }}>영수증 없이 금액만 직접 넣기</Text>
+            </TouchableOpacity>
+          ))}
           {sumAmount > 0 && members.length > 0 && (
             <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.charcoal, marginTop: 10 }}>
               {members.every(m => m.amount === members[0].amount)
@@ -1184,9 +1203,10 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
   const [eBusy, setEBusy] = useState(false);
   const [eError, setEError] = useState('');
   const [eNote, setENote] = useState('');
+  const [recomputeOpen, setRecomputeOpen] = useState(false);   // 다시 계산 카드 — 접힌 채 시작(2026-09-22, 금액 하나 고칠 때 작성 화면이 통째로 다시 뜨던 것)
   const resetRecompute = () => {
     setEPhotos([]); setEPaste(''); setEInstr(''); setEShowPaste(false);
-    setEBusy(false); setEError(''); setENote('');
+    setEBusy(false); setEError(''); setENote(''); setRecomputeOpen(false);
   };
 
   const startEdit = () => {
@@ -1275,6 +1295,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
 
   // 보낼 것 — 정산서(전원) / 독촉(안 낸 사람만). 안 낸 사람이 없으면 독촉은 아예 없다.
   const [mode, setMode] = useState('full');
+  const [previewOpen, setPreviewOpen] = useState(false);   // 미리보기 — 접힌 채 시작, 보내기 버튼 밑 링크로 편다
   const remindText = useMemo(() => buildReminderText(shareDoc), [shareDoc]);
   const canRemind = remindText.length > 0;
   // 독촉을 보고 있는 사이 마지막 한 명을 확인하면 독촉이 사라진다 — 빈 미리보기에 머무르지 않게 되돌린다.
@@ -1336,13 +1357,77 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
         </Text>
       </View>
 
+      {/* ★카톡으로 보내기를 요약 바로 아래로(2026-09-22 "정산 과정이 너무 복잡") — 만든 직후 총무가 할 일은
+          '보내기' 하나인데 요약·내역·명단·계좌·선택 칩 2줄·미리보기를 지나 맨 아래에 있었다.
+          정산서/독촉 전환·내역 넣기/빼기·미리보기는 버튼 밑 작은 글씨 한 줄로 격하. 미리보기는 접힌 채 시작.
+          수정 중에는 감춘다 — 아직 저장 안 된 값으로 보내면 헷갈린다. */}
+      {!editing && (
+        <View style={{ marginBottom: 16 }}>
+          <TouchableOpacity onPress={sendKakao} activeOpacity={0.85}
+            style={{ backgroundColor: C.butter, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
+              {mode === 'remind' ? `카톡으로 독촉 보내기 · ${sum.pending.length}명` : '카톡으로 정산서 보내기'}
+            </Text>
+          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap',
+            gap: 18, marginTop: 9 }}>
+            {/* ★독촉은 총무가 제일 싫어하는 일이라 문구를 앱이 대신 쓴다(사용자 2026-07-22).
+                안 낸 사람이 없으면 링크 자체를 감춘다 — 누를 일 없는 버튼은 없는 게 낫다. */}
+            {canRemind && (
+              <TouchableOpacity onPress={() => setMode(m => (m === 'remind' ? 'full' : 'remind'))} activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: '#6B1E2A' }}>
+                  {mode === 'remind' ? '정산서로 바꾸기' : `안 낸 ${sum.pending.length}명만 독촉`}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {/* 내역 넣기/빼기는 정산서에만 — 독촉은 이름과 금액만 짧게 나가는 게 낫다. 고른 건 기억한다. */}
+            {mode === 'full' && (
+              <TouchableOpacity onPress={() => setDetailKeep(!detail)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.textSecondary }}>
+                  {detail ? '내역 넣음 · 빼기' : '내역 뺌 · 넣기'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={() => setPreviewOpen(v => !v)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.textSecondary }}>
+                {previewOpen ? '미리보기 접기' : '미리보기'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {/* 미리보기 — buildSettlementText/buildReminderText 결과를 그대로 그린다. 화면과 실제 보낼 문구가
+              어긋나면 안 되므로 따로 꾸미지 않고 같은 함수의 출력을 쓴다. */}
+          {previewOpen && (
+            <View style={[box, { paddingHorizontal: 16, paddingVertical: 14, marginTop: 10 }]}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.textSecondary, marginBottom: 8 }}>
+                이렇게 보내집니다
+              </Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, lineHeight: fs(21) }}>
+                {mode === 'remind' ? remindText : buildSettlementText(shareDoc, { detail })}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
       {/* 영수증 다시 읽기 — 수정 중일 때만. 만들 때와 같은 AI 흐름(computeSettlement)으로 금액·내역을 다시 채운다.
           아래 직접 수정칸(내역·사람별 금액)은 그대로 두어, 다시 계산 후에도 텍스트로 마저 손볼 수 있다. */}
-      {editing && (
+      {editing && !recomputeOpen && (
+        <TouchableOpacity onPress={() => setRecomputeOpen(true)} activeOpacity={0.7}
+          style={{ paddingVertical: 10, alignItems: 'center', marginBottom: 6 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: GOLD_DEEP }}>영수증·문자로 다시 계산하기</Text>
+        </TouchableOpacity>
+      )}
+      {editing && recomputeOpen && (
         <View style={{ backgroundColor: 'rgba(201,168,76,0.08)', borderRadius: 14, padding: 14, marginBottom: 14 }}>
-          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: GOLD_DEEP, marginBottom: 4 }}>
-            영수증·문자로 다시 계산
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(14), color: GOLD_DEEP }}>
+              영수증·문자로 다시 계산
+            </Text>
+            <TouchableOpacity onPress={() => setRecomputeOpen(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.textSecondary }}>접기</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, marginBottom: 10, lineHeight: fs(18) }}>
             새 영수증을 올리거나 카드문자를 붙여넣으면 금액·내역을 다시 채워드려요
           </Text>
@@ -1513,65 +1598,8 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
         </View>
       )}
 
-      {/* 카톡으로 보내기 — 앱 안 깐 사람에게 가는 경로. 정산서(전원)와 독촉(안 낸 사람)이 같은 자리를 쓴다.
-          수정 중에는 감춘다 — 아직 저장 안 된 값으로 미리보기를 보여주면 헷갈린다. */}
       {!editing && (
       <>
-
-      {/* ★독촉은 총무가 제일 싫어하는 일이라 문구를 앱이 대신 쓴다(사용자 2026-07-22).
-          안 낸 사람이 없으면 칩 자체를 감춘다 — 누를 일 없는 버튼은 없는 게 낫다. */}
-      {canRemind && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-          <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary }}>카톡으로 보낼 것</Text>
-          {[['full', '정산서'], ['remind', `독촉 ${sum.pending.length}명`]].map(([v, l]) => {
-            const on = mode === v;
-            return (
-              <TouchableOpacity key={v} onPress={() => setMode(v)} activeOpacity={0.7}
-                style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 14, marginLeft: 6,
-                  backgroundColor: on ? '#6B1E2A' : C.bgSecondary }}>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: on ? C.butter : C.charcoal }}>{l}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
-
-      {/* 내역 넣기/빼기는 정산서에만 — 독촉은 이름과 금액만 짧게 나가는 게 낫다 */}
-      {mode === 'full' && (
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), color: C.textSecondary }}>정산서에 내역</Text>
-        {/* 라벨만 보고는 뭐가 달라지는지 모른다 — 아래 미리보기로 실제 문구를 보고 고르게 한다(사용자 2026-07-22) */}
-        {[[true, '넣기'], [false, '빼기']].map(([v, l]) => {
-          const on = detail === v;
-          return (
-            <TouchableOpacity key={l} onPress={() => setDetailKeep(v)} activeOpacity={0.7}
-              style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 14, marginLeft: 6,
-                backgroundColor: on ? '#6B1E2A' : C.bgSecondary }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: on ? C.butter : C.charcoal }}>{l}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      )}
-
-      {/* 미리보기 — buildSettlementText/buildReminderText 결과를 그대로 그린다. 화면과 실제 보낼 문구가
-          어긋나면 안 되므로 따로 꾸미지 않고 같은 함수의 출력을 쓴다. */}
-      <View style={[box, { paddingHorizontal: 16, paddingVertical: 14, marginBottom: 12 }]}>
-        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: C.textSecondary, marginBottom: 8 }}>
-          이렇게 보내집니다
-        </Text>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.charcoal, lineHeight: fs(21) }}>
-          {mode === 'remind' ? remindText : buildSettlementText(shareDoc, { detail })}
-        </Text>
-      </View>
-
-      <TouchableOpacity onPress={sendKakao} activeOpacity={0.85}
-        style={{ backgroundColor: C.butter, borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>
-          {mode === 'remind' ? '카톡으로 독촉 보내기' : '카톡으로 정산서 보내기'}
-        </Text>
-      </TouchableOpacity>
-
       {/* 남은 사람 — 안 낸 사람과 '보냈다고 한 사람'은 총무가 할 일이 다르다. 한 줄에 섞어두면
           이미 보낸 사람에게까지 독촉을 보내게 된다(예전 unpaid가 그랬다). */}
       {sum.pending.length > 0 && (
