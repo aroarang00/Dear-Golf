@@ -249,10 +249,14 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   ) : null;
   // 카드 밑 미리보기 — 댓글이 있을 때만 한두 줄([이름] 본문, 한 줄 말줄임) + 2개 넘으면 '댓글 N개 모두 보기'.
   //   어디를 눌러도 시트. 댓글 없는 카드는 지금과 똑같다(카드가 길어지지 않음).
-  const commentPreview = (commentCount > 0 && latest.length > 0) ? (
-    // 위 여백 — 사진 카드는 '기록 보기' 줄(연한 바탕) 바로 밑이라 붙어 보였다(사용자 2026-09-23). 본문 뒤(무사진)도 같은 값이면 자연스럽다.
+  //   ★크림 풋터(2026-09-23 사용자 "댓글 쪽이 카드랑 색이 다르게 분리, 첫 댓글이 카드 밑에 기어들어간 듯 붙어 있다"):
+  //   사진 카드는 '기록 보기' 줄이 크림 띠(dS.toggleBtn #FDFAF5)인데 그 밑 미리보기가 흰색이라 두 색으로 갈라졌다.
+  //   미리보기를 같은 크림으로 칠해 띠와 한 덩어리로 — afterBar=true(띠 바로 뒤)면 선 없이 이어 붙이고,
+  //   false(본문 뒤, 무사진·글 일상)면 위에 얇은 선 + 여백을 두어 같은 모양의 풋터가 된다. 카드 어디서나 "댓글=크림 풋터".
+  const commentPreviewFor = (afterBar) => (commentCount > 0 && latest.length > 0) ? (
     <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setShowComments(true); }} activeOpacity={0.7}
-      style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 11 }}>
+      style={{ paddingHorizontal: 12, paddingTop: afterBar ? 2 : 10, paddingBottom: 12, backgroundColor: '#FDFAF5',
+        borderTopWidth: afterBar ? 0 : 0.5, borderTopColor: '#F0EAD8' }}>
       {commentCount > latest.length && (
         <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 3 }}>
           댓글 {commentCount}개 모두 보기
@@ -418,7 +422,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
                 <Text style={momentTextStyle}>{item.memo}</Text>
               </View>
             )}
-            {commentPreview}
+            {commentPreviewFor(!(item.memo && expanded))}
           </View>
         );
       }
@@ -446,7 +450,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
               <Text style={momentTextStyle}>{item.memo}</Text>
             </View>
           )}
-          {commentPreview}
+          {commentPreviewFor(!(item.memo && expanded))}
         </TouchableOpacity>
         </View>
         {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}{commentsSheet}
@@ -471,7 +475,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingBottom: 10, marginTop: -4 }}>
             {likeButton}
           </View>
-          {commentPreview}
+          {commentPreviewFor(false)}
         </View>
       );
     }
@@ -481,7 +485,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
       <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
         <SurfaceLight radius={14} />
         {textBody}
-        {commentPreview}
+        {commentPreviewFor(false)}
       </TouchableOpacity>
       </View>
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}{commentsSheet}
@@ -523,7 +527,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
             ) : null}
           </View>
           {expanded && body}
-          {commentPreview}
+          {commentPreviewFor(!expanded)}
         </TouchableOpacity>
       )}
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}{commentsSheet}
@@ -551,7 +555,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
           </View>
         )}
         {body}
-        {commentPreview}
+        {commentPreviewFor(false)}
       </TouchableOpacity>
     )}
     {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}{commentsSheet}
