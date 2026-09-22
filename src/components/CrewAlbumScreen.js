@@ -120,7 +120,10 @@ const PostGridCard = React.memo(function PostGridCard({ p, cell, onOpen, onToggl
        공지 카드와 같은 흰 카드(연한 두 겹 그림자+표면 빛)에 담는다. 사진은 카드 위 모서리만 둥글게. */
     <TouchableOpacity activeOpacity={0.9} style={[{ width: cell, marginBottom: 14, borderRadius: 14, backgroundColor: '#FFFFFF' }, LIFT_AMBIENT_SOFT]}
       onPress={() => onOpen(p)} onLongPress={() => onAction(p)} delayLongPress={320}>
-      <View style={[{ borderRadius: 14, backgroundColor: '#FFFFFF', paddingBottom: 10 }, LIFT_CONTACT_SOFT]}>
+      {/* ★안쪽 판 flex:1 — 2열 한 줄의 두 카드는 긴 쪽 높이로 늘어나는데(row stretch) 안쪽 판이 내용만큼만 차지하면
+          짧은 카드(글만·미리보기 없음)는 하트 줄 아래에 판 끝선+맨 흰색이 남아 '턱'이 진다(사용자 스샷 2026-09-22).
+          판을 끝까지 채우고 하트 줄은 맨 아래(marginTop auto)에 붙여 옆 카드와 줄을 맞춘다. */}
+      <View style={[{ flex: 1, borderRadius: 14, backgroundColor: '#FFFFFF', paddingBottom: 10 }, LIFT_CONTACT_SOFT]}>
       <SurfaceLight radius={14} />
       <View style={{ borderTopLeftRadius: 14, borderTopRightRadius: 14, overflow: 'hidden' }}>
         {cover ? (
@@ -147,7 +150,7 @@ const PostGridCard = React.memo(function PostGridCard({ p, cell, onOpen, onToggl
       </View>
 
       {/* 이름 탭 = 프로필(DM·친구신청) — 1열 카드에선 아바타가 하던 일. 그리드엔 아바타를 안 넣었으니 이름이 그 자리를 맡는다 */}
-      <View style={{ paddingHorizontal: 10 }}>
+      <View style={{ flex: 1, paddingHorizontal: 10 }}>
       <Text numberOfLines={1} onPress={() => onOpenProfile(p.author)} suppressHighlighting
         style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK, marginTop: 8 }}>{p.author.name}</Text>
       {/* 글 미리보기는 타일이 글이 아닐 때만 — 사진·모집 타일 아래엔 붙이고, 글 타일 아래엔 안 붙인다(같은 글 두 번 X) */}
@@ -155,7 +158,7 @@ const PostGridCard = React.memo(function PostGridCard({ p, cell, onOpen, onToggl
         <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 2, lineHeight: fs(17) }}>{p.text}</Text>
       )}
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 'auto', paddingTop: 6 }}>
         <TouchableOpacity onPress={() => onToggleLike(p)} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
           style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Icon name={p.liked ? 'heartFilled' : 'heart'} size={fs(15)} color={p.liked ? HEART_RED : SUB} strokeWidth={1.9} />
