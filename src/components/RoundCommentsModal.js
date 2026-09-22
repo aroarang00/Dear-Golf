@@ -58,7 +58,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
   useEffect(() => {
     if (!visible || !roundId) return;
     const unsub = subscribeRoundComments(roundId,
-      (list) => { setComments(list); setLoaded(true); onCountChange?.(list.length); },
+      (list) => { setComments(list); setLoaded(true); onCountChange?.(list.length, list); },   // 카드 숫자·미리보기 즉시 갱신
       () => { setDenied(true); setLoaded(true); });
     return unsub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -142,7 +142,8 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
       <KeyboardProvider>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '82%' }}>
+          {/* 60% — 82%는 화면을 거의 덮어 '별도 화면으로 넘어간' 느낌(사용자 2026-09-22). 댓글은 카드 위에 살짝 얹히는 정도로. */}
+          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '60%' }}>
             {/* 헤더 */}
             <View style={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.hairline, alignSelf: 'center', marginBottom: 12 }} />

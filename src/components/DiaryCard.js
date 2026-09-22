@@ -11,6 +11,7 @@ import { Icon } from './common/Icon'; // 좋아요 = 하트 아이콘(엄지 대
 import { WhoLikedModal } from './common/WhoLikedModal';
 import { RoundCommentsModal } from './RoundCommentsModal';   // 댓글 시트 — 카드 말풍선에서 열림(2026-09-22)
 import { UserContext } from '../contexts/UserContext';       // 내 닉네임(댓글 작성자 이름 스냅샷)
+import { loadLatestRoundComments, setLatestCache } from '../utils/roundComments';   // 카드 밑 최근 댓글 미리보기
 import { queueLike, getMyLike, setMyLike, subscribeMyLikes } from '../utils/pendingLikes'; // 좋아요 유실 방지 대기 큐 + 화면 간 공유 메모장
 import { showAppAlert } from './AppAlert'; // 좋아요 실패 안내 — 조용한 롤백이 '안 눌림'으로 보이던 것(2026-08-26)
 import { ownerVisibilityLabel } from '../utils/friendGroups';
@@ -36,6 +37,21 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   const commentCount = commentCountLocal != null ? commentCountLocal : (item.commentCount || 0);
   const { userProfile } = useContext(UserContext);
   const myName = (userProfile?.nickname || '').trim() || '골프 친구';
+  // 최근 댓글 1~2줄 미리보기(2026-09-22 하이브리드) — 댓글이 있는 카드만 한 번 읽는다(모듈 캐시라 재마운트 시 무료).
+  //   시트가 열려 최신 목록을 넘겨주면(onCountChange) 그걸로 바로 바꾼다.
+  const [latest, setLatest] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    if (!commentCount) { setLatest([]); return undefined; }
+    loadLatestRoundComments(item.id, commentCount).then(list => { if (alive) setLatest(list); });
+    return () => { alive = false; };
+  }, [item.id, commentCount]);
+  const onSheetCount = (n, list) => {
+    const tail = (list || []).slice(-2);
+    setLatestCache(item.id, n, tail);
+    setCommentCountLocal(n);
+    setLatest(tail);
+  };
   // 사진 틀 — 4:3 하나로 고정하던 것을 사진에 맞춰 3단계(가로 4:3 / 정사각 1:1 / 세로 4:5)로 고른다.
   //   3:4 세로 사진이 56%만 보이던 문제(사람이 아래 있으면 하늘만 남음) → 94%까지 살아난다.
   //   첫 장 기준(인스타와 같은 규칙). 잰 적 있는 사진이면 캐시에서 바로 나와 높이가 처음부터 정확하고,
@@ -227,7 +243,28 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
       myUid={myUid} myName={myName}
       nameOf={(uid, snap) => (friendNameByUid && friendNameByUid[uid]) || snap || '골프 친구'}
       onClose={() => setShowComments(false)}
-      onCountChange={setCommentCountLocal} />
+      onCountChange={onSheetCount} />
+  ) : null;
+  // 카드 밑 미리보기 — 댓글이 있을 때만 한두 줄([이름] 본문, 한 줄 말줄임) + 2개 넘으면 '댓글 N개 모두 보기'.
+  //   어디를 눌러도 시트. 댓글 없는 카드는 지금과 똑같다(카드가 길어지지 않음).
+  const commentPreview = (commentCount > 0 && latest.length > 0) ? (
+    <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setShowComments(true); }} activeOpacity={0.7}
+      style={{ paddingHorizontal: 12, paddingBottom: 11, marginTop: -2 }}>
+      {commentCount > latest.length && (
+        <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 3 }}>
+          댓글 {commentCount}개 모두 보기
+        </Text>
+      )}
+      {latest.map(c => {
+        const mine = c.authorUid && c.authorUid === myUid;
+        const name = mine ? '나' : ((friendNameByUid && friendNameByUid[c.authorUid]) || c.authorName || '골프 친구');
+        return (
+          <Text key={c.id} numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12.5), lineHeight: 19, color: C.charcoal }}>
+            <Text style={{ fontFamily: F.sysB, color: mine ? C.burgundy : C.charcoal }}>{name}</Text>{'  '}{c.body}
+          </Text>
+        );
+      })}
+    </TouchableOpacity>
   ) : null;
 
   // 친구 좋아요 — 박스(배경·테두리) 없이 하트 + 숫자만. 누른 상태는 숫자 색(버건디)으로 표시.
@@ -378,6 +415,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
                 <Text style={momentTextStyle}>{item.memo}</Text>
               </View>
             )}
+            {commentPreview}
           </View>
         );
       }
@@ -405,6 +443,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
               <Text style={momentTextStyle}>{item.memo}</Text>
             </View>
           )}
+          {commentPreview}
         </TouchableOpacity>
         </View>
         {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}{commentsSheet}
@@ -429,6 +468,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingBottom: 10, marginTop: -4 }}>
             {likeButton}
           </View>
+          {commentPreview}
         </View>
       );
     }
@@ -438,6 +478,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
       <TouchableOpacity style={momentCard} activeOpacity={0.88} onPress={() => onPress(item)}>
         <SurfaceLight radius={14} />
         {textBody}
+        {commentPreview}
       </TouchableOpacity>
       </View>
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}{commentsSheet}
@@ -479,6 +520,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
             ) : null}
           </View>
           {expanded && body}
+          {commentPreview}
         </TouchableOpacity>
       )}
       {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}{commentsSheet}
@@ -506,6 +548,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
           </View>
         )}
         {body}
+        {commentPreview}
       </TouchableOpacity>
     )}
     {showLikers && <WhoLikedModal names={likerNames} onClose={() => setShowLikers(false)} />}{commentsSheet}

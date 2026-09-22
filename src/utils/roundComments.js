@@ -7,7 +7,7 @@
 //     둘 중 하나만 성공해 숫자가 어긋나는 일을 막는다.
 //   알림(글 주인에게)은 2단계 — 여기선 안 보낸다(2026-09-22 결정).
 import {
-  collection, query, orderBy, limit as fsLimit, doc, writeBatch, increment, serverTimestamp, onSnapshot,
+  collection, query, orderBy, limit as fsLimit, getDocs, doc, writeBatch, increment, serverTimestamp, onSnapshot,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 import { containsProfanity } from './profanityFilter';
@@ -34,6 +34,24 @@ export function subscribeRoundComments(roundId, onChange, onError, max = 100) {
   return onSnapshot(q,
     snap => onChange(snap.docs.map(mapDoc).reverse()),
     err => { if (__DEV__) console.warn('[roundComments] subscribe', err?.message); onError?.(err); });
+}
+
+// 최근 n개 — 카드 밑 미리보기용(2026-09-22 하이브리드: 카드에 최근 댓글 1~2줄 + '모두 보기' → 시트).
+//   댓글이 있는 카드만 한 번 읽고, 같은 (글, 댓글 수)면 다시 안 읽는다(모듈 캐시). 시트가 열려 최신 목록을 받으면
+//   setLatestCache로 덮어써 다음 마운트에서도 읽기 없이 맞는다. 실패는 빈 배열(부가 정보).
+const latestCache = new Map();   // `${roundId}:${count}` → [comment]
+export const latestKey = (roundId, count) => `${roundId}:${count}`;
+export function setLatestCache(roundId, count, list) { latestCache.set(latestKey(roundId, count), list); }
+export async function loadLatestRoundComments(roundId, count, n = 2) {
+  if (!roundId || !count) return [];
+  const key = latestKey(roundId, count);
+  if (latestCache.has(key)) return latestCache.get(key);
+  try {
+    const snap = await getDocs(query(col(roundId), orderBy('createdAt', 'desc'), fsLimit(n)));
+    const list = snap.docs.map(mapDoc).reverse();
+    latestCache.set(key, list);
+    return list;
+  } catch (e) { return []; }
 }
 
 // 작성 — 본인만(규칙 강제). 빈 본문·길이초과·욕설 차단. 댓글 문서 + 부모 commentCount +1 을 한 배치로.
