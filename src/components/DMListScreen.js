@@ -171,26 +171,29 @@ export function DMListScreen({ onClose, onOpenChat }) {
     );
   };
 
+  // 하단 안전영역 — 이 컴포넌트가 자체 SafeAreaProvider를 만들므로 훅 대신 initialWindowMetrics(네이티브 첫 측정값)를 쓴다.
+  const bottomPad = (initialWindowMetrics?.insets?.bottom || 0) + 24;
   return (
     // RN Modal(DiaryScreen) 안에선 루트 SafeAreaProvider가 안 닿아 inset이 0이 됨(헤더 상태바 겹침) → 자체 Provider로 재측정.
     //   DMChatScreen과 동일 처리([[dm-design]] iOS safe-area 버그). initialWindowMetrics로 첫 프레임 깜빡임 방지.
     //   ★GestureHandlerRootView — RN Modal은 별도 윈도라 루트 RootView가 안 닿음. 행 스와이프(Swipeable) 제스처를 받으려면 모달 안에 자체 RootView 필요(안드 특히).
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-    <SafeAreaView style={{ flex: 1, backgroundColor: DM_CANVAS }} edges={['top', 'bottom', 'left', 'right']}>
+    {/* ★bottom edge 없음(2026-09-22, 사용자 "아래 끝까지 안 되고 벽이 있다") — SafeAreaView bottom은 리스트 아래 고정 배경 '벽'이 된다.
+        친구 프로필과 같은 처리: 리스트 콘텐츠 paddingBottom으로 안전영역을 넣어 끝까지 자연스럽게 스크롤. */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: DM_CANVAS }} edges={['top', 'left', 'right']}>
       {/* 다크 룸이라 상태바 아이콘 밝게 — 언마운트 시 자동복원([[dm-design]] StatusBar 패턴) */}
       <StatusBar barStyle="light-content" />
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 0.5, borderBottomColor: DM_LINE, backgroundColor: DM_SURFACE, gap: 12 }}>
+      {/* 헤더 한 줄 = ← + 상시 검색창(2026-09-22, 사용자 "메시지랑 검색창이 자리를 너무 많이 차지"). 제목 줄과 검색 줄 두 줄을 합쳤다 —
+          '메시지' 제목은 검색창 placeholder가 대신한다. 입력하면 전체 친구 검색(대화 없던 친구도), 비우면 대화목록.
+          별도 화면 X(뒤로가기·이전목록 복귀 혼란 제거, 사용자 2026-06-13) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: DM_SURFACE, borderBottomWidth: 0.5, borderBottomColor: DM_LINE }}>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={{ fontSize: fs(24), color: DM_BUTTER }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(18), color: DM_BUTTER }}>메시지</Text>
-      </View>
-      {/* 상단 상시 검색창 — 입력하면 전체 친구 검색(대화 없던 친구도), 비우면 대화목록. 별도 화면 X(뒤로가기·이전목록 복귀 혼란 제거, 사용자 2026-06-13) */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: DM_SURFACE, borderBottomWidth: 0.5, borderBottomColor: DM_LINE }}>
         <AppTextInput value={query} onChangeText={setQuery}
-          placeholder="친구 검색 — 이름으로 찾아 대화 시작" placeholderTextColor={'rgba(200,217,230,0.4)'}
-          style={{ flex: 1, fontFamily: F.sys, fontSize: fs(15), color: '#EDE9E1', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }} />
+          placeholder="메시지 · 친구 이름 검색" placeholderTextColor={'rgba(200,217,230,0.45)'}
+          style={{ flex: 1, fontFamily: F.sys, fontSize: fs(15), color: '#EDE9E1', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 }} />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={{ fontSize: fs(18), color: DM_PALESKY }}>✕</Text>
@@ -203,6 +206,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
           data={friendResults}
           keyExtractor={(f) => f.id}
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: bottomPad }}
           ItemSeparatorComponent={() => <View style={{ height: 0.5, backgroundColor: DM_LINE, marginLeft: 72 }} />}
           renderItem={({ item }) => {
             const dn = friendDisplayName(friendMeta, item.id, nameMap[item.id] || item.nickname || item.name || '친구');
@@ -232,6 +236,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
           data={visibleConvs}
           keyExtractor={(c) => c.id}
           renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: bottomPad }}
           ItemSeparatorComponent={() => <View style={{ height: 0.5, backgroundColor: DM_LINE, marginLeft: 74 }} />}
           ListEmptyComponent={convs !== null ? (
             <View style={{ alignItems: 'center', paddingVertical: 60 }}>
