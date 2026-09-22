@@ -21,7 +21,7 @@ import { DMChatScreen } from './DMChatScreen';       // 크루에서 멤버 DM �
 import { DMListScreen } from './DMListScreen';       // 메시지(DM) 목록 — 홈 레일 폐지로 사라진 진입점, 대문에 정착(2026-08-27)
 import { UserContext } from '../contexts/UserContext'; // 차단 목록 — DM 안읽음 집계서 제외
 import { loadUnreadTotal } from '../utils/dm';
-import { SurfaceLight, PressScale, LIFT_AMBIENT, LIFT_CONTACT } from './common/Surface'; // 카드 입체감 — 홈과 같은 부품(2026-09-22, 사용자 "모임 카드도 밋밋해")
+import { SurfaceLight, PressScale, LIFT_AMBIENT_SOFT, LIFT_CONTACT_SOFT } from './common/Surface'; // 카드 입체감 — 홈과 같은 부품(2026-09-22, 사용자 "모임 카드도 밋밋해"). ★크림 바탕이라 soft 그림자(진한 건 "지저분")
 
 // ★모임 탭 — 탭 5→4 재편(2026-08-26). 라운지(모집)·친구·크루·정산을 한 지붕으로.
 //   v2 = '대문(허브)' 방식(사용자 선택 2026-08-26, 상단 세그먼트는 "탭 안 탭이라 어수선" 폐기):
@@ -187,7 +187,7 @@ export function MeetScreen({ navigation, route }) {
       /* 입체감(2026-09-22) — 홈 D-N 카드와 같은 문법: 두 겹 그림자(PressScale shadow) + 표면 빛(SurfaceLight) + 눌림 반응.
          ★flex:1은 바깥 View에 — PressScale의 style은 Pressable 안쪽 뷰로 가서 행에서 폭이 글자 길이대로 잡혔다(카드 4장 폭 제각각, 사용자 지적). */
       <View key={k} style={{ flex: 1 }}>
-      <PressScale onPress={() => go(k)} shadow={{ radius: 18, bg: c.bg }}
+      <PressScale onPress={() => go(k)} shadow={{ radius: 18, bg: c.bg, soft: true }}
         contentStyle={{ height: 122, padding: 16, justifyContent: 'space-between' }}>
         <SurfaceLight radius={18} tone={c.tone || 'light'} />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -230,7 +230,7 @@ export function MeetScreen({ navigation, route }) {
               {hubCard('settle')}
             </View>
             {/* 메시지(DM) — 와이드 슬림 카드. 다크 배경=DM 방(#211E1B 다크 룸) 톤 예고, 배지=버건디(카드 문법 통일) */}
-            <PressScale onPress={() => setDmOpen(true)} shadow={{ radius: 18, bg: '#211E1B' }}
+            <PressScale onPress={() => setDmOpen(true)} shadow={{ radius: 18, bg: '#211E1B', soft: true }}
               contentStyle={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 16, paddingVertical: 16 }}>
               <SurfaceLight radius={18} tone="dark" />
               <Icon name="chat" size={fs(23)} color={C.butter} strokeWidth={1.9} />
@@ -268,8 +268,8 @@ export function MeetScreen({ navigation, route }) {
           {togetherNext.length > 0 && (
             <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 4 }}>함께하는 다음 라운딩</Text>
-              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, marginTop: 10 }, LIFT_AMBIENT]}>
-              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14 }, LIFT_CONTACT]}>
+              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, marginTop: 10 }, LIFT_AMBIENT_SOFT]}>
+              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14 }, LIFT_CONTACT_SOFT]}>
                 <SurfaceLight radius={14} />
                 {togetherNext.map((s, i) => {
                   const names = (s.companions || [])
@@ -307,7 +307,7 @@ export function MeetScreen({ navigation, route }) {
               )}
             </View>
             {hubPosts.length === 0 ? (
-              <PressScale onPress={() => go('roundup')} shadow={{ radius: 14, bg: C.bgSecondary }}
+              <PressScale onPress={() => go('roundup')} shadow={{ radius: 14, bg: C.bgSecondary, soft: true }}
                 contentStyle={{ paddingVertical: 20, alignItems: 'center' }}>
                 <SurfaceLight radius={14} />
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray }}>
@@ -316,8 +316,8 @@ export function MeetScreen({ navigation, route }) {
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.navy, marginTop: 6 }}>첫 모집글을 올려보세요 ›</Text>
               </PressScale>
             ) : (
-              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14 }, LIFT_AMBIENT]}>
-              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14 }, LIFT_CONTACT]}>
+              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14 }, LIFT_AMBIENT_SOFT]}>
+              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14 }, LIFT_CONTACT_SOFT]}>
                 <SurfaceLight radius={14} />
                 {hubPosts.map((p, i) => (
                   <TouchableOpacity key={p.id} activeOpacity={0.7}

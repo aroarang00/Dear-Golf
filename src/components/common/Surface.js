@@ -35,8 +35,12 @@ export function SurfaceLight({ radius = 16, tone = 'light' }) {
 //   안드는 elevation 하나뿐이라 바깥에만(안쪽 0 — 겹치면 이중 그늘). ★overflow:hidden 뷰엔 못 씀(iOS가 그림자까지 자름).
 export const LIFT_AMBIENT = { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 16, elevation: 8 };
 export const LIFT_CONTACT = { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 3, elevation: 0 };
+// 밝은 바탕(크림·흰) 위 카드용 연한 두 겹(2026-09-22) — 위 값은 홈의 짙은 녹색 바탕 기준이라 크림 바탕(모임 대문)에선
+//   너무 진해 "지저분"(사용자). 그림자 색을 검정 대신 차콜 계열로, 세기 절반 이하·퍼짐 짧게.
+export const LIFT_AMBIENT_SOFT = { shadowColor: '#3D3935', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.10, shadowRadius: 12, elevation: 3 };
+export const LIFT_CONTACT_SOFT = { shadowColor: '#3D3935', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 2, elevation: 0 };
 
-// shadow={{ radius, bg }}를 주면 두 겹 그림자 구조(바깥 Animated.View=ambient / 안쪽 View=contact+contentStyle)로 그린다.
+// shadow={{ radius, bg, soft? }}를 주면 두 겹 그림자 구조(soft:true = 밝은 바탕용 연한 두 겹)(바깥 Animated.View=ambient / 안쪽 View=contact+contentStyle)로 그린다.
 //   이때 style엔 폭·마진만, 패딩은 contentStyle로. shadow 없으면 예전처럼 style 하나.
 // mode: 'press'(기본) = 누르는 동안 0.98로 눌림 / 'lift' = 누르는 동안 5px 위로 떠오르며 1.01(사용자 2026-09-21 "선택되면 살짝 위로").
 //   내부 값 p(0→1)를 스프링으로 움직이고 scale·translateY를 보간 — 네이티브 드라이버.
@@ -47,8 +51,8 @@ export function PressScale({ onPress, onLongPress, disabled, style, contentStyle
   const translateY = p.interpolate({ inputRange: [0, 1], outputRange: [0, mode === 'lift' ? -5 : 0] });
   const anim = { transform: [{ translateY }, { scale }] };
   const body = shadow ? (
-    <Animated.View style={[style, { borderRadius: shadow.radius, backgroundColor: shadow.bg }, LIFT_AMBIENT, anim]}>
-      <View style={[{ borderRadius: shadow.radius, backgroundColor: shadow.bg }, LIFT_CONTACT, contentStyle]}>{children}</View>
+    <Animated.View style={[style, { borderRadius: shadow.radius, backgroundColor: shadow.bg }, shadow.soft ? LIFT_AMBIENT_SOFT : LIFT_AMBIENT, anim]}>
+      <View style={[{ borderRadius: shadow.radius, backgroundColor: shadow.bg }, shadow.soft ? LIFT_CONTACT_SOFT : LIFT_CONTACT, contentStyle]}>{children}</View>
     </Animated.View>
   ) : (
     <Animated.View style={[style, contentStyle, anim]}>{children}</Animated.View>
