@@ -12,8 +12,8 @@ import { subscribeRoundComments, addRoundComment, deleteRoundComment, ROUND_COMM
 import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
 
 // 라운딩·일상 글 댓글 시트 — 피드 카드(DiaryCard)의 말풍선에서 열림(2026-09-22).
-//   일정 '이야기'(ScheduleCommentsModal)를 그대로 가져와 @멘션·읽음 수를 뺀 것. 말풍선(내것=우측 버건디 / 남=좌측 회색+이름),
-//   실시간 구독, 본인 댓글(또는 내 글의 댓글) 길게 눌러 삭제.
+//   일정 '이야기'(ScheduleCommentsModal)의 뼈대(시트·구독·키보드 리프트)를 가져오되, 채팅 말풍선은 버렸다 —
+//   인스타식 평평한 댓글 목록([이름] 본문 / 아래 시간·삭제). 실시간 구독, 본인 댓글(또는 내 글의 댓글) '삭제' 링크.
 //   ★안드 RN Modal은 별도 윈도우라 adjustResize가 안 먹어 입력바가 키보드에 가림 → KeyboardEvents로 명령형 리프트.
 //   ★카드 안에서 조건부(showComments &&)로 렌더된다 — 카드 20장이 모달 20개를 항상 마운트하지 않게.
 
@@ -112,27 +112,26 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
     try { await deleteRoundComment(roundId, c.id, { hasCount: comments.length > 0 }); }
     catch (e) { showToast('삭제에 실패했어요'); }
   };
-
-  // 말풍선 목록은 comments/myUid/nameOf에만 의존 — 타이핑 때마다 재렌더되지 않게
-  const commentBubbles = useMemo(() => comments.map((c) => {
+  // ★댓글은 채팅이 아니다(사용자 2026-09-22 "말풍선 스타일은 너무 복잡, 댓글답게 간편하게") — 좌우 말풍선·꼬리·
+  //   시간 옆 배치를 버리고 인스타 댓글처럼 평평한 목록: [이름 굵게] 본문이 한 흐름으로 이어지고, 아래 작은 회색 줄에
+  //   시간과 '삭제'(내 댓글·내 글의 댓글만). 길게 누르기 삭제는 발견성이 낮아 글자 링크로 드러낸다.
+  const commentRows = useMemo(() => comments.map((c, i) => {
     const mine = c.authorUid && c.authorUid === myUid;
-    const name = nameOf ? nameOf(c.authorUid, c.authorName) : (c.authorName || '');
+    const name = mine ? '나' : (nameOf ? nameOf(c.authorUid, c.authorName) : (c.authorName || ''));
     const canDelete = mine || isOwner;   // 내 글이면 남의 댓글도 정리할 수 있다
     return (
-      <View key={c.id} style={{ marginBottom: 12, alignItems: mine ? 'flex-end' : 'flex-start' }}>
-        {!mine && <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginBottom: 3, marginLeft: 4 }}>{name}</Text>}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', maxWidth: '82%' }}>
-          {mine && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginRight: 5 }}>{fmtTime(c.createdAt)}</Text>}
-          <TouchableOpacity activeOpacity={canDelete ? 0.7 : 1} onLongPress={canDelete ? () => setConfirmDel(c) : undefined}
-            style={{
-              backgroundColor: mine ? C.burgundy : '#E8E0D0',
-              borderRadius: 14, borderTopRightRadius: mine ? 4 : 14, borderTopLeftRadius: mine ? 14 : 4,
-              paddingHorizontal: 12, paddingVertical: 9,
-              flexShrink: 1, // 긴 메시지가 row(maxWidth 82%)를 넘어 잘리지 않게 — 말풍선이 줄어들며 줄바꿈
-            }}>
-            <Text style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 22, color: mine ? '#fff' : C.charcoal }}>{c.body}</Text>
-          </TouchableOpacity>
-          {!mine && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginLeft: 5 }}>{fmtTime(c.createdAt)}</Text>}
+      <View key={c.id} style={{ paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+        <Text style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 21, color: C.charcoal }}>
+          <Text style={{ fontFamily: F.sysB, color: mine ? C.burgundy : C.charcoal }}>{name}</Text>
+          {'  '}{c.body}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 3 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{fmtTime(c.createdAt)}</Text>
+          {canDelete && (
+            <TouchableOpacity onPress={() => setConfirmDel(c)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>삭제</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -148,8 +147,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
             <View style={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.hairline, alignSelf: 'center', marginBottom: 12 }} />
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Icon name="chat" size={fs(17)} color={C.burgundy} />
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, marginLeft: 6 }}>댓글</Text>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>댓글{comments.length > 0 ? ` ${comments.length}` : ''}</Text>
                 {!!label && <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, marginLeft: 8, flexShrink: 1 }} numberOfLines={1}>· {label}</Text>}
                 <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 'auto' }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(20), color: C.warmGray }}>✕</Text>
@@ -173,10 +171,10 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
               ) : comments.length === 0 ? (
                 <View style={{ paddingVertical: 48, alignItems: 'center' }}>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 21 }}>
-                    {isOwner ? '아직 댓글이 없어요.' : '첫 댓글을 남겨보세요.\n굿샷 한마디면 충분해요.'}
+                    {isOwner ? '아직 댓글이 없어요' : '첫 댓글을 남겨보세요'}
                   </Text>
                 </View>
-              ) : commentBubbles}
+              ) : commentRows}
             </ScrollView>
 
             {/* 입력바 — 키보드 높이만큼 paddingBottom 리프트(안드 모달 대응) */}
