@@ -38,7 +38,8 @@ export async function createContentReport(data) {
   const uid = await getUid();
   if (!uid) throw new Error('Not authenticated');
   if (!data.targetType || !data.targetId) throw new Error('targetType/targetId required');
-  if (!['courseComment', 'roundup', 'roundupComment', 'friendDiary'].includes(data.targetType)) {
+  // roundComment(2026-09-23): 피드 글 댓글. targetId = `${roundId}_${commentId}`('/'는 문서 ID에 못 씀). 규칙도 같이 열려 있음.
+  if (!['courseComment', 'roundup', 'roundupComment', 'friendDiary', 'roundComment'].includes(data.targetType)) {
     throw new Error('invalid targetType');
   }
   if (!['ad_spam', 'inappropriate'].includes(data.reason)) {

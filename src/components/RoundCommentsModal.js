@@ -10,6 +10,7 @@ import { Spinner } from './common/Spinner';
 import { showToast } from './AppToast';
 import { subscribeRoundComments, addRoundComment, deleteRoundComment, ROUND_COMMENT_MAX } from '../utils/roundComments';
 import { PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
+import { createContentReport } from '../utils/contentReports';   // 댓글 신고(targetType roundComment)
 
 // 라운딩·일상 글 댓글 시트 — 피드 카드(DiaryCard)의 말풍선에서 열림(2026-09-22).
 //   일정 '이야기'(ScheduleCommentsModal)의 뼈대(시트·구독·키보드 리프트)를 가져오되, 채팅 말풍선은 버렸다 —
@@ -55,10 +56,24 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
     });
     return [...m.values()];
   }, [comments, myUid, nameOf]);
-  // '답글' 링크 — 입력창에 '@이름 '을 넣고 키보드를 올린다
-  const replyTo = (name) => {
+  // '답글' 링크(2026-09-23 B안 — 사용자 "대댓글은 댓글 바로 아래 달려야지") — 원댓글 밑에 한 단계로 붙는다.
+  //   답글의 답글도 같은 원댓글(parentId) 밑에(인스타와 같은 규칙). 입력창 위에 "○○님에게 답글" 표시 + '@이름 ' 채움 + 포커스.
+  const [replyTarget, setReplyTarget] = useState(null);   // { parentId, uid, name }
+  const replyTo = (c, name) => {
+    setReplyTarget({ parentId: c.parentId || c.id, uid: c.authorUid, name });
     setDraft(d => (d.includes(`@${name}`) ? d : `${d.trim() ? d.trim() + ' ' : ''}@${name} `));
     setTimeout(() => inputRef.current?.focus?.(), 50);
+  };
+  // 신고 — 남의 댓글. 사유 2개(다른 신고와 동일), 1인 1회(결정적 ID). 시트 안 오버레이(중첩 Modal 회피).
+  const [reportTarget, setReportTarget] = useState(null);
+  const doReport = async (reason) => {
+    const c = reportTarget;
+    setReportTarget(null);
+    if (!c) return;
+    try {
+      const r = await createContentReport({ targetType: 'roundComment', targetId: `${roundId}_${c.id}`, targetAuthorUid: c.authorUid, reason });
+      showToast(r.alreadyReported ? '이미 신고한 댓글이에요' : '신고가 접수됐어요');
+    } catch (e) { showToast('신고하지 못했어요'); }
   };
   // 입력 끝에서 '@' 치는 중이면 후보 피커(일정 이야기와 같은 규칙)
   const mentionMatch = draft.match(/@([^\s@]*)$/);
@@ -71,6 +86,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
   useEffect(() => {
     if (visible) return;
     setComments([]); setDraft(''); setConfirmDel(null); setReady(false); setLoaded(false); setDenied(false);
+    setReplyTarget(null); setReportTarget(null);
   }, [visible]);
 
   useEffect(() => {
@@ -119,15 +135,20 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
     if (!body || sending) return;
     setSending(true);
     try {
-      // 본문에 '@이름'이 든 참여자만 멘션(편집 중 지웠어도 최종 본문 기준).
-      const mentions = participants.filter(p => body.includes('@' + p.name)).map(p => p.uid);
-      const r = await addRoundComment(roundId, myName, body, { ownerUid, title: label, mentions });   // 글 주인·답글 알림용
+      // 멘션 = 답글 대상 + 본문에 '@이름'이 든 참여자(편집 중 지웠어도 최종 본문 기준).
+      const mentions = [...new Set([
+        ...(replyTarget?.uid ? [replyTarget.uid] : []),
+        ...participants.filter(p => body.includes('@' + p.name)).map(p => p.uid),
+      ])];
+      const r = await addRoundComment(roundId, myName, body, {
+        ownerUid, title: label, mentions, parentId: replyTarget?.parentId || null,   // 글 주인·답글 알림 + 원댓글 밑에 묶기
+      });
       if (!r.ok) {
         if (r.reason === 'profanity') showToast(PROFANITY_BLOCK_MESSAGE);
         else if (r.reason === 'toolong') showToast(`${ROUND_COMMENT_MAX}자까지 쓸 수 있어요`);
         return;
       }
-      setDraft('');
+      setDraft(''); setReplyTarget(null);
     } catch (e) {
       // permission-denied = 공개범위 밖이거나 규칙이 아직 안 올라감
       showToast(e?.code === 'permission-denied' ? '이 글에는 댓글을 남길 수 없어요' : '전송에 실패했어요');
@@ -139,39 +160,68 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
     try { await deleteRoundComment(roundId, c.id, { hasCount: comments.length > 0 }); }
     catch (e) { showToast('삭제에 실패했어요'); }
   };
-  // ★댓글은 채팅이 아니다(사용자 2026-09-22 "말풍선 스타일은 너무 복잡, 댓글답게 간편하게") — 좌우 말풍선·꼬리·
-  //   시간 옆 배치를 버리고 인스타 댓글처럼 평평한 목록: [이름 굵게] 본문이 한 흐름으로 이어지고, 아래 작은 회색 줄에
-  //   시간과 '삭제'(내 댓글·내 글의 댓글만). 길게 누르기 삭제는 발견성이 낮아 글자 링크로 드러낸다.
-  const commentRows = useMemo(() => comments.map((c, i) => {
-    const mine = c.authorUid && c.authorUid === myUid;
-    const name = mine ? '나' : (nameOf ? nameOf(c.authorUid, c.authorName) : (c.authorName || ''));
-    const canDelete = mine || isOwner;   // 내 글이면 남의 댓글도 정리할 수 있다
-    return (
-      <View key={c.id} style={{ paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
-        <Text style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 21, color: C.charcoal }}>
-          <Text style={{ fontFamily: F.sysB, color: mine ? C.burgundy : C.charcoal }}>{name}</Text>
-          {'  '}
-          {/* '@이름' 토큰은 네이비 굵게 — 누구에게 한 말인지 한눈에 */}
-          {String(c.body || '').split(/(@[^\s@]+)/g).map((p, k) => (p.startsWith('@')
-            ? <Text key={k} style={{ fontFamily: F.sysB, color: C.navy }}>{p}</Text>
-            : p))}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 3 }}>
-          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{fmtTime(c.createdAt)}</Text>
-          {!mine && !!name && (
-            <TouchableOpacity onPress={() => replyTo(name)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>답글</Text>
-            </TouchableOpacity>
-          )}
-          {canDelete && (
-            <TouchableOpacity onPress={() => setConfirmDel(c)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
-              <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>삭제</Text>
-            </TouchableOpacity>
-          )}
+  // ★댓글은 채팅이 아니다(사용자 2026-09-22 "말풍선 스타일은 너무 복잡, 댓글답게 간편하게") — 인스타식 평평한 목록:
+  //   [이름 굵게] 본문이 한 흐름, 아래 작은 회색 줄에 시간 · 답글 · 신고(남) / 삭제(내 댓글·내 글의 댓글).
+  //   2026-09-23 B안: 답글(parentId)은 원댓글 바로 아래 한 단계 들여쓰기로 묶는다(사용자 "대댓글은 댓글 바로 아래 달려야지").
+  //   원댓글이 지워진 답글(고아)은 맨 위 레벨로 올려 그린다(사라지지 않게).
+  const threaded = useMemo(() => {
+    const ids = new Set(comments.map(c => c.id));
+    const tops = comments.filter(c => !c.parentId || !ids.has(c.parentId));
+    const byParent = new Map();
+    comments.forEach(c => {
+      if (c.parentId && ids.has(c.parentId)) {
+        if (!byParent.has(c.parentId)) byParent.set(c.parentId, []);
+        byParent.get(c.parentId).push(c);
+      }
+    });
+    return tops.map(t => ({ top: t, replies: byParent.get(t.id) || [] }));
+  }, [comments]);
+
+  const commentRows = useMemo(() => {
+    const row = (c, depth) => {
+      const mine = c.authorUid && c.authorUid === myUid;
+      const name = mine ? '나' : (nameOf ? nameOf(c.authorUid, c.authorName) : (c.authorName || ''));
+      const canDelete = mine || isOwner;   // 내 글이면 남의 댓글도 정리할 수 있다
+      return (
+        <View key={c.id} style={{ paddingVertical: depth ? 7 : 10, paddingLeft: depth ? 22 : 0 }}>
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 21, color: C.charcoal }}>
+            <Text style={{ fontFamily: F.sysB, color: mine ? C.burgundy : C.charcoal }}>{name}</Text>
+            {'  '}
+            {/* '@이름' 토큰은 네이비 굵게 — 누구에게 한 말인지 한눈에 */}
+            {String(c.body || '').split(/(@[^\s@]+)/g).map((p, k) => (p.startsWith('@')
+              ? <Text key={k} style={{ fontFamily: F.sysB, color: C.navy }}>{p}</Text>
+              : p))}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 3 }}>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{fmtTime(c.createdAt)}</Text>
+            {!mine && !!name && (
+              <TouchableOpacity onPress={() => replyTo(c, name)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>답글</Text>
+              </TouchableOpacity>
+            )}
+            {!mine && (
+              <TouchableOpacity onPress={() => setReportTarget(c)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>신고</Text>
+              </TouchableOpacity>
+            )}
+            {canDelete && (
+              <TouchableOpacity onPress={() => setConfirmDel(c)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>삭제</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
+      );
+    };
+    return threaded.map(({ top, replies }, i) => (
+      <View key={top.id} style={{ borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+        {row(top, 0)}
+        {replies.map(r => row(r, 1))}
       </View>
-    );
-  }), [comments, myUid, nameOf, isOwner]);
+    ));
+    // replyTo·setReportTarget·setConfirmDel은 안정된 setter/ref 기반이라 deps 불필요
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threaded, myUid, nameOf, isOwner]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -217,6 +267,17 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
             {/* 입력바 — 키보드 높이만큼 paddingBottom 리프트(안드 모달 대응) */}
             <Animated.View style={[{ paddingHorizontal: 14, paddingTop: BAR_PAD,
               borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: C.bgPrimary }, kbPadStyle]}>
+              {/* 답글 대상 — '답글'을 누르면 입력창 위에 누구에게 다는지 보이고, ✕로 일반 댓글로 되돌린다 */}
+              {replyTarget && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, paddingHorizontal: 4 }}>
+                  <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary }}>
+                    <Text style={{ fontFamily: F.sysB, color: C.navy }}>{replyTarget.name}</Text>님에게 답글
+                  </Text>
+                  <TouchableOpacity onPress={() => setReplyTarget(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray }}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               {/* @멘션 후보 — 입력 끝에서 @를 치면 이 글에 댓글 단 사람 목록 */}
               {mentionList.length > 0 && (
                 <View style={{ marginBottom: 8, backgroundColor: C.bgSecondary, borderRadius: 12, overflow: 'hidden' }}>
@@ -243,6 +304,27 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
                 </TouchableOpacity>
               </View>
             </Animated.View>
+
+            {/* 신고 사유(인라인 — 중첩 Modal 회피). 친구 프로필 게시물 신고 시트와 같은 사유 2개 */}
+            {reportTarget && (
+              <TouchableOpacity activeOpacity={1} onPress={() => setReportTarget(null)}
+                style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 32 }}>
+                <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, textAlign: 'center', paddingTop: 16, paddingBottom: 4 }}>댓글 신고</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, textAlign: 'center', paddingBottom: 10 }}>어떤 이유로 신고할까요?</Text>
+                  {[{ k: 'ad_spam', t: '광고 · 스팸' }, { k: 'inappropriate', t: '부적절한 내용' }].map(r => (
+                    <TouchableOpacity key={r.k} activeOpacity={0.6} onPress={() => doReport(r.k)}
+                      style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, textAlign: 'center' }}>{r.t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity activeOpacity={0.6} onPress={() => setReportTarget(null)}
+                    style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: C.bgSecondary }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray, textAlign: 'center' }}>취소</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            )}
 
             {/* 삭제 확인(인라인 — 중첩 Modal 회피) */}
             {confirmDel && (

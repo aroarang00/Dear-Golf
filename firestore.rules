@@ -869,7 +869,7 @@ service cloud.firestore {
         && (resource == null || resource.data.reporterUid == request.auth.uid);
       allow create: if isSignedIn()
         && request.resource.data.reporterUid == request.auth.uid
-        && request.resource.data.targetType in ['courseComment', 'roundup', 'roundupComment', 'friendDiary']
+        && request.resource.data.targetType in ['courseComment', 'roundup', 'roundupComment', 'friendDiary', 'roundComment']
         && request.resource.data.targetId is string
         && request.resource.data.reason in ['ad_spam', 'inappropriate']
         && request.resource.data.status == 'pending'

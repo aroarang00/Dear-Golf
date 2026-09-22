@@ -23,6 +23,7 @@ function mapDoc(d) {
     authorUid: data.authorUid || null,
     authorName: data.authorName || '',
     body: data.body || '',
+    parentId: data.parentId || null,   // 답글이면 원댓글 id(한 단계) — 화면에서 원댓글 밑에 묶는다(2026-09-23)
     // 저장은 serverTimestamp, UI는 ms 숫자 기대 → 변환(직후 낙관적 표시는 Date.now())
     createdAt: data.createdAt?.toMillis?.() ?? Date.now(),
   };
@@ -73,6 +74,7 @@ export async function addRoundComment(roundId, authorName, body, opts = {}) {
   batch.set(ref, {
     authorUid: uid, authorName: authorName || '', body: trimmed,
     ...(mentions.length ? { mentions } : {}),
+    ...(opts.parentId ? { parentId: String(opts.parentId) } : {}),   // 답글 = 원댓글 밑에(한 단계, 답글의 답글도 같은 원댓글로)
     createdAt: serverTimestamp(),
   });
   batch.update(doc(db, 'rounds', roundId), { commentCount: increment(1) });
@@ -92,7 +94,7 @@ export async function addRoundComment(roundId, authorName, body, opts = {}) {
       postId: roundId, postTitle: opts.title || '', memoPreview: preview,
     }).catch(e => __DEV__ && console.warn('[roundComments] reply noti', e?.message));
   }
-  return { ok: true, comment: { id: ref.id, authorUid: uid, authorName: authorName || '', body: trimmed, mentions, createdAt: Date.now() } };
+  return { ok: true, comment: { id: ref.id, authorUid: uid, authorName: authorName || '', body: trimmed, mentions, parentId: opts.parentId || null, createdAt: Date.now() } };
 }
 
 // 삭제 — 본인 또는 글 주인(규칙 강제). 부모 commentCount -1 을 한 배치로.
