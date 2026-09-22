@@ -184,8 +184,10 @@ export function MeetScreen({ navigation, route }) {
   const hubCard = (k) => {
     const c = HUB[k];
     return (
-      /* 입체감(2026-09-22) — 홈 D-N 카드와 같은 문법: 두 겹 그림자(PressScale shadow) + 표면 빛(SurfaceLight) + 눌림 반응 */
-      <PressScale key={k} onPress={() => go(k)} style={{ flex: 1 }} shadow={{ radius: 18, bg: c.bg }}
+      /* 입체감(2026-09-22) — 홈 D-N 카드와 같은 문법: 두 겹 그림자(PressScale shadow) + 표면 빛(SurfaceLight) + 눌림 반응.
+         ★flex:1은 바깥 View에 — PressScale의 style은 Pressable 안쪽 뷰로 가서 행에서 폭이 글자 길이대로 잡혔다(카드 4장 폭 제각각, 사용자 지적). */
+      <View key={k} style={{ flex: 1 }}>
+      <PressScale onPress={() => go(k)} shadow={{ radius: 18, bg: c.bg }}
         contentStyle={{ height: 122, padding: 16, justifyContent: 'space-between' }}>
         <SurfaceLight radius={18} tone={c.tone || 'light'} />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -203,6 +205,7 @@ export function MeetScreen({ navigation, route }) {
           ) : null}
         </View>
       </PressScale>
+      </View>
     );
   };
 
