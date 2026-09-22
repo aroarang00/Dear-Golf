@@ -3,6 +3,7 @@ import { Modal, View, Text, FlatList, TouchableOpacity, Platform, Keyboard } fro
 import AppTextInput from './common/AppTextInput';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';   // 떠 있는 헤더 띠 — 밑으로 지나가는 피드가 비치게(iOS만 진짜 블러, 2026-09-22)
 import { C, F, fs } from '../constants/colors';
 import { dS } from '../styles/dS';
 import { getTrustGrade } from '../constants/trustGrade';
@@ -45,6 +46,10 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
   // 하단 안전영역 인셋 — SafeAreaView 'bottom' edge 대신 스크롤 콘텐츠 paddingBottom으로 넣어야
   //   피드가 화면 끝까지 자연스럽게 스크롤된다(bottom edge를 쓰면 리스트 아래에 고정 배경 '벽'이 남음).
   const insets = useSafeAreaInsets();
+  // ★떠 있는 헤더(2026-09-22, 사용자 "스크롤은 끝까지 되고 헤드띠가 그 위에 있는 식으로") — 헤더 띠를 absolute로 띄우고
+  //   리스트는 상태바 밑까지 화면 전체를 흐른다. 띠 높이(onLayout, 상태바 포함)만큼 콘텐츠 paddingTop.
+  const [hdrH, setHdrH] = useState(0);
+  const hdrPad = hdrH || insets.top + 60;   // 측정 전 첫 프레임 폴백(점프 최소화)
   useEffect(() => { storage.load(STORAGE_KEYS.diaryCompactView, false).then(v => setCompact(!!v)); }, []);
 
   // 요약보기 월별 카드용 메타 — FlatList에서 월별 카드 모양을 내려면 행마다 '그 달 첫/끝 행'만 알면 된다.
@@ -166,9 +171,14 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
       statusBarTranslucent={Platform.OS === 'android'}
       onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
-          {/* 헤더 — 버터. 우측 ⋯ 옵션(알림·숨기기·삭제) */}
-          <View style={{ backgroundColor: C.butter, paddingHorizontal: 20, paddingVertical: 13,
+        <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['left', 'right']}>
+          {/* 헤더 — 버터 띠, 리스트 위에 떠 있음(absolute·상태바까지 덮음). 우측 ⋯ 옵션(알림·숨기기·삭제)
+              iOS=BlurView(밑 피드가 젖빛으로 비침) / 안드=반투명 버터만(전폭 블러는 스크롤 부담이라 생략) */}
+          <View onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h && h !== hdrH) setHdrH(h); }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, overflow: 'hidden',
+              backgroundColor: Platform.OS === 'ios' ? 'rgba(245,230,168,0.80)' : 'rgba(245,230,168,0.94)' }}>
+            {Platform.OS === 'ios' && <BlurView intensity={40} tint="light" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />}
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 13, paddingBottom: 13,
             flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={{ fontSize: fs(22), color: C.charcoal }}>←</Text>
@@ -184,6 +194,7 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
               <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.charcoal, lineHeight: 22 }}>⋯</Text>
             </TouchableOpacity>
           </View>
+          </View>
 
           {/* 전체 스크롤 — FlatList 가상화(보이는 카드만 렌더). 명함=ListHeaderComponent, 피드=data. 더보기 제거·자연 무한스크롤(perf 2단계, [[project_fullscroll_profile]]) */}
           <DiagContext.Provider value={diagOn}>
@@ -192,7 +203,8 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
             data={friend.feed || []}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 32 + insets.bottom }}
+            contentContainerStyle={{ paddingTop: hdrPad, paddingBottom: 32 + insets.bottom }}
+            scrollIndicatorInsets={{ top: hdrPad }}
             initialNumToRender={6}
             maxToRenderPerBatch={5}
             windowSize={9}
@@ -362,7 +374,7 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
           {/* 헤더 ⋯ 옵션 — 자체 오버레이 (Modal 위 Modal 충돌 회피) */}
           {optionsOpen && (
             <TouchableOpacity activeOpacity={1} onPress={() => setOptionsOpen(false)}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 30 /* 떠 있는 헤더(zIndex 10) 위 */,
                 backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 32 }}>
               <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, textAlign: 'center', paddingTop: 16, paddingBottom: 10 }}>
@@ -404,7 +416,7 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
           {/* 게시물 신고 — 사유 선택 시트(카드 길게 누르기 → onReport). Modal 위 Modal 충돌 회피 위해 자체 오버레이. */}
           {reportItem && (
             <TouchableOpacity activeOpacity={1} onPress={() => setReportItem(null)}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 30 /* 떠 있는 헤더(zIndex 10) 위 */,
                 backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 32 }}>
               <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal, textAlign: 'center', paddingTop: 16, paddingBottom: 4 }}>
@@ -430,7 +442,7 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
           {/* 신고 결과 안내 */}
           {reportMsg && (
             <TouchableOpacity activeOpacity={1} onPress={() => setReportMsg(null)}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 30 /* 떠 있는 헤더(zIndex 10) 위 */,
                 backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
               <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, paddingVertical: 24, paddingHorizontal: 26, alignItems: 'center', maxWidth: 320 }}>
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal, textAlign: 'center', lineHeight: 20 }}>{reportMsg}</Text>
@@ -445,7 +457,7 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
           {/* 그룹·별명 설정 — 내 private 메타. 친구에겐 안 보임 ([[friend_groups]]) */}
           {metaOpen && (
             <TouchableOpacity activeOpacity={1} onPress={() => setMetaOpen(false)}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 30 /* 떠 있는 헤더(zIndex 10) 위 */,
                 backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 28 }}>
               <TouchableOpacity activeOpacity={1} onPress={() => {}}
                 style={{ backgroundColor: C.bgPrimary, borderRadius: 16, padding: 20 }}>
