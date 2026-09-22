@@ -240,7 +240,8 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   ) : null;
   // 댓글 시트 — 4갈래 카드 모두 WhoLikedModal 옆에 같은 방식으로 붙는다.
   const commentsSheet = showComments ? (
-    <RoundCommentsModal visible roundId={item.id} ownerUid={item.ownerUid}
+    // ★내 카드는 주인=나로 고정 — 로컬 캐시/새로 만든 글엔 ownerUid가 비어 있을 수 있어 남의 댓글 '삭제'가 안 떴다(사용자 2026-09-23)
+    <RoundCommentsModal visible roundId={item.id} ownerUid={item.ownerUid || (!isFriend ? myUid : null)}
       label={item.course || (item.kind === 'moment' ? '일상' : '')}
       myUid={myUid} myName={myName}
       nameOf={(uid, snap) => (friendNameByUid && friendNameByUid[uid]) || snap || '골프 친구'}

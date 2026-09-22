@@ -66,6 +66,8 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
   };
   // 신고 — 남의 댓글. 사유 2개(다른 신고와 동일), 1인 1회(결정적 ID). 시트 안 오버레이(중첩 Modal 회피).
   const [reportTarget, setReportTarget] = useState(null);
+  // 댓글 끝 '⋯' 메뉴(사용자 2026-09-23 "삭제와 신고를 점 세 개로 한 번에") — 신고(남의 것)·삭제(내 댓글·내 글의 댓글)
+  const [menuTarget, setMenuTarget] = useState(null);
   const doReport = async (reason) => {
     const c = reportTarget;
     setReportTarget(null);
@@ -86,7 +88,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
   useEffect(() => {
     if (visible) return;
     setComments([]); setDraft(''); setConfirmDel(null); setReady(false); setLoaded(false); setDenied(false);
-    setReplyTarget(null); setReportTarget(null);
+    setReplyTarget(null); setReportTarget(null); setMenuTarget(null);
   }, [visible]);
 
   useEffect(() => {
@@ -199,14 +201,11 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>답글</Text>
               </TouchableOpacity>
             )}
-            {!mine && (
-              <TouchableOpacity onPress={() => setReportTarget(c)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>신고</Text>
-              </TouchableOpacity>
-            )}
-            {canDelete && (
-              <TouchableOpacity onPress={() => setConfirmDel(c)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>삭제</Text>
+            {/* ⋯ — 신고(남의 것)·삭제(내 댓글·내 글의 댓글)를 한 메뉴로. 둘 다 해당 없으면 안 그린다 */}
+            {(!mine || canDelete) && (
+              <TouchableOpacity onPress={() => setMenuTarget({ c, mine, canDelete })}
+                hitSlop={{ top: 8, bottom: 8, left: 10, right: 10 }} style={{ marginLeft: 'auto', paddingHorizontal: 6 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.warmGray, lineHeight: fs(15) }}>⋯</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -304,6 +303,34 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
                 </TouchableOpacity>
               </View>
             </Animated.View>
+
+            {/* ⋯ 메뉴(인라인) — 신고 / 삭제 / 취소. 고르면 각자의 확인 단계로 넘어간다 */}
+            {menuTarget && (
+              <TouchableOpacity activeOpacity={1} onPress={() => setMenuTarget(null)}
+                style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', paddingHorizontal: 32 }}>
+                <View style={{ backgroundColor: C.bgPrimary, borderRadius: 16, overflow: 'hidden' }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.textSecondary, textAlign: 'center', paddingTop: 14, paddingBottom: 6 }} numberOfLines={1}>
+                    {String(menuTarget.c.body || '').slice(0, 30)}
+                  </Text>
+                  {!menuTarget.mine && (
+                    <TouchableOpacity activeOpacity={0.6} onPress={() => { const c = menuTarget.c; setMenuTarget(null); setReportTarget(c); }}
+                      style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, textAlign: 'center' }}>신고</Text>
+                    </TouchableOpacity>
+                  )}
+                  {menuTarget.canDelete && (
+                    <TouchableOpacity activeOpacity={0.6} onPress={() => { const c = menuTarget.c; setMenuTarget(null); setConfirmDel(c); }}
+                      style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: '#D32F2F', textAlign: 'center' }}>삭제</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity activeOpacity={0.6} onPress={() => setMenuTarget(null)}
+                    style={{ paddingVertical: 14, paddingHorizontal: 18, borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: C.bgSecondary }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(14), color: C.warmGray, textAlign: 'center' }}>취소</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            )}
 
             {/* 신고 사유(인라인 — 중첩 Modal 회피). 친구 프로필 게시물 신고 시트와 같은 사유 2개 */}
             {reportTarget && (
