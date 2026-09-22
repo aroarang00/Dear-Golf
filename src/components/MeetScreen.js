@@ -21,6 +21,7 @@ import { DMChatScreen } from './DMChatScreen';       // 크루에서 멤버 DM �
 import { DMListScreen } from './DMListScreen';       // 메시지(DM) 목록 — 홈 레일 폐지로 사라진 진입점, 대문에 정착(2026-08-27)
 import { UserContext } from '../contexts/UserContext'; // 차단 목록 — DM 안읽음 집계서 제외
 import { loadUnreadTotal } from '../utils/dm';
+import { SurfaceLight, PressScale, LIFT_AMBIENT, LIFT_CONTACT } from './common/Surface'; // 카드 입체감 — 홈과 같은 부품(2026-09-22, 사용자 "모임 카드도 밋밋해")
 
 // ★모임 탭 — 탭 5→4 재편(2026-08-26). 라운지(모집)·친구·크루·정산을 한 지붕으로.
 //   v2 = '대문(허브)' 방식(사용자 선택 2026-08-26, 상단 세그먼트는 "탭 안 탭이라 어수선" 폐기):
@@ -44,7 +45,7 @@ const SECTION_LABEL = { friends: '친구', crew: '크루', roundup: '라운딩 �
 const HUB = {
   friends: { bg: C.paleSky, fg: C.navy, icon: 'people', label: '친구' },
   crew: { bg: '#E6EDDC', fg: '#5E7E42', icon: 'crew', label: '크루' },
-  roundup: { bg: C.navy, fg: C.bgPrimary, icon: 'clubhouse', label: '라운딩 모집' },
+  roundup: { bg: C.navy, fg: C.bgPrimary, icon: 'clubhouse', label: '라운딩 모집', tone: 'dark' },
   settle: { bg: '#F3E7BE', fg: C.charcoal, icon: 'wallet', label: '정산' },
 };
 
@@ -183,8 +184,10 @@ export function MeetScreen({ navigation, route }) {
   const hubCard = (k) => {
     const c = HUB[k];
     return (
-      <TouchableOpacity key={k} onPress={() => go(k)} activeOpacity={0.85}
-        style={{ flex: 1, height: 122, borderRadius: 18, backgroundColor: c.bg, padding: 16, justifyContent: 'space-between' }}>
+      /* 입체감(2026-09-22) — 홈 D-N 카드와 같은 문법: 두 겹 그림자(PressScale shadow) + 표면 빛(SurfaceLight) + 눌림 반응 */
+      <PressScale key={k} onPress={() => go(k)} style={{ flex: 1 }} shadow={{ radius: 18, bg: c.bg }}
+        contentStyle={{ height: 122, padding: 16, justifyContent: 'space-between' }}>
+        <SurfaceLight radius={18} tone={c.tone || 'light'} />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Icon name={c.icon} size={fs(28)} color={c.fg} strokeWidth={1.9} />
           {hubBadge[k] ? (
@@ -199,7 +202,7 @@ export function MeetScreen({ navigation, route }) {
             <Text style={{ fontFamily: F.sysM, fontSize: fs(12.5), color: c.fg, opacity: 0.72, marginTop: 3 }}>{hubSub[k]}</Text>
           ) : null}
         </View>
-      </TouchableOpacity>
+      </PressScale>
     );
   };
 
@@ -224,9 +227,9 @@ export function MeetScreen({ navigation, route }) {
               {hubCard('settle')}
             </View>
             {/* 메시지(DM) — 와이드 슬림 카드. 다크 배경=DM 방(#211E1B 다크 룸) 톤 예고, 배지=버건디(카드 문법 통일) */}
-            <TouchableOpacity onPress={() => setDmOpen(true)} activeOpacity={0.85}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18,
-                backgroundColor: '#211E1B', paddingHorizontal: 16, paddingVertical: 16 }}>
+            <PressScale onPress={() => setDmOpen(true)} shadow={{ radius: 18, bg: '#211E1B' }}
+              contentStyle={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 16, paddingVertical: 16 }}>
+              <SurfaceLight radius={18} tone="dark" />
               <Icon name="chat" size={fs(23)} color={C.butter} strokeWidth={1.9} />
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.butter }}>메시지</Text>
               <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: 'rgba(255,255,255,0.55)' }}>친구와 1:1 대화</Text>
@@ -236,7 +239,7 @@ export function MeetScreen({ navigation, route }) {
                 </View>
               ) : null}
               <Text style={{ fontFamily: F.sys, fontSize: fs(18), color: 'rgba(255,255,255,0.5)' }}>›</Text>
-            </TouchableOpacity>
+            </PressScale>
           </View>
 
           {/* ② 자주 함께한 골프 친구 — 라운딩 기록 동반자 빈도 상위 5명(이니셜 원+횟수). 탭→친구 화면(2026-08-27) */}
@@ -262,7 +265,9 @@ export function MeetScreen({ navigation, route }) {
           {togetherNext.length > 0 && (
             <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
               <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 4 }}>함께하는 다음 라운딩</Text>
-              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14, marginTop: 10 }}>
+              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, marginTop: 10 }, LIFT_AMBIENT]}>
+              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14 }, LIFT_CONTACT]}>
+                <SurfaceLight radius={14} />
                 {togetherNext.map((s, i) => {
                   const names = (s.companions || [])
                     .filter(c => !(typeof c === 'object' && c?.isMe))
@@ -284,6 +289,7 @@ export function MeetScreen({ navigation, route }) {
                   );
                 })}
               </View>
+              </View>
             </View>
           )}
 
@@ -298,15 +304,18 @@ export function MeetScreen({ navigation, route }) {
               )}
             </View>
             {hubPosts.length === 0 ? (
-              <TouchableOpacity onPress={() => go('roundup')} activeOpacity={0.8}
-                style={{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingVertical: 20, alignItems: 'center' }}>
+              <PressScale onPress={() => go('roundup')} shadow={{ radius: 14, bg: C.bgSecondary }}
+                contentStyle={{ paddingVertical: 20, alignItems: 'center' }}>
+                <SurfaceLight radius={14} />
                 <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.warmGray }}>
                   아직 모집 중인 글이 없어요
                 </Text>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.navy, marginTop: 6 }}>첫 모집글을 올려보세요 ›</Text>
-              </TouchableOpacity>
+              </PressScale>
             ) : (
-              <View style={{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14 }}>
+              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14 }, LIFT_AMBIENT]}>
+              <View style={[{ backgroundColor: C.bgSecondary, borderRadius: 14, paddingHorizontal: 14 }, LIFT_CONTACT]}>
+                <SurfaceLight radius={14} />
                 {hubPosts.map((p, i) => (
                   <TouchableOpacity key={p.id} activeOpacity={0.7}
                     onPress={() => navigation.navigate(ROUTES.MEET, { openPostId: p.id, openPostHost: p.authorUid || undefined })}
@@ -325,6 +334,7 @@ export function MeetScreen({ navigation, route }) {
                     <Text style={{ fontFamily: F.sys, fontSize: fs(18), color: C.warmGray }}>›</Text>
                   </TouchableOpacity>
                 ))}
+              </View>
               </View>
             )}
           </View>
