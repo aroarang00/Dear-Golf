@@ -222,14 +222,16 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
 
   // 댓글 말풍선 — 하트 왼쪽, 내 카드·친구 카드 공통(2026-09-22). 탭하면 댓글 시트. 숫자 0이면 아이콘만.
   //   숫자가 있을 때 색을 넣어 '대화가 있다'가 한눈에 보이게(하트의 눌린 상태 표기와 같은 규칙).
+  //   2026-09-23 글자 버튼으로 — 17px 아이콘은 손가락에 안 걸리고(사용자 "너무 작아 탭이 안 돼") 뜻도 약하다.
+  //   '댓글 3'/'댓글' 글자 + 하트와 같은 세로 여백 + hitSlop으로 탭 영역 40px 안팎. 댓글이 있으면 네이비로 진하게.
   const commentBtn = (
     <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setShowComments(true); }} activeOpacity={0.7}
-      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 7 }}>
-      <Icon name="chat" size={fs(17)} color={commentCount > 0 ? C.navy : C.warmGray} strokeWidth={1.8} />
-      {commentCount > 0 && (
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.navy }}>{commentCount}</Text>
-      )}
+      hitSlop={{ top: 10, bottom: 10, left: 6, right: 4 }}
+      style={{ justifyContent: 'center', paddingVertical: 6, paddingHorizontal: 9 }}>
+      <Text style={{ fontFamily: commentCount > 0 ? F.sysB : F.sysM, fontSize: fs(13),
+        color: commentCount > 0 ? C.navy : C.warmGray }}>
+        {commentCount > 0 ? `댓글 ${commentCount}` : '댓글'}
+      </Text>
     </TouchableOpacity>
   );
   // 내 카드 우측 묶음 = 댓글 + (좋아요 있을 때) 하트. 전엔 좋아요가 없으면 통째로 null이었는데 댓글은 늘 있어야 한다.
