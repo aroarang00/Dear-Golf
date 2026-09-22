@@ -113,17 +113,21 @@ const PostGridCard = React.memo(function PostGridCard({ p, cell, onOpen, onToggl
   //   1열 카드 시절엔 RoundupMiniCard가 그 일을 했다. 타일 탭은 모집 상세로(카드 탭=댓글보다 우선).
   const roundupTile = !cover && !!p.roundupId;
   return (
-    <TouchableOpacity activeOpacity={0.9} style={{ width: cell, marginBottom: 16 }}
+    /* 흰 카드(2026-09-22, 사용자 "게시글 카드도 같이 손보자") — 사진·글·지표가 하늘색 바탕에 맨몸으로 놓여 있던 것을
+       공지 카드와 같은 흰 카드(연한 두 겹 그림자+표면 빛)에 담는다. 사진은 카드 위 모서리만 둥글게. */
+    <TouchableOpacity activeOpacity={0.9} style={[{ width: cell, marginBottom: 14, borderRadius: 14, backgroundColor: '#FFFFFF' }, LIFT_AMBIENT_SOFT]}
       onPress={() => onOpen(p)} onLongPress={() => onAction(p)} delayLongPress={320}>
-      <View>
+      <View style={[{ borderRadius: 14, backgroundColor: '#FFFFFF', paddingBottom: 10 }, LIFT_CONTACT_SOFT]}>
+      <SurfaceLight radius={14} />
+      <View style={{ borderTopLeftRadius: 14, borderTopRightRadius: 14, overflow: 'hidden' }}>
         {cover ? (
-          <MediaTile m={cover} style={{ width: cell, height: cell }} radius={14} playSize="lg" />
+          <MediaTile m={cover} style={{ width: cell, height: cell }} radius={0} playSize="lg" />
         ) : roundupTile ? (
           <RoundupMiniCard tile={cell} roundupId={p.roundupId} shared={p.roundupShare}
             isHost={p.roundupIsHost} hostIsFriend={p.roundupHostIsFriend}
             onPress={(rid) => onOpenRoundup?.(rid, p.roundupHost)} />
         ) : (
-          <View style={{ width: cell, height: cell, borderRadius: 14, backgroundColor: TEXT_TILE_BG, padding: 13, justifyContent: 'center' }}>
+          <View style={{ width: cell, height: cell, backgroundColor: TEXT_TILE_BG, padding: 13, justifyContent: 'center' }}>
             <Text numberOfLines={5} style={{ fontFamily: F.sysM, fontSize: fs(14), color: INK, lineHeight: fs(21) }}>{p.text}</Text>
           </View>
         )}
@@ -140,6 +144,7 @@ const PostGridCard = React.memo(function PostGridCard({ p, cell, onOpen, onToggl
       </View>
 
       {/* 이름 탭 = 프로필(DM·친구신청) — 1열 카드에선 아바타가 하던 일. 그리드엔 아바타를 안 넣었으니 이름이 그 자리를 맡는다 */}
+      <View style={{ paddingHorizontal: 10 }}>
       <Text numberOfLines={1} onPress={() => onOpenProfile(p.author)} suppressHighlighting
         style={{ fontFamily: F.sysB, fontSize: fs(13), color: INK, marginTop: 8 }}>{p.author.name}</Text>
       {/* 글 미리보기는 타일이 글이 아닐 때만 — 사진·모집 타일 아래엔 붙이고, 글 타일 아래엔 안 붙인다(같은 글 두 번 X) */}
@@ -166,6 +171,8 @@ const PostGridCard = React.memo(function PostGridCard({ p, cell, onOpen, onToggl
         <TouchableOpacity onPress={() => onAction(p)} hitSlop={{ top: 10, bottom: 10, left: 12, right: 12 }} style={{ marginLeft: 'auto' }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: SUB, marginTop: -3 }}>⋯</Text>
         </TouchableOpacity>
+      </View>
+      </View>
       </View>
     </TouchableOpacity>
   );
@@ -253,6 +260,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   const memberUids = crewDoc?.memberUids || [];
   const namesFallback = crewDoc?.names || {};
   const notice = crewDoc?.notice || '';
+  const noticeMedia = Array.isArray(crewDoc?.noticeMedia) ? crewDoc.noticeMedia : [];   // 공지 사진(최대 3, 2026-09-22)
   const namesSig = useMemo(() => JSON.stringify(crewDoc?.names || {}), [crewDoc]); // names 변경 시 resolve 재실행용(폴백 이름 stale 방지)
   // 권한 — 크루장(creatorUid) / 운영진(adminUids). 공지·게시물·댓글 삭제는 staff(크루장+운영진)가 할 수 있음.
   const iAmMaster = !!currentUid && currentUid === crewDoc?.creatorUid;
@@ -530,7 +538,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   );
   if (editingNotice) return (
     <Animated.View style={{ flex: 1 }} entering={SlideInRight.duration(230)}>
-      <CrewComposeScreen crew={crew} noticeText={notice} onClose={() => setEditingNotice(false)} />
+      <CrewComposeScreen crew={crew} noticeText={notice} noticeMedia={noticeMedia} onClose={() => setEditingNotice(false)} />
     </Animated.View>
   );
   if (membersOpen) return (
@@ -559,10 +567,10 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
   // 헤더 = 진행 중 모집(핀) + 공지(있을 때만). 토글 바는 리스트 밖 고정.
   const renderHeader = () => {
     const hasPinned = activePinnedIds.length > 0;
-    if (!hasPinned && !notice) return null;
+    if (!hasPinned && !notice && !noticeMedia.length) return null;
     return (
     <View>
-      {!!notice && (
+      {(!!notice || noticeMedia.length > 0) && (
     /* 공지 카드(2026-09-22 재설계, 사용자 "공지창이 보기 별로") — 크림 상자+세이지 띠+📌 이모지 셋이 하늘색 바탕 위에서 어수선했다.
        → 흰 카드 하나(연한 두 겹 그림자+표면 빛, 테두리·띠 없음), 위 줄 = 확성기 아이콘 + '공지' + 누가(크루리더 · 이름), 본문은 14pt로 키움. */
     <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
@@ -587,6 +595,7 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
             </TouchableOpacity>
           )}
         </View>
+        {!!notice && (
         <View style={{ marginTop: 6 }}>
           <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysM, fontSize: fs(14), lineHeight: fs(21) }}
             onTextLayout={(e) => { const n = e.nativeEvent.lines?.length || 0; const over = n > 2; if (over !== noticeClamped) setNoticeClamped(over); if (n !== noticeLineCount) setNoticeLineCount(n); }}>{notice}</Text>
@@ -598,6 +607,31 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
             </TouchableOpacity>
           )}
         </View>
+        )}
+        {/* 공지 사진 — 1장=가로 꽉(원본 비율, 120~240 사이) / 2~3장=정사각 나란히. 탭=풀스크린 뷰어 */}
+        {noticeMedia.length > 0 && (() => {
+          const w = winW - 56;   // 화면 - 바깥 14×2 - 카드 안 14×2
+          if (noticeMedia.length === 1) {
+            const m = noticeMedia[0];
+            const h = Math.round(Math.min(240, Math.max(120, w / (m?.ar || 1.5))));
+            return (
+              <TouchableOpacity activeOpacity={0.9} onPress={() => setViewer({ media: noticeMedia, index: 0 })} style={{ marginTop: 10 }}>
+                <MediaTile m={m} style={{ width: w, height: h }} radius={10} />
+              </TouchableOpacity>
+            );
+          }
+          const n = noticeMedia.length;
+          const s = Math.floor((w - 6 * (n - 1)) / n);
+          return (
+            <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
+              {noticeMedia.map((m, i) => (
+                <TouchableOpacity key={i} activeOpacity={0.9} onPress={() => setViewer({ media: noticeMedia, index: i })}>
+                  <MediaTile m={m} style={{ width: s, height: s }} radius={10} playSize="sm" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        })()}
       </View>
       </View>
     </View>

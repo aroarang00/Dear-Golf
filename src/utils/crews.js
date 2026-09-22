@@ -185,11 +185,12 @@ export async function leaveCrew(crewId, uid) {
 
 // 크루명 변경은 '나만 보는 별명'(기기 로컬, CrewListScreen aliasMap)으로 대체 — 서버 name은 생성 시 고정(전원 그룹명 동시변경 방지).
 
-// ── 공지 설정 (텍스트만, 최신이 기존 대체, 멤버 누구나) ──
-export async function setCrewNotice(crewId, notice, uid) {
+// ── 공지 설정 (최신이 기존 대체, 크루장·운영진) — media=사진 최대 3장(https 업로드 완료 항목, 2026-09-22) ──
+export async function setCrewNotice(crewId, notice, uid, media = []) {
   if (!crewId) return;
   await updateDoc(doc(db, COL, crewId), {
-    notice: (notice || '').trim(), noticeBy: uid || null, noticeAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    notice: (notice || '').trim(), noticeMedia: (media || []).slice(0, 3),
+    noticeBy: uid || null, noticeAt: serverTimestamp(), updatedAt: serverTimestamp(),
   });
 }
 

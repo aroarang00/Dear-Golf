@@ -34,6 +34,7 @@ const LINE  = 'rgba(26,61,82,0.12)';
 const MAX_MEDIA = 6; // 10→6 — 다이어리 미디어 전량 백업 도입에 맞춘 저장 용량 다이어트(사용자 2026-07-04). 영상은 종전대로 1개·30초
 const MAX_TEXT = 1000;     // 게시물 글
 const MAX_NOTICE = 500;    // 공지(핀이라 짧게)
+const MAX_NOTICE_MEDIA = 3; // 공지 사진 상한(영상 X) — 규칙(firestore.rules crews 공지)과 일치(2026-09-22)
 const MAX_VIDEO_SEC = 30;
 
 // 미리보기 카드 — 앨범 피드 카드와 같은 레이아웃(작성자·글·미디어). 게시 전 '올라간 모습' 확인용(읽기 전용).
@@ -104,14 +105,14 @@ function PreviewCard({ text, media, name, avatarUri, width }) {
   );
 }
 
-export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = false, memberUids = [], crewName = '', onClose, onOpenRoundup }) {
+export function CrewComposeScreen({ crew, post, noticeText = null, noticeMedia = null, canNotice = false, memberUids = [], crewName = '', onClose, onOpenRoundup }) {
   useScreenBack(true, () => { if (previewing) { setPreviewing(false); return; } onClose(); });
   const editing = !!post;                         // post 있으면 수정 모드(글·미디어 prefill)
-  const editingNotice = noticeText != null;       // 공지 수정 모드(텍스트만, 토글·미디어 숨김)
+  const editingNotice = noticeText != null;       // 공지 수정 모드(토글 숨김·사진 3장까지)
   const currentUid = useCurrentUid();
   const crewId = crew?.id;
   const [text, setText] = useState(post?.text || noticeText || '');
-  const [media, setMedia] = useState(post?.media || []);   // 기존 미디어는 https(업로드 완료) — uploadRoundMedia가 멱등 처리
+  const [media, setMedia] = useState(post?.media || noticeMedia || []);   // 기존 미디어는 https(업로드 완료) — uploadRoundMedia가 멱등 처리
   const [isNotice, setIsNotice] = useState(editingNotice); // 공지 수정 모드면 강제 공지(토글 숨김)
   const [err, setErr] = useState('');
   const [posting, setPosting] = useState(false);
@@ -166,7 +167,8 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
   }, []);
 
   const hasVideo = media.some((m) => m.type === 'video');
-  const full = media.length >= MAX_MEDIA;
+  const mediaCap = isNotice ? MAX_NOTICE_MEDIA : MAX_MEDIA;   // 공지=사진 3장(영상 X)
+  const full = media.length >= mediaCap;
 
   const addPhoto = async () => {
     if (full || posting) return;
@@ -175,13 +177,13 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
       let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
       if (!perm.granted && perm.canAskAgain) perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) { showAppAlert('사진 접근 권한이 필요해요', '설정 > 권한에서 사진·동영상 접근을 허용해주세요.'); return; }
-      const remaining = MAX_MEDIA - media.length;
+      const remaining = mediaCap - media.length;
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: remaining, quality: 1 });
       if (res.canceled) return;
       const imgs = (res.assets || []).filter((a) => a?.uri).slice(0, remaining);
       // 고른 사진은 그대로 추가(자동 크롭 X). iOS서 피커 닫힘과 크롭 Modal이 겹쳐 간헐 실패하던 문제 회피.
       //   크롭은 썸네일 탭으로(피커 없이 = 충돌 없음). ar=원본 가로세로비 → 피드서 원본 비율 표시(정사각 강제 X).
-      setMedia((p) => [...p, ...imgs.map((a) => ({ type: 'image', uri: a.uri, ar: (a.width && a.height) ? a.width / a.height : undefined }))].slice(0, MAX_MEDIA));
+      setMedia((p) => [...p, ...imgs.map((a) => ({ type: 'image', uri: a.uri, ar: (a.width && a.height) ? a.width / a.height : undefined }))].slice(0, mediaCap));
     } catch (e) { if (__DEV__) console.warn('[crewCompose] addPhoto', e?.message); }
   };
   // 썸네일 탭 → 크롭(1:1). 사진=사진 자체, 영상=커버(포스터) 편집. 피커가 안 떠 있어 Modal 충돌 없음(안드·iOS 동일).
@@ -263,7 +265,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
   };
 
   const limit = isNotice ? MAX_NOTICE : MAX_TEXT;
-  const canPost = isNotice ? text.trim().length > 0 : (text.trim().length > 0 || media.length > 0);
+  const canPost = text.trim().length > 0 || media.length > 0;   // 공지도 사진만으로 게시 가능(2026-09-22)
 
   // 일반 글/공지 게시. (모집은 헤더 '모집'→앨범에서 직접 처리, 작성기 안 거침)
   const submit = async () => {
@@ -279,7 +281,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
       if (editing) {
         await editCrewPost(crewId, post.id, { text: body, media: up });
       } else if (isNotice) {
-        await setCrewNotice(crewId, body, currentUid);
+        await setCrewNotice(crewId, body, currentUid, up);
         clearCrewDraft();   // 공지 올린 텍스트가 임시저장에 남아 다음 새 글에 '쓰다 만 글'로 부활하던 것 방지
                             //   (글 먼저 쓰고→공지 토글→게시한 경우, 토글 전 자동저장분이 남았음)
       } else {
@@ -336,12 +338,13 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
             paddingHorizontal: 14, paddingVertical: 12 }}>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: fs(15), marginRight: 6 }}>📌</Text>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>공지로 올리기</Text>
+                <Icon name="megaphone" size={fs(16)} color={SAGE_DEEP} strokeWidth={2} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK, marginLeft: 6 }}>공지로 올리기</Text>
               </View>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }}>텍스트만 가능 · 최신 공지가 기존을 대체해요</Text>
+              <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 3 }}>사진 3장까지 · 최신 공지가 기존을 대체해요</Text>
             </View>
-            <Switch value={isNotice} onValueChange={setIsNotice}
+            {/* 공지로 전환 시 영상은 빼고 사진 3장까지만 남긴다(공지 상한과 규칙 일치) */}
+            <Switch value={isNotice} onValueChange={(v) => { setIsNotice(v); if (v) setMedia((p) => p.filter((m) => m.type === 'image').slice(0, MAX_NOTICE_MEDIA)); }}
               style={Platform.OS === 'ios' ? { transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] } : undefined}
               trackColor={{ false: 'rgba(26,61,82,0.2)', true: SAGE }} thumbColor="#fff" />
           </View>
@@ -367,31 +370,31 @@ export function CrewComposeScreen({ crew, post, noticeText = null, canNotice = f
               fontFamily: F.sys, fontSize: fs(16), color: INK, marginTop: (editing || editingNotice) ? 0 : 12, minHeight: 130, textAlignVertical: 'top', lineHeight: fs(24) }} />
           <Text style={{ alignSelf: 'flex-end', fontFamily: F.sys, fontSize: fs(12), color: text.length >= limit ? '#B23B3B' : SUB, marginTop: 5 }}>{text.length}/{limit}</Text>
 
-          {/* 미디어 — 공지가 아닐 때만 */}
-          {!isNotice && (
+          {/* 미디어 — 공지는 사진만(3장), 게시물은 사진+영상 */}
+          {(
             <View style={{ marginTop: 14 }}>
               {/* 사진·영상 추가 — 세이지 채움 큰 버튼(밋밋하지 않게) */}
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <TouchableOpacity onPress={addPhoto} disabled={full} activeOpacity={0.85}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginRight: 8,
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginRight: isNotice ? 0 : 8,
                     backgroundColor: full ? 'rgba(26,61,82,0.05)' : 'rgba(143,176,107,0.16)',
                     borderWidth: 1, borderColor: full ? LINE : 'rgba(94,126,66,0.45)', borderRadius: 12, paddingVertical: 11 }}>
                   <Icon name="image" size={fs(20)} color={full ? SUB : SAGE_DEEP} strokeWidth={1.7} />
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: full ? SUB : SAGE_DEEP, marginLeft: 7 }}>사진</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={addVideo} disabled={full || hasVideo} activeOpacity={0.85}
+                {!isNotice && <TouchableOpacity onPress={addVideo} disabled={full || hasVideo} activeOpacity={0.85}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
                     backgroundColor: (full || hasVideo) ? 'rgba(26,61,82,0.05)' : 'rgba(143,176,107,0.16)',
                     borderWidth: 1, borderColor: (full || hasVideo) ? LINE : 'rgba(94,126,66,0.45)', borderRadius: 12, paddingVertical: 11 }}>
                   <Icon name="video" size={fs(20)} color={(full || hasVideo) ? SUB : SAGE_DEEP} strokeWidth={1.7} />
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: (full || hasVideo) ? SUB : SAGE_DEEP, marginLeft: 7 }}>영상</Text>
-                </TouchableOpacity>
+                </TouchableOpacity>}
               </View>
 
               {/* 안내 + 갯수 (버튼 아래) — 사진은 탭하면 잘라서 편집 */}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: SUB }}>탭=잘라서 편집 · ◀▶=순서 · 최대 10개(영상 1개·30초)</Text>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: media.length > 0 ? SAGE_DEEP : SUB }}>{media.length}/{MAX_MEDIA}</Text>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(12), color: SUB }}>{isNotice ? '탭=잘라서 편집 · ◀▶=순서 · 사진 최대 3장' : '탭=잘라서 편집 · ◀▶=순서 · 최대 10개(영상 1개·30초)'}</Text>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: media.length > 0 ? SAGE_DEEP : SUB }}>{media.length}/{mediaCap}</Text>
               </View>
 
               {/* 추가된 사진·영상 — 가로 배열. 사진 탭=크롭 편집, ◀▶=순서 */}

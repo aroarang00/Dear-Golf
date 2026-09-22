@@ -415,10 +415,12 @@ service cloud.firestore {
       allow update: if isSignedIn()
         && request.auth.uid in resource.data.memberUids
         && changedKeysWithin(['postCount', 'lastPostAt', 'lastPostBy', 'updatedAt']);
-      // 공지 — 크루장·운영진
+      // 공지 — 크루장·운영진. noticeMedia=사진 최대 3장(2026-09-22, 사용자 "공지에 사진도")
       allow update: if isSignedIn()
         && crewStaff()
-        && changedKeysWithin(['notice', 'noticeBy', 'noticeAt', 'updatedAt']);
+        && changedKeysWithin(['notice', 'noticeMedia', 'noticeBy', 'noticeAt', 'updatedAt'])
+        && request.resource.data.get('noticeMedia', []) is list
+        && request.resource.data.get('noticeMedia', []).size() <= 3;
       // 크루 프로필(이름·색·이미지·성격)·운영진 임명/해제 — 크루장만
       allow update: if isSignedIn()
         && crewMaster()
