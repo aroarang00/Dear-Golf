@@ -444,6 +444,7 @@ function titleFor(type) {
     case 'scheduleMemo':      return '동반자 공지';
     case 'scheduleMention':   return '이야기 멘션';
     case 'roundComment':      return '내 글 댓글';
+    case 'roundReply':        return '댓글 답글';
     case 'scheduleCancelled': return '일정 취소';
     // 노쇼 신고
     case 'noshowReported':            return '노쇼 신고 접수';
@@ -504,6 +505,9 @@ function bodyFor(type, { postTitle = '', actorName = '', scheduleDate = '', sche
     // 피드 글(라운딩·일상) 댓글 — 글 주인에게만(2026-09-23). postTitle=구장명 또는 '일상'.
     case 'roundComment':
       return `${actorName ? actorName + '님이 ' : ''}${t} 글에 댓글을 남겼어요${memoPreview ? ` — “${memoPreview}”` : ''}`;
+    // 댓글 답글(@멘션) — 불린 사람에게만. 글 주인은 roundComment로 받으므로 제외(클라에서 걸러 보냄).
+    case 'roundReply':
+      return `${actorName ? actorName + '님이 ' : ''}${t} 글에서 회원님에게 답글을 남겼어요${memoPreview ? ` — “${memoPreview}”` : ''}`;
     case 'scheduleCancelled': return `${actorName ? actorName + '님이 ' : ''}${t} 일정을 취소했어요${scheduleDate ? ` (${scheduleDate})` : ''}`;
     case 'roundupCancelled': return postTitle
       ? `${actorName ? actorName + '님의 ' : ''}'${postTitle}'${scheduleDate ? ` (${scheduleDate})` : ''} 모집이 취소됐어요`

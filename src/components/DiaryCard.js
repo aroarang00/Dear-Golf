@@ -250,8 +250,9 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   // 카드 밑 미리보기 — 댓글이 있을 때만 한두 줄([이름] 본문, 한 줄 말줄임) + 2개 넘으면 '댓글 N개 모두 보기'.
   //   어디를 눌러도 시트. 댓글 없는 카드는 지금과 똑같다(카드가 길어지지 않음).
   const commentPreview = (commentCount > 0 && latest.length > 0) ? (
+    // 위 여백 — 사진 카드는 '기록 보기' 줄(연한 바탕) 바로 밑이라 붙어 보였다(사용자 2026-09-23). 본문 뒤(무사진)도 같은 값이면 자연스럽다.
     <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setShowComments(true); }} activeOpacity={0.7}
-      style={{ paddingHorizontal: 12, paddingBottom: 11, marginTop: -2 }}>
+      style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 11 }}>
       {commentCount > latest.length && (
         <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginBottom: 3 }}>
           댓글 {commentCount}개 모두 보기

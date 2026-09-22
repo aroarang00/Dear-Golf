@@ -608,8 +608,8 @@ function App() {
           navigationRef.navigate(ROUTES.HOME, data.postId ? { openScheduleCommentsId: data.postId } : undefined);
           return;
         }
-        // 피드 글 댓글(내 글) → 홈 + 그 글의 댓글 시트 바로 오픈 (postId=roundId, 2026-09-23)
-        if (type === 'roundComment') {
+        // 피드 글 댓글(내 글)·답글(@멘션) → 홈 + 그 글의 댓글 시트 바로 오픈 (postId=roundId, 2026-09-23)
+        if (type === 'roundComment' || type === 'roundReply') {
           navigationRef.navigate(ROUTES.HOME, data.postId ? { openRoundCommentsId: data.postId } : undefined);
           return;
         }

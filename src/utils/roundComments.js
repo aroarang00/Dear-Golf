@@ -65,19 +65,34 @@ export async function addRoundComment(roundId, authorName, body, opts = {}) {
   if (!trimmed) return { ok: false, reason: 'empty' };
   if (trimmed.length > ROUND_COMMENT_MAX) return { ok: false, reason: 'toolong' };
   if (containsProfanity(trimmed)) return { ok: false, reason: 'profanity' };
+  // 답글(@멘션, 2026-09-23 A안) — 본문에 '@이름'이 든 사람 uid. 목록은 평평하게 두고 상대에게만 알림.
+  //   글 주인은 roundComment로 이미 받으니 멘션 알림에선 뺀다(같은 댓글로 두 번 안 울리게).
+  const mentions = Array.isArray(opts.mentions) ? opts.mentions.filter(u => u && u !== uid) : [];
   const ref = doc(col(roundId));
   const batch = writeBatch(db);
-  batch.set(ref, { authorUid: uid, authorName: authorName || '', body: trimmed, createdAt: serverTimestamp() });
+  batch.set(ref, {
+    authorUid: uid, authorName: authorName || '', body: trimmed,
+    ...(mentions.length ? { mentions } : {}),
+    createdAt: serverTimestamp(),
+  });
   batch.update(doc(db, 'rounds', roundId), { commentCount: increment(1) });
   await batch.commit();
   // 글 주인 알림 — 실패해도 댓글은 이미 성공. postId=roundId(홈에서 그 글의 댓글 시트를 연다), 미리보기 40자.
+  const preview = trimmed.slice(0, 40);
   if (opts.ownerUid && opts.ownerUid !== uid) {
     createNotification({
       recipientUid: opts.ownerUid, type: 'roundComment', actorName: authorName || '',
-      postId: roundId, postTitle: opts.title || '', memoPreview: trimmed.slice(0, 40),
+      postId: roundId, postTitle: opts.title || '', memoPreview: preview,
     }).catch(e => __DEV__ && console.warn('[roundComments] owner noti', e?.message));
   }
-  return { ok: true, comment: { id: ref.id, authorUid: uid, authorName: authorName || '', body: trimmed, createdAt: Date.now() } };
+  for (const rid of mentions) {
+    if (rid === opts.ownerUid) continue;
+    createNotification({
+      recipientUid: rid, type: 'roundReply', actorName: authorName || '',
+      postId: roundId, postTitle: opts.title || '', memoPreview: preview,
+    }).catch(e => __DEV__ && console.warn('[roundComments] reply noti', e?.message));
+  }
+  return { ok: true, comment: { id: ref.id, authorUid: uid, authorName: authorName || '', body: trimmed, mentions, createdAt: Date.now() } };
 }
 
 // 삭제 — 본인 또는 글 주인(규칙 강제). 부모 commentCount -1 을 한 배치로.

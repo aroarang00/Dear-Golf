@@ -250,6 +250,16 @@ export async function createRound(data) {
   return { id: ref.id, ...round };
 }
 
+// 글 하나 읽기 — 댓글 답글(@멘션) 알림을 탭한 사람은 글 주인이 아니라 내 diaries에 없다(2026-09-23).
+//   규칙상 볼 수 있는 글(친구공개·그룹 수신자)만 읽힌다. 없거나 권한 없으면 null.
+export async function loadRound(roundId) {
+  if (!roundId) return null;
+  try {
+    const snap = await getDoc(doc(db, COLLECTION, roundId));
+    return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  } catch (e) { return null; }
+}
+
 // 기존 다이어리 수정. ownerUid는 변경 금지(보안 규칙 강제).
 export async function updateRound(roundId, data) {
   if (!roundId) throw new Error('roundId required');

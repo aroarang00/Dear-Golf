@@ -41,7 +41,32 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
   const [loaded, setLoaded] = useState(false); // 첫 스냅샷 도착 여부 — 빈상태 깜빡임 방지 + 스피너 판정
   const [denied, setDenied] = useState(false); // 읽기 권한 없음(규칙 미배포·공개범위 밖) — 스피너가 영원히 돌지 않게
   const scrollRef = useRef(null);
+  const inputRef = useRef(null);
   const isOwner = !!myUid && myUid === ownerUid;
+
+  // 답글 = @이름 멘션(2026-09-23 A안, 대댓글 대신) — 목록은 평평하게 두고 불린 사람에게만 알림(roundReply).
+  //   후보 = 이 글에 댓글 단 사람들(나 제외). 글 주인은 댓글이 없으면 후보에 없지만 어차피 roundComment로 받는다.
+  const participants = useMemo(() => {
+    const m = new Map();
+    comments.forEach(c => {
+      if (!c.authorUid || c.authorUid === myUid || m.has(c.authorUid)) return;
+      const name = (nameOf ? nameOf(c.authorUid, c.authorName) : c.authorName) || '';
+      if (name) m.set(c.authorUid, { uid: c.authorUid, name });
+    });
+    return [...m.values()];
+  }, [comments, myUid, nameOf]);
+  // '답글' 링크 — 입력창에 '@이름 '을 넣고 키보드를 올린다
+  const replyTo = (name) => {
+    setDraft(d => (d.includes(`@${name}`) ? d : `${d.trim() ? d.trim() + ' ' : ''}@${name} `));
+    setTimeout(() => inputRef.current?.focus?.(), 50);
+  };
+  // 입력 끝에서 '@' 치는 중이면 후보 피커(일정 이야기와 같은 규칙)
+  const mentionMatch = draft.match(/@([^\s@]*)$/);
+  const mentionQuery = mentionMatch ? mentionMatch[1] : null;
+  const mentionList = (mentionQuery !== null && participants.length)
+    ? participants.filter(p => !mentionQuery || p.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    : [];
+  const pickMention = (p) => { setDraft(draft.replace(/@([^\s@]*)$/, `@${p.name} `)); };
 
   useEffect(() => {
     if (visible) return;
@@ -94,7 +119,9 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
     if (!body || sending) return;
     setSending(true);
     try {
-      const r = await addRoundComment(roundId, myName, body, { ownerUid, title: label });   // 글 주인 알림용
+      // 본문에 '@이름'이 든 참여자만 멘션(편집 중 지웠어도 최종 본문 기준).
+      const mentions = participants.filter(p => body.includes('@' + p.name)).map(p => p.uid);
+      const r = await addRoundComment(roundId, myName, body, { ownerUid, title: label, mentions });   // 글 주인·답글 알림용
       if (!r.ok) {
         if (r.reason === 'profanity') showToast(PROFANITY_BLOCK_MESSAGE);
         else if (r.reason === 'toolong') showToast(`${ROUND_COMMENT_MAX}자까지 쓸 수 있어요`);
@@ -123,10 +150,19 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
       <View key={c.id} style={{ paddingVertical: 10, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
         <Text style={{ fontFamily: F.sys, fontSize: fs(13), lineHeight: 21, color: C.charcoal }}>
           <Text style={{ fontFamily: F.sysB, color: mine ? C.burgundy : C.charcoal }}>{name}</Text>
-          {'  '}{c.body}
+          {'  '}
+          {/* '@이름' 토큰은 네이비 굵게 — 누구에게 한 말인지 한눈에 */}
+          {String(c.body || '').split(/(@[^\s@]+)/g).map((p, k) => (p.startsWith('@')
+            ? <Text key={k} style={{ fontFamily: F.sysB, color: C.navy }}>{p}</Text>
+            : p))}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 3 }}>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{fmtTime(c.createdAt)}</Text>
+          {!mine && !!name && (
+            <TouchableOpacity onPress={() => replyTo(name)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>답글</Text>
+            </TouchableOpacity>
+          )}
           {canDelete && (
             <TouchableOpacity onPress={() => setConfirmDel(c)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray }}>삭제</Text>
@@ -181,10 +217,22 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
             {/* 입력바 — 키보드 높이만큼 paddingBottom 리프트(안드 모달 대응) */}
             <Animated.View style={[{ paddingHorizontal: 14, paddingTop: BAR_PAD,
               borderTopWidth: 0.5, borderTopColor: C.hairline, backgroundColor: C.bgPrimary }, kbPadStyle]}>
+              {/* @멘션 후보 — 입력 끝에서 @를 치면 이 글에 댓글 단 사람 목록 */}
+              {mentionList.length > 0 && (
+                <View style={{ marginBottom: 8, backgroundColor: C.bgSecondary, borderRadius: 12, overflow: 'hidden' }}>
+                  {mentionList.map((p, i) => (
+                    <TouchableOpacity key={p.uid} onPress={() => pickMention(p)} activeOpacity={0.6}
+                      style={{ paddingHorizontal: 14, paddingVertical: 11, borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: C.hairline }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(13), color: C.charcoal }}>{p.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
                 <AppTextInput
+                  ref={inputRef}
                   value={draft} onChangeText={setDraft} multiline maxLength={ROUND_COMMENT_MAX}
-                  placeholder="댓글 남기기" placeholderTextColor={C.warmGrayLight}
+                  placeholder={participants.length ? '댓글 남기기 · @로 답글' : '댓글 남기기'} placeholderTextColor={C.warmGrayLight}
                   editable={!denied}
                   style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), lineHeight: 20, color: C.charcoal, maxHeight: 110,
                     backgroundColor: C.bgSecondary, borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10, textAlignVertical: 'center' }}

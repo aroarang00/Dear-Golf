@@ -1829,8 +1829,8 @@ export function RoundupTab({ visible, onClose, asScreen = false, embedded = fals
       setTimeout(() => navigation?.navigate?.(ROUTES.HOME, n.postId ? { openScheduleCommentsId: n.postId } : undefined), 320);
       return;
     }
-    // 피드 글 댓글(내 글) — 홈에서 그 글의 댓글 시트 바로 열기 (postId=roundId)
-    if (n.type === 'roundComment') {
+    // 피드 글 댓글(내 글)·답글(@멘션) — 홈에서 그 글의 댓글 시트 바로 열기 (postId=roundId)
+    if (n.type === 'roundComment' || n.type === 'roundReply') {
       setTimeout(() => navigation?.navigate?.(ROUTES.HOME, n.postId ? { openRoundCommentsId: n.postId } : undefined), 320);
       return;
     }

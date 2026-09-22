@@ -60,7 +60,7 @@ import { subscribeCrewInvites, subscribeMyCrews } from '../utils/crews';
 import { loadUnreadTotal } from '../utils/dm';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { loadMyFriendsEnriched, loadMyFriends, loadFriendProfiles } from '../utils/friends';
-import { loadFriendRounds } from '../utils/round';
+import { loadFriendRounds, loadRound } from '../utils/round';   // loadRound: 답글(@멘션) 알림 — 남의 글이라 내 diaries에 없어 따로 읽음
 import { shareScheduleToFriends, getScheduleGroup, notifyScheduleGroupMembers, leaveScheduleGroup, syncGroupContentByMember, pendingContentChange, isSyncingGroup, memoChangePreview, propagateMemoEdit } from '../utils/scheduleShares';
 import { WEB_BASE } from '../utils/links';                 // 일정 공유 평문에 붙일 앱 랜딩/설치 링크
 import { getScheduleWxSummary, getScheduleDriveMin } from '../utils/scheduleWx'; // 공유 카드 날씨 주입 + D-0 카드 우측 날씨·교통
@@ -499,9 +499,14 @@ export function HomeScreen({ navigation, route }) {
   }, [route?.params?.openRoundCommentsId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!pendingRoundCommentsId || !diariesHydrated) return;
-    const d = (diaries || []).find((x) => x.id === pendingRoundCommentsId);
-    if (d) setCommentsRound(d);
+    const rid = pendingRoundCommentsId;
     setPendingRoundCommentsId(null);
+    const d = (diaries || []).find((x) => x.id === rid);
+    if (d) { setCommentsRound(d); return; }
+    // 답글(@멘션) 알림 — 남의 글이라 내 diaries에 없다. 규칙상 볼 수 있는 글만 읽히고, 없으면 조용히 버린다.
+    let alive = true;
+    loadRound(rid).then((r) => { if (alive && r) setCommentsRound(r); });
+    return () => { alive = false; };
   }, [pendingRoundCommentsId, diariesHydrated, diaries]);
 
   // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.
@@ -2376,7 +2381,7 @@ export function HomeScreen({ navigation, route }) {
 
       {/* 내 글 댓글 시트 — 'roundComment' 알림(인앱·푸시) 탭에서만 열림. 카드의 시트와 같은 컴포넌트. */}
       {commentsRound && (
-        <RoundCommentsModal visible roundId={commentsRound.id} ownerUid={currentUid}
+        <RoundCommentsModal visible roundId={commentsRound.id} ownerUid={commentsRound.ownerUid || currentUid}
           label={commentsRound.course || (commentsRound.kind === 'moment' ? '일상' : '')}
           myUid={currentUid} myName={userProfile?.nickname || ''}
           onClose={() => setCommentsRound(null)} />
