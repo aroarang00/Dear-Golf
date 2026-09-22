@@ -132,6 +132,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
     return () => subs.forEach((s) => s.remove());
   }, []);
 
+  const esc = (t) => String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');   // 이름에 든 정규식 특수문자 이스케이프
   const send = async () => {
     const body = draft.trim();
     if (!body || sending) return;
@@ -140,7 +141,8 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
       // 멘션 = 답글 대상 + 본문에 '@이름'이 든 참여자(편집 중 지웠어도 최종 본문 기준).
       const mentions = [...new Set([
         ...(replyTarget?.uid ? [replyTarget.uid] : []),
-        ...participants.filter(p => body.includes('@' + p.name)).map(p => p.uid),
+        // '@김'이 '@김철수'에도 걸리던 접두어 오판 방지 — 이름 뒤가 공백·끝일 때만(리뷰 2026-09-23)
+        ...participants.filter(p => new RegExp('@' + esc(p.name) + '(?=\\s|$)').test(body)).map(p => p.uid),
       ])];
       const r = await addRoundComment(roundId, myName, body, {
         ownerUid, title: label, mentions, parentId: replyTarget?.parentId || null,   // 글 주인·답글 알림 + 원댓글 밑에 묶기
@@ -148,6 +150,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
       if (!r.ok) {
         if (r.reason === 'profanity') showToast(PROFANITY_BLOCK_MESSAGE);
         else if (r.reason === 'toolong') showToast(`${ROUND_COMMENT_MAX}자까지 쓸 수 있어요`);
+        else showToast('잠시 후 다시 시도해주세요');   // auth(로그인 순간 미준비)·empty — 조용히 끝나면 '안 눌림'으로 보인다(리뷰 2026-09-23)
         return;
       }
       setDraft(''); setReplyTarget(null);

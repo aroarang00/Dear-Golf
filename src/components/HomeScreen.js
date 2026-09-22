@@ -497,6 +497,7 @@ export function HomeScreen({ navigation, route }) {
     if (roundCommentsIdOnMountRef.current === rid) { roundCommentsIdOnMountRef.current = null; return; }
     setPendingRoundCommentsId(rid);
   }, [route?.params?.openRoundCommentsId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const roundLoadSeqRef = useRef(0);   // 답글 알림 글 로드 — 최신 요청만 반영
   useEffect(() => {
     if (!pendingRoundCommentsId || !diariesHydrated) return;
     const rid = pendingRoundCommentsId;
@@ -504,9 +505,10 @@ export function HomeScreen({ navigation, route }) {
     const d = (diaries || []).find((x) => x.id === rid);
     if (d) { setCommentsRound(d); return; }
     // 답글(@멘션) 알림 — 남의 글이라 내 diaries에 없다. 규칙상 볼 수 있는 글만 읽히고, 없으면 조용히 버린다.
-    let alive = true;
-    loadRound(rid).then((r) => { if (alive && r) setCommentsRound(r); });
-    return () => { alive = false; };
+    //   ★cleanup으로 취소하면 안 된다 — 바로 위 setPendingRoundCommentsId(null)이 deps를 바꿔 이 effect가 곧장 정리되며
+    //     로드 결과를 버렸다(리뷰 2026-09-23: 답글 알림을 눌러도 아무 일도 안 일어남). 시퀀스 ref로 최신 요청만 반영.
+    const seq = ++roundLoadSeqRef.current;
+    loadRound(rid).then((r) => { if (r && seq === roundLoadSeqRef.current) setCommentsRound(r); });
   }, [pendingRoundCommentsId, diariesHydrated, diaries]);
 
   // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.

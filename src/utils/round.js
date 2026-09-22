@@ -305,6 +305,16 @@ export async function updateRound(roundId, data) {
 export async function deleteRound(roundId) {
   if (!roundId) throw new Error('roundId required');
   const ref = doc(db, COLLECTION, roundId);
+  // 댓글 서브컬렉션 먼저 — 부모가 사라지면 댓글 규칙(get(parent))이 실패해 아무도 못 지우는 고아가 된다(리뷰 2026-09-23).
+  //   글 주인은 규칙상 모든 댓글을 지울 수 있다. 실패해도 글 삭제는 진행(부가 정리).
+  try {
+    const snap = await getDocs(collection(db, COLLECTION, roundId, 'comments'));
+    for (let i = 0; i < snap.docs.length; i += 400) {
+      const batch = writeBatch(db);
+      snap.docs.slice(i, i + 400).forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+  } catch (e) { if (__DEV__) console.warn('[round] delete comments', e?.message); }
   await deleteDoc(ref);
 }
 

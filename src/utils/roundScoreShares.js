@@ -147,7 +147,8 @@ export function buildDerivedRound(share, selectedRow, { uid, nickname }) {
 export async function acceptScoreShare(share, uid, derivedRound) {
   if (!share?.id || !uid) return null;
   const roundId = `${share.id}_${uid}`;
-  await setDoc(doc(db, 'rounds', roundId), derivedRound); // ownerUid==uid → 기존 rounds 규칙 통과. setDoc=멱등
+  // merge — 재수락 시 문서를 통째로 갈아엎으면 그 사이 쌓인 likes·commentCount(친구 댓글 수)가 지워진다(리뷰 2026-09-23)
+  await setDoc(doc(db, 'rounds', roundId), derivedRound, { merge: true }); // ownerUid==uid → 기존 rounds 규칙 통과. setDoc=멱등
   await updateDoc(doc(db, COLLECTION, share.id), { respondedUids: arrayUnion(uid), updatedAt: serverTimestamp() });
   return roundId;
 }

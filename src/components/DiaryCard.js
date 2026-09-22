@@ -52,8 +52,11 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   }, [item.id, commentCount]);
   const onSheetCount = (n, list) => {
     const tail = (list || []).slice(-2);
-    setLatestCache(item.id, n, tail);
-    setCommentCountLocal(n);
+    // 시트 구독은 최근 100개 상한 — 꽉 찼으면 목록 길이가 진짜 개수가 아니라 문서 값을 그대로 둔다(리뷰 2026-09-23)
+    const full = n >= 100;
+    const count = full ? Math.max(n, item.commentCount || 0) : n;
+    setLatestCache(item.id, count, tail);
+    setCommentCountLocal(full ? null : n);
     setLatest(tail);
   };
   // 사진 틀 — 4:3 하나로 고정하던 것을 사진에 맞춰 3단계(가로 4:3 / 정사각 1:1 / 세로 4:5)로 고른다.

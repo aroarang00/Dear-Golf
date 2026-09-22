@@ -883,6 +883,9 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
                         // 선입금↔사후정산은 금액의 의미가 반대라(1인당 vs 총액) 이전 계산을 그대로 두면 틀린 값이 남는다.
                         setKind(k.key); setAiMembers(null); setAiItems([]); setAiNote(''); setTotal(''); setPerHead('');
                         setIncludeSelf(k.key === 'meal');   // 식사로 바꾸면 나 포함 켜기, 아니면 끄기
+                        // ★선입금은 촬영/갤러리/붙여넣기가 안 보인다 — 숨긴 채 AI로 보내면 1인당 금액을 덮어썼다(리뷰 2026-09-23).
+                        //   영수증·붙여넣기는 비우고, 요구사항은 적어둔 게 있으면 접힌 칸을 펴서 보이게 한다.
+                        if (k.key === 'prepay') { setPhotos([]); setPaste(''); setShowPaste(false); setInstrOpen(!!instr.trim()); setAiError(''); }
                       }}
                       style={{ flex: 1, paddingVertical: 12, borderRadius: 11, alignItems: 'center',
                         backgroundColor: on ? '#6B1E2A' : C.bgSecondary,
@@ -1064,13 +1067,14 @@ function ComposeView({ onCancel, onCreated, dirtyRef }) {
               </>
             )}
 
-            {!!aiError && !aiBusy && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: '#6B1E2A', marginTop: 9 }}>{aiError}</Text>
-            )}
-            {!!aiNote && !aiError && !aiBusy && (
-              <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: GOLD_DEEP, marginTop: 9 }}>{aiNote}</Text>
-            )}
           </View>
+          )}
+          {/* 오류·계산 근거 — 골드 카드 밖에 둔다. 선입금은 카드가 접혀 있어 안에 두면 '금액이 비어 있어요'가 안 보였다(리뷰 2026-09-23) */}
+          {!!aiError && !aiBusy && (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: '#6B1E2A', marginBottom: 10 }}>{aiError}</Text>
+          )}
+          {!!aiNote && !aiError && !aiBusy && (
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: GOLD_DEEP, marginBottom: 10 }}>{aiNote}</Text>
           )}
 
           {/* ── 직접 입력 (골드 밖) — 식사 정산에서만, 접힌 채로 시작. 영수증·문자 없이 총액만 아는 경우가 있다.

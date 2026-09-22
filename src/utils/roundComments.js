@@ -99,10 +99,20 @@ export async function addRoundComment(roundId, authorName, body, opts = {}) {
 
 // 삭제 — 본인 또는 글 주인(규칙 강제). 부모 commentCount -1 을 한 배치로.
 //   ★hasCount=false(부모 숫자가 이미 0이거나 없음)면 빼지 않는다 — 규칙이 음수를 거부해 삭제까지 막힌다.
+//   ★부모 숫자가 0/없음이면(다른 경로의 전체 덮어쓰기 등) 규칙이 -1을 거부해 삭제까지 막힌다 → 그때는 숫자 없이 다시 지운다
+//     (리뷰 2026-09-23: hasCount가 목록 길이로 계산돼 늘 true였다 — 삭제가 영영 안 되는 길).
 export async function deleteRoundComment(roundId, commentId, { hasCount = true } = {}) {
   if (!roundId || !commentId) return;
-  const batch = writeBatch(db);
-  batch.delete(doc(db, 'rounds', roundId, 'comments', commentId));
-  if (hasCount) batch.update(doc(db, 'rounds', roundId), { commentCount: increment(-1) });
-  await batch.commit();
+  const del = async (withCount) => {
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'rounds', roundId, 'comments', commentId));
+    if (withCount) batch.update(doc(db, 'rounds', roundId), { commentCount: increment(-1) });
+    await batch.commit();
+  };
+  if (!hasCount) { await del(false); return; }
+  try { await del(true); }
+  catch (e) {
+    if (e?.code !== 'permission-denied') throw e;
+    await del(false);
+  }
 }
