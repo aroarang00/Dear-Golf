@@ -7,6 +7,7 @@ import { F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { CrewAvatar } from './common/CrewAvatar';
 import { LinkText } from './common/LinkText';
+import { SurfaceLight, LIFT_AMBIENT_SOFT, LIFT_CONTACT_SOFT } from './common/Surface'; // 공지 카드 입체감 — 모임 대문과 같은 연한 두 겹(2026-09-22)
 import { RoundupMiniCard } from './common/RoundupMiniCard';
 import { loadRoundup, createRoundup } from '../utils/roundup';
 import { useScreenBack } from '../hooks/useScreenBack';
@@ -562,34 +563,42 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
     return (
     <View>
       {!!notice && (
+    /* 공지 카드(2026-09-22 재설계, 사용자 "공지창이 보기 별로") — 크림 상자+세이지 띠+📌 이모지 셋이 하늘색 바탕 위에서 어수선했다.
+       → 흰 카드 하나(연한 두 겹 그림자+표면 빛, 테두리·띠 없음), 위 줄 = 확성기 아이콘 + '공지' + 누가(크루리더 · 이름), 본문은 14pt로 키움. */
     <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
-      <View style={{ flexDirection: 'row', alignItems: noticeLineCount === 1 ? 'center' : 'flex-start', backgroundColor: '#F5ECD6', borderRadius: 12,
-        paddingHorizontal: 12, paddingVertical: 10, borderLeftWidth: 3, borderLeftColor: SAGE_DEEP }}>
-        <Text style={{ fontSize: fs(13), marginRight: 8, marginTop: 1 }}>📌</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysSb, fontSize: fs(12.5), lineHeight: fs(19) }}
-            onTextLayout={(e) => { const n = e.nativeEvent.lines?.length || 0; const over = n > 2; if (over !== noticeClamped) setNoticeClamped(over); if (n !== noticeLineCount) setNoticeLineCount(n); }}>{notice}</Text>
-          <LinkText style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: INK, lineHeight: fs(19) }}
-            numberOfLines={noticeExpanded ? undefined : 2}>{notice}</LinkText>
-          {(noticeClamped || noticeExpanded) && (
-            <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: SAGE_DEEP }}>{noticeExpanded ? '접기' : '더보기'}</Text>
-            </TouchableOpacity>
-          )}
+      <View style={[{ backgroundColor: '#FFFFFF', borderRadius: 14 }, LIFT_AMBIENT_SOFT]}>
+      <View style={[{ backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 14, paddingTop: 11, paddingBottom: 12 }, LIFT_CONTACT_SOFT]}>
+        <SurfaceLight radius={14} />
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Icon name="megaphone" size={fs(15)} color={SAGE_DEEP} strokeWidth={2} />
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: SAGE_DEEP, marginLeft: 5 }}>공지</Text>
           {/* 작성자 역할 — 크루장/운영진 누가 올린 공지인지(둘 다 작성 가능) */}
           {noticeRole && (
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(10.5), color: 'rgba(120,95,40,0.85)', marginTop: 5 }}>
+            <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(11.5), color: SUB, marginLeft: 8 }}>
               {noticeRole}{noticeAuthorName ? ` · ${noticeAuthorName}` : ''}
             </Text>
           )}
+          {!noticeRole && <View style={{ flex: 1 }} />}
+          {/* 공지 관리 — 크루장·운영진(staff). authorUid=실제 작성자(noticeBy)로 넘겨 액션시트가 작성자/staff를 구분 */}
+          {iAmStaff && (
+            <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ paddingLeft: 8, marginRight: -2 }}
+              onPress={() => setActionFor({ kind: 'notice', authorUid: crewDoc?.noticeBy || null, name: '공지' })}>
+              <Text style={{ fontSize: fs(18), color: SUB, marginTop: -6 }}>⋯</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        {/* 공지 관리 — 크루장·운영진(staff). authorUid=실제 작성자(noticeBy)로 넘겨 액션시트가 작성자/staff를 구분 */}
-        {iAmStaff && (
-          <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ paddingHorizontal: 4, marginLeft: 4, marginTop: -2 }}
-            onPress={() => setActionFor({ kind: 'notice', authorUid: crewDoc?.noticeBy || null, name: '공지' })}>
-            <Text style={{ fontSize: fs(18), color: SUB }}>⋯</Text>
-          </TouchableOpacity>
-        )}
+        <View style={{ marginTop: 6 }}>
+          <Text style={{ position: 'absolute', opacity: 0, fontFamily: F.sysM, fontSize: fs(14), lineHeight: fs(21) }}
+            onTextLayout={(e) => { const n = e.nativeEvent.lines?.length || 0; const over = n > 2; if (over !== noticeClamped) setNoticeClamped(over); if (n !== noticeLineCount) setNoticeLineCount(n); }}>{notice}</Text>
+          <LinkText style={{ fontFamily: F.sysM, fontSize: fs(14), color: INK, lineHeight: fs(21) }}
+            numberOfLines={noticeExpanded ? undefined : 2}>{notice}</LinkText>
+          {(noticeClamped || noticeExpanded) && (
+            <TouchableOpacity onPress={() => setNoticeExpanded((v) => !v)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginTop: 5, alignSelf: 'flex-start' }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: SAGE_DEEP }}>{noticeExpanded ? '접기' : '더보기'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
       </View>
     </View>
       )}
