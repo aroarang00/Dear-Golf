@@ -94,7 +94,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
     if (!body || sending) return;
     setSending(true);
     try {
-      const r = await addRoundComment(roundId, myName, body);
+      const r = await addRoundComment(roundId, myName, body, { ownerUid, title: label });   // 글 주인 알림용
       if (!r.ok) {
         if (r.reason === 'profanity') showToast(PROFANITY_BLOCK_MESSAGE);
         else if (r.reason === 'toolong') showToast(`${ROUND_COMMENT_MAX}자까지 쓸 수 있어요`);

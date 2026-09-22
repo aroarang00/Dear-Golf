@@ -30,7 +30,7 @@ const DEFAULT_ROUNDUP_PREFS = { invite: true, confirmed: true, roundupFull: true
 const NOTI_ICON = {
   apply: 'personAdd', cancel: 'ban', waitlistPromoted: 'sparkle', confirmed: 'check', waitlist: 'ticket', comment: 'pen', mannerEval: 'star',
   invite: 'paperPlane', roundupCancelled: 'siren', scheduleNotice: 'speaker', friendRequest: 'personAdd', roundupChanged: 'pen', roundupFull: 'bell',
-  scheduleChanged: 'calendar', scheduleCancelled: 'ban', scheduleMemo: 'speaker', scheduleMention: 'chat', roundupMention: 'chat',
+  scheduleChanged: 'calendar', scheduleCancelled: 'ban', scheduleMemo: 'speaker', scheduleMention: 'chat', roundupMention: 'chat', roundComment: 'chat',
   // 시스템 알림 (Cloud Functions)
   noshowReported: 'siren', noshowReportSubmitted: 'paperPlane', noshowExplanationRequired: 'bell',
   noshowConfirmed: 'ban', noshowReporterConfirmed: 'check', noshowFalseReport: 'ban',
@@ -46,7 +46,7 @@ const NOTI_ICON = {
 const NOTI_COLOR = {
   apply: '#1A3D52', cancel: '#C0703A', waitlistPromoted: '#5E8B60', confirmed: '#5E8B60', waitlist: '#8B6914', comment: '#3E6E8E', mannerEval: '#C08A1E',
   invite: '#1A3D52', roundupCancelled: '#6B1E2A', scheduleNotice: '#1A3D52', friendRequest: '#1A3D52', roundupChanged: '#8B6914', roundupFull: '#C08A1E',
-  scheduleChanged: '#8B6914', scheduleCancelled: '#6B1E2A', scheduleMemo: '#1A3D52', scheduleMention: '#1A3D52', roundupMention: '#3E6E8E',
+  scheduleChanged: '#8B6914', scheduleCancelled: '#6B1E2A', scheduleMemo: '#1A3D52', scheduleMention: '#1A3D52', roundupMention: '#3E6E8E', roundComment: '#1A3D52',
   noshowReported: '#6B1E2A', noshowReportSubmitted: '#3E6E8E', noshowExplanationRequired: '#C08A1E',
   noshowConfirmed: '#6B1E2A', noshowReporterConfirmed: '#5E8B60', noshowFalseReport: '#6B1E2A',
   noshowFalseReportConfirmed: '#5E8B60', noshowInconclusive: '#8B8680', noshowCancelled: '#8B8680',
@@ -167,6 +167,9 @@ function notiText(n, friendMeta) {
       return `${who}님이 '${n.postTitle}' 공지를 남겼어요${n.memoPreview ? ` — “${n.memoPreview}”` : ''}`;
     case 'scheduleMention':
       return `${who}님이 이야기에서 나를 불렀어요${n.memoPreview ? ` — “${n.memoPreview}”` : ''}`;
+    // 피드 글 댓글 — 글 주인에게만(2026-09-23). postTitle=구장명 또는 '일상'
+    case 'roundComment':
+      return `${who}님이 '${n.postTitle || '내'}' 글에 댓글을 남겼어요${n.memoPreview ? ` — “${n.memoPreview}”` : ''}`;
     case 'scheduleCancelled':
       return `${who}님이 '${n.postTitle}' 일정을 취소했어요${n.scheduleDate ? ` (${n.scheduleDate})` : ''}`;
 

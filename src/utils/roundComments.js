@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
 import { containsProfanity } from './profanityFilter';
+import { createNotification } from './roundupNotifications';   // 글 주인 알림(roundComment)
 
 const col = (roundId) => collection(db, 'rounds', roundId, 'comments');
 export const ROUND_COMMENT_MAX = 300;   // 규칙(firestore.rules)과 같은 값 — 한쪽만 바꾸면 저장이 거부된다
@@ -55,7 +56,9 @@ export async function loadLatestRoundComments(roundId, count, n = 2) {
 }
 
 // 작성 — 본인만(규칙 강제). 빈 본문·길이초과·욕설 차단. 댓글 문서 + 부모 commentCount +1 을 한 배치로.
-export async function addRoundComment(roundId, authorName, body) {
+//   opts.ownerUid·opts.title: 2단계(2026-09-23) 글 주인에게만 알림 'roundComment'(createNotification이 본인 수신은 자동 스킵).
+//   친구끼리 같은 글에 주고받는 댓글은 무알림 — 기준 "주인 있는 글이면 주인에게만"([[project_deargolf_schedule_comments]]).
+export async function addRoundComment(roundId, authorName, body, opts = {}) {
   const uid = await getUid();
   if (!uid || !roundId) return { ok: false, reason: 'auth' };
   const trimmed = (body || '').trim();
@@ -67,6 +70,13 @@ export async function addRoundComment(roundId, authorName, body) {
   batch.set(ref, { authorUid: uid, authorName: authorName || '', body: trimmed, createdAt: serverTimestamp() });
   batch.update(doc(db, 'rounds', roundId), { commentCount: increment(1) });
   await batch.commit();
+  // 글 주인 알림 — 실패해도 댓글은 이미 성공. postId=roundId(홈에서 그 글의 댓글 시트를 연다), 미리보기 40자.
+  if (opts.ownerUid && opts.ownerUid !== uid) {
+    createNotification({
+      recipientUid: opts.ownerUid, type: 'roundComment', actorName: authorName || '',
+      postId: roundId, postTitle: opts.title || '', memoPreview: trimmed.slice(0, 40),
+    }).catch(e => __DEV__ && console.warn('[roundComments] owner noti', e?.message));
+  }
   return { ok: true, comment: { id: ref.id, authorUid: uid, authorName: authorName || '', body: trimmed, createdAt: Date.now() } };
 }
 

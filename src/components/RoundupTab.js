@@ -1829,6 +1829,11 @@ export function RoundupTab({ visible, onClose, asScreen = false, embedded = fals
       setTimeout(() => navigation?.navigate?.(ROUTES.HOME, n.postId ? { openScheduleCommentsId: n.postId } : undefined), 320);
       return;
     }
+    // 피드 글 댓글(내 글) — 홈에서 그 글의 댓글 시트 바로 열기 (postId=roundId)
+    if (n.type === 'roundComment') {
+      setTimeout(() => navigation?.navigate?.(ROUTES.HOME, n.postId ? { openRoundCommentsId: n.postId } : undefined), 320);
+      return;
+    }
     // 매너 평가 진입 — 정상 종료(mannerEval) + 주최자 취소 보상(hostCancelledD7) 둘 다 평가 모달로.
     if (ROUNDUP_PUBLIC_ENABLED && (n.type === 'mannerEval' || n.type === 'hostCancelledD7')) {
       let post = posts.find(p => p.id === n.postId);

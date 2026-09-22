@@ -26,6 +26,7 @@ import { TripleStripe } from './common/TripleStripe';
 import { Icon, WeatherGlyph, GreenFlag } from './common/Icon'; // 커스텀 라인 아이콘 — 이모지 대체(날짜 탭 캘린더 · 날씨 해 · 교통 자동차 · 당일 골프 깃발)
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ScheduleCommentsModal } from './ScheduleCommentsModal';
+import { RoundCommentsModal } from './RoundCommentsModal';   // 내 글 댓글 알림 탭 → 그 글의 댓글 시트(2026-09-23)
 import { subscribeScheduleComments } from '../utils/scheduleComments'; // 홈카드 이야기 안읽음 뱃지
 import { RoundupTeamScreen } from './RoundupTeamScreen';
 import { ShareMomentModal } from './ShareMomentModal';
@@ -482,6 +483,26 @@ export function HomeScreen({ navigation, route }) {
     const s = (schedules || []).find((x) => x.groupId === pendingCommentsId || x.id === pendingCommentsId);
     if (s) { setCommentsSchedule(s); setPendingCommentsId(null); }
   }, [pendingCommentsId, hydrated, schedules]);
+
+  // 내 글 댓글 알림 탭 → 그 글(내 라운딩·일상)의 댓글 시트 바로 열기 (2026-09-23, 위 이야기 멘션과 같은 pending 패턴).
+  //   글은 내 것이라 DiariesContext(diaries)에 있다 — 따로 읽지 않는다. 하이드레이션 전이면 기다렸다가 연다.
+  //   diaries에 없으면(지운 글) 조용히 버린다.
+  const roundCommentsIdOnMountRef = useRef(route?.params?.openRoundCommentsId);
+  const [pendingRoundCommentsId, setPendingRoundCommentsId] = useState(null);
+  const [commentsRound, setCommentsRound] = useState(null);   // 댓글 시트 대상 글
+  useEffect(() => {
+    const rid = route?.params?.openRoundCommentsId;
+    if (!rid) return;
+    navigation.setParams({ openRoundCommentsId: undefined });
+    if (roundCommentsIdOnMountRef.current === rid) { roundCommentsIdOnMountRef.current = null; return; }
+    setPendingRoundCommentsId(rid);
+  }, [route?.params?.openRoundCommentsId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!pendingRoundCommentsId || !diariesHydrated) return;
+    const d = (diaries || []).find((x) => x.id === pendingRoundCommentsId);
+    if (d) setCommentsRound(d);
+    setPendingRoundCommentsId(null);
+  }, [pendingRoundCommentsId, diariesHydrated, diaries]);
 
   // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.
   const [autoOpenMeal, setAutoOpenMeal] = useState(false);
@@ -2352,6 +2373,14 @@ export function HomeScreen({ navigation, route }) {
         myName={userProfile?.nickname || ''}
         onClose={() => { markCommentsSeen(commentsSchedule?.groupId); setCommentsSchedule(null); }}
       />
+
+      {/* 내 글 댓글 시트 — 'roundComment' 알림(인앱·푸시) 탭에서만 열림. 카드의 시트와 같은 컴포넌트. */}
+      {commentsRound && (
+        <RoundCommentsModal visible roundId={commentsRound.id} ownerUid={currentUid}
+          label={commentsRound.course || (commentsRound.kind === 'moment' ? '일상' : '')}
+          myUid={currentUid} myName={userProfile?.nickname || ''}
+          onClose={() => setCommentsRound(null)} />
+      )}
 
       {/* 일정 시트 '함께 식사' — 트리거 버튼 없이 시트만(세컨 카드 등 next 아닌 일정에서도 접근). D-0 카드 식사바와 별개([[afterround-meal-decision]]) */}
       <MealDecisionBar
