@@ -11,6 +11,7 @@ import { Icon } from './common/Icon'; // 좋아요 = 하트 아이콘(엄지 대
 import { WhoLikedModal } from './common/WhoLikedModal';
 import { RoundCommentsModal } from './RoundCommentsModal';   // 댓글 시트 — 카드 말풍선에서 열림(2026-09-22)
 import { UserContext } from '../contexts/UserContext';       // 내 닉네임(댓글 작성자 이름 스냅샷)
+import { useCurrentUid } from '../contexts/CurrentUidContext'; // ★내 기록 탭은 myUid prop을 안 넘긴다 — 댓글 '나' 판정용 폴백(2026-09-23)
 import { loadLatestRoundComments, setLatestCache } from '../utils/roundComments';   // 카드 밑 최근 댓글 미리보기
 import { queueLike, getMyLike, setMyLike, subscribeMyLikes } from '../utils/pendingLikes'; // 좋아요 유실 방지 대기 큐 + 화면 간 공유 메모장
 import { showAppAlert } from './AppAlert'; // 좋아요 실패 안내 — 조용한 롤백이 '안 눌림'으로 보이던 것(2026-08-26)
@@ -37,6 +38,9 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   const commentCount = commentCountLocal != null ? commentCountLocal : (item.commentCount || 0);
   const { userProfile } = useContext(UserContext);
   const myName = (userProfile?.nickname || '').trim() || '골프 친구';
+  // ★내 기록 탭(DiaryScreen)은 myUid를 안 넘긴다 → 시트가 내 댓글을 남의 것으로 보고 '신고'를 붙이고 '삭제'를 뺐다(사용자 2026-09-23).
+  const uidFromCtx = useCurrentUid();
+  const me = myUid || uidFromCtx || null;
   // 최근 댓글 1~2줄 미리보기(2026-09-22 하이브리드) — 댓글이 있는 카드만 한 번 읽는다(모듈 캐시라 재마운트 시 무료).
   //   시트가 열려 최신 목록을 넘겨주면(onCountChange) 그걸로 바로 바꾼다.
   const [latest, setLatest] = useState([]);
@@ -241,9 +245,9 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   // 댓글 시트 — 4갈래 카드 모두 WhoLikedModal 옆에 같은 방식으로 붙는다.
   const commentsSheet = showComments ? (
     // ★내 카드는 주인=나로 고정 — 로컬 캐시/새로 만든 글엔 ownerUid가 비어 있을 수 있어 남의 댓글 '삭제'가 안 떴다(사용자 2026-09-23)
-    <RoundCommentsModal visible roundId={item.id} ownerUid={item.ownerUid || (!isFriend ? myUid : null)}
+    <RoundCommentsModal visible roundId={item.id} ownerUid={item.ownerUid || (!isFriend ? me : null)}
       label={item.course || (item.kind === 'moment' ? '일상' : '')}
-      myUid={myUid} myName={myName}
+      myUid={me} myName={myName}
       nameOf={(uid, snap) => (friendNameByUid && friendNameByUid[uid]) || snap || '골프 친구'}
       onClose={() => setShowComments(false)}
       onCountChange={onSheetCount} />
@@ -264,7 +268,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
         </Text>
       )}
       {latest.map(c => {
-        const mine = c.authorUid && c.authorUid === myUid;
+        const mine = c.authorUid && c.authorUid === me;
         const name = mine ? '나' : ((friendNameByUid && friendNameByUid[c.authorUid]) || c.authorName || '골프 친구');
         return (
           <Text key={c.id} numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12.5), lineHeight: 19, color: C.charcoal }}>
