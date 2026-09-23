@@ -42,6 +42,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   const insets = useSafeAreaInsets();
   const [comments, setComments] = useState([]);
   const [draft, setDraft] = useState('');
+  const [inputH, setInputH] = useState(40);   // 입력창 높이 — onContentSizeChange로 구동(multiline+maxHeight만으론 안 늘어남, 피드 댓글·DM과 같은 처방). [40,110]
   const [sending, setSending] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null); // 삭제 확인 대상 comment
   const [members, setMembers] = useState([]); // @멘션 후보 [{uid,name}] — 그룹 동반자(본인 제외)
@@ -54,7 +55,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   // 닫히면 상태 리셋
   useEffect(() => {
     if (visible) return;
-    setComments([]); setDraft(''); setConfirmDel(null); setMembers([]); setMemberUids([]); setReads({}); setReady(false); setLoaded(false);
+    setComments([]); setDraft(''); setInputH(40); setConfirmDel(null); setMembers([]); setMemberUids([]); setReads({}); setReady(false); setLoaded(false);
   }, [visible]);
 
   // 열리면 슬라이드 애니가 끝난 뒤 콘텐츠 준비 — 애니 도중 구독·스크롤 리렌더로 '덜컥'거리던 것 방지
@@ -145,7 +146,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
         if (r.reason === 'profanity') showToast(PROFANITY_BLOCK_MESSAGE);
         return;
       }
-      setDraft('');
+      setDraft(''); setInputH(40);   // 비우기가 onContentSizeChange를 항상 부르진 않아 높이도 직접 원위치
     } catch (e) {
       showToast('전송에 실패했어요');
     } finally { setSending(false); }
@@ -255,7 +256,11 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
                 <AppTextInput
                   value={draft} onChangeText={setDraft} multiline maxLength={COMMENT_MAX}
                   placeholder="한마디 남기기 · @로 동반자 부르기" placeholderTextColor={C.warmGrayLight}
-                  style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), lineHeight: 20, color: C.charcoal, maxHeight: 110,
+                  onContentSizeChange={(e) => {
+                    const h = Math.ceil(e.nativeEvent.contentSize.height);
+                    setInputH(prev => { const next = Math.min(110, Math.max(40, h)); return next === prev ? prev : next; });
+                  }}
+                  style={{ flex: 1, height: inputH, fontFamily: F.sys, fontSize: fs(13), lineHeight: 20, color: C.charcoal,
                     backgroundColor: C.bgSecondary, borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10, textAlignVertical: 'center' }}
                 />
                 <TouchableOpacity onPress={send} disabled={!draft.trim() || sending} activeOpacity={0.8}

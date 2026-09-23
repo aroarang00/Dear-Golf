@@ -36,6 +36,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
   const insets = useSafeAreaInsets();
   const [comments, setComments] = useState([]);
   const [draft, setDraft] = useState('');
+  const [inputH, setInputH] = useState(40);   // 입력창 높이 — onContentSizeChange로 구동(multiline+maxHeight만으론 안 늘어남, DM과 같은 처방). [40,110]
   const [sending, setSending] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null); // 삭제 확인 대상 comment
   const [ready, setReady] = useState(false);   // 슬라이드 애니 끝난 뒤 true — 리스트는 그 뒤 마운트(열림 덜컥거림 방지)
@@ -94,7 +95,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
 
   useEffect(() => {
     if (visible) return;
-    setComments([]); setDraft(''); setConfirmDel(null); setReady(false); setLoaded(false); setDenied(false);
+    setComments([]); setDraft(''); setInputH(40); setConfirmDel(null); setReady(false); setLoaded(false); setDenied(false);
     setReplyTarget(null); setReportTarget(null); setMenuTarget(null);
   }, [visible]);
 
@@ -161,7 +162,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
         else showToast('잠시 후 다시 시도해주세요');   // auth(로그인 순간 미준비)·empty — 조용히 끝나면 '안 눌림'으로 보인다(리뷰 2026-09-23)
         return;
       }
-      setDraft(''); setReplyTarget(null);
+      setDraft(''); setReplyTarget(null); setInputH(40);   // 비우기가 onContentSizeChange를 항상 부르진 않아 높이도 직접 원위치
     } catch (e) {
       // permission-denied = 공개범위 밖이거나 규칙이 아직 안 올라감
       showToast(e?.code === 'permission-denied' ? '이 글에는 댓글을 남길 수 없어요' : '전송에 실패했어요');
@@ -305,7 +306,12 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
                   value={draft} onChangeText={setDraft} multiline maxLength={ROUND_COMMENT_MAX}
                   placeholder={participants.length ? '댓글 남기기 · @로 답글' : '댓글 남기기'} placeholderTextColor={C.warmGrayLight}
                   editable={!denied}
-                  style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13), lineHeight: 20, color: C.charcoal, maxHeight: 110,
+                  onContentSizeChange={(e) => {
+                    // 길게 쓰면 줄 수만큼 자라고(최대 110), 넘으면 내부 스크롤 — 한 줄 높이에 갇혀 뭘 쓰는지 안 보이던 것(사용자 2026-09-23)
+                    const h = Math.ceil(e.nativeEvent.contentSize.height);
+                    setInputH(prev => { const next = Math.min(110, Math.max(40, h)); return next === prev ? prev : next; });
+                  }}
+                  style={{ flex: 1, height: inputH, fontFamily: F.sys, fontSize: fs(13), lineHeight: 20, color: C.charcoal,
                     backgroundColor: C.bgSecondary, borderRadius: 18, paddingHorizontal: 15, paddingVertical: 10, textAlignVertical: 'center' }}
                 />
                 <TouchableOpacity onPress={send} disabled={!draft.trim() || sending || denied} activeOpacity={0.8}
