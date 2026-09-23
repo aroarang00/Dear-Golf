@@ -181,26 +181,39 @@ export function HomeScreen({ navigation, route }) {
   useEffect(() => { loadMyFriends().then(fs => setHasFriends(fs.length > 0)).catch(() => {}); }, []);
   // ★친구 최신 라운딩(2026-08-24) — 친구별 공개 라운딩 병렬 로드 → 친구당 최신 2개 합쳐 전체 최신 4개.
   //   비동기(홈 블로킹 없음). 친구 프로필(이름/아바타)은 loadFriendProfiles 배치로 한 번에.
+  //   ★로드 시점 = 마운트 1회 + 홈 포커스 때(30초 스로틀). 예전엔 마운트 1회뿐이라 앱을 켜 둔 친구에겐 새 글이
+  //     재시작 전까지 안 떴다(사용자 2026-09-23 "친구 전체로 올려도 친구 홈 최신소식에 안 뜬다").
+  //   ★정렬 = '작성 시각'(createdAt). 라운딩 '날짜'로 정렬하면 지난주 라운딩을 오늘 올린 글이 4칸 밖으로 밀려
+  //     '최신 소식'에 영영 안 보인다. 날짜는 동률 보조(createdAt 없는 아주 옛 글).
+  const friendsFeedSeqRef = useRef(0);   // 최신 요청만 반영(포커스 연타 레이스)
+  const friendsFeedAtRef = useRef(0);    // 마지막 로드 시각 — 스로틀
+  const loadFriendsFeed = async (force = false) => {
+    const now = Date.now();
+    if (!force && now - friendsFeedAtRef.current < 30000) return;
+    friendsFeedAtRef.current = now;
+    const seq = ++friendsFeedSeqRef.current;
+    try {
+      const friends = await loadMyFriends();
+      const uids = friends.map(f => f.otherUid).filter(Boolean);
+      if (!uids.length) return;
+      const ts = (r) => r?.createdAt?.toMillis?.() || 0;
+      const newer = (a, b) => (ts(b) - ts(a)) || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
+      const [roundsArr, profiles] = await Promise.all([
+        Promise.all(uids.map(u => loadFriendRounds(u).then(rs => [...rs].sort(newer).slice(0, 2).map(r => ({ ...r, _uid: u }))).catch(() => []))),
+        loadFriendProfiles(uids).catch(() => ({})),
+      ]);
+      const all = roundsArr.flat()
+        .sort(newer)
+        .slice(0, 4)
+        .map(r => ({ ...r, _friendName: profiles[r._uid]?.nickname || '친구', _friendAvatar: profiles[r._uid]?.avatarUrl || null }));
+      if (seq === friendsFeedSeqRef.current) setFriendsFeed(all);
+    } catch { friendsFeedAtRef.current = 0; /* 다음 포커스 때 재시도 */ }
+  };
+  useEffect(() => { loadFriendsFeed(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const friends = await loadMyFriends();
-        const uids = friends.map(f => f.otherUid).filter(Boolean);
-        if (!uids.length) return;
-        const [roundsArr, profiles] = await Promise.all([
-          Promise.all(uids.map(u => loadFriendRounds(u).then(rs => rs.slice(0, 2).map(r => ({ ...r, _uid: u }))).catch(() => []))),
-          loadFriendProfiles(uids).catch(() => ({})),
-        ]);
-        const all = roundsArr.flat()
-          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-          .slice(0, 4)
-          .map(r => ({ ...r, _friendName: profiles[r._uid]?.nickname || '친구', _friendAvatar: profiles[r._uid]?.avatarUrl || null }));
-        if (alive) setFriendsFeed(all);
-      } catch { /* 무시 */ }
-    })();
-    return () => { alive = false; };
-  }, []);
+    if (!navigation?.addListener) return undefined;
+    return navigation.addListener('focus', () => { loadFriendsFeed(); });
+  }, [navigation]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showHomeIntro, setShowHomeIntro] = useState(false);   // Dear Golf 이용 안내 모달
   const [homeIntroSeen, setHomeIntroSeen] = useState(true);    // 초기 true(뱃지 X), AsyncStorage 로드 후 갱신
   const [showWeatherFull, setShowWeatherFull] = useState(false);
