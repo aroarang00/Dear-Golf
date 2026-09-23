@@ -68,7 +68,8 @@ export function CrewCreateScreen({ onClose, onCreate }) {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-    <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
+    {/* bottom edge 제외 — 친구 목록 스크롤 끝에 '하단 벽'(SafeAreaView bottom, 사용자 2026-09-23). 탭바·홈바 회피는 스크롤 콘텐츠 paddingBottom으로 */}
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar barStyle="dark-content" backgroundColor={BG} />
 
       {/* 헤더 — ✕ · 크루 만들기 · 만들기 */}
@@ -84,7 +85,8 @@ export function CrewCreateScreen({ onClose, onCreate }) {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ padding: 16, paddingBottom: 16 + (initialWindowMetrics?.insets?.bottom || 0) + 24 }}>
           {/* 프로필(탭→사진) + 이름 한 줄 — 사진 없으면 색+이니셜 미리보기 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <TouchableOpacity onPress={pickImage} activeOpacity={0.8} style={{ width: 64, height: 64 }}>
