@@ -47,21 +47,27 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
 
   // 답글 = @이름 멘션(2026-09-23 A안, 대댓글 대신) — 목록은 평평하게 두고 불린 사람에게만 알림(roundReply).
   //   후보 = 이 글에 댓글 단 사람들(나 제외). 글 주인은 댓글이 없으면 후보에 없지만 어차피 roundComment로 받는다.
+  //   ★name=내 화면 표시용(내가 붙인 별명 우선) / tag=본문에 실제로 들어가는 '@이름'(그 친구 본인 닉네임 스냅샷).
+  //     별명을 본문에 넣으면 남들 눈에 내가 붙인 별명이 새어 나간다(사용자 2026-09-23 "태그할 땐 내 별명으로 태그돼").
+  //     같은 사람이 여러 번 썼으면 가장 최근 댓글의 닉네임(개명 반영).
   const participants = useMemo(() => {
     const m = new Map();
     comments.forEach(c => {
-      if (!c.authorUid || c.authorUid === myUid || m.has(c.authorUid)) return;
+      if (!c.authorUid || c.authorUid === myUid) return;
       const name = (nameOf ? nameOf(c.authorUid, c.authorName) : c.authorName) || '';
-      if (name) m.set(c.authorUid, { uid: c.authorUid, name });
+      const tag = String(c.authorName || '').trim() || name;
+      if (name) m.set(c.authorUid, { uid: c.authorUid, name, tag });
     });
     return [...m.values()];
   }, [comments, myUid, nameOf]);
+  const tagOf = (c, name) => String(c?.authorName || '').trim() || name;   // 답글 '@' 채움용 — 본인 닉네임
   // '답글' 링크(2026-09-23 B안 — 사용자 "대댓글은 댓글 바로 아래 달려야지") — 원댓글 밑에 한 단계로 붙는다.
   //   답글의 답글도 같은 원댓글(parentId) 밑에(인스타와 같은 규칙). 입력창 위에 "○○님에게 답글" 표시 + '@이름 ' 채움 + 포커스.
   const [replyTarget, setReplyTarget] = useState(null);   // { parentId, uid, name }
   const replyTo = (c, name) => {
+    const tag = tagOf(c, name);   // 본문엔 본인 닉네임, "○○님에게 답글" 표시는 별명(name)
     setReplyTarget({ parentId: c.parentId || c.id, uid: c.authorUid, name });
-    setDraft(d => (d.includes(`@${name}`) ? d : `${d.trim() ? d.trim() + ' ' : ''}@${name} `));
+    setDraft(d => (d.includes(`@${tag}`) ? d : `${d.trim() ? d.trim() + ' ' : ''}@${tag} `));
     setTimeout(() => inputRef.current?.focus?.(), 50);
   };
   // 신고 — 남의 댓글. 사유 2개(다른 신고와 동일), 1인 1회(결정적 ID). 시트 안 오버레이(중첩 Modal 회피).
@@ -81,9 +87,10 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
   const mentionMatch = draft.match(/@([^\s@]*)$/);
   const mentionQuery = mentionMatch ? mentionMatch[1] : null;
   const mentionList = (mentionQuery !== null && participants.length)
-    ? participants.filter(p => !mentionQuery || p.name.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
+    ? participants.filter(p => !mentionQuery || p.name.toLowerCase().includes(mentionQuery.toLowerCase())
+        || p.tag.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 6)
     : [];
-  const pickMention = (p) => { setDraft(draft.replace(/@([^\s@]*)$/, `@${p.name} `)); };
+  const pickMention = (p) => { setDraft(draft.replace(/@([^\s@]*)$/, `@${p.tag} `)); };   // 본문엔 본인 닉네임(tag)
 
   useEffect(() => {
     if (visible) return;
@@ -142,7 +149,8 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
       const mentions = [...new Set([
         ...(replyTarget?.uid ? [replyTarget.uid] : []),
         // '@김'이 '@김철수'에도 걸리던 접두어 오판 방지 — 이름 뒤가 공백·끝일 때만(리뷰 2026-09-23)
-        ...participants.filter(p => new RegExp('@' + esc(p.name) + '(?=\\s|$)').test(body)).map(p => p.uid),
+        //   본문의 '@이름'은 본인 닉네임(tag)으로 들어가지만, 예전 댓글이나 직접 타이핑한 별명도 잡히게 둘 다 본다.
+        ...participants.filter(p => [p.tag, p.name].some(n => n && new RegExp('@' + esc(n) + '(?=\\s|$)').test(body))).map(p => p.uid),
       ])];
       const r = await addRoundComment(roundId, myName, body, {
         ownerUid, title: label, mentions, parentId: replyTarget?.parentId || null,   // 글 주인·답글 알림 + 원댓글 밑에 묶기

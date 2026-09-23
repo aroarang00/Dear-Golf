@@ -52,7 +52,7 @@ import { HomeCalendarStrip } from './common/HomeCalendarStrip'; // 홈 상단 �
 import { DiaryCard } from './DiaryCard';
 import { SurfaceLight, PressScale, LIFT_AMBIENT, LIFT_CONTACT } from './common/Surface';   // 카드 표면 빛 + 눌림 반응(2026-09-21)                   // 친구 소식 미리보기 카드 — 친구 피드와 같은 카드 그대로(2026-08-26)
 import { PhotoViewer } from './common/PhotoViewer';        // 친구 소식 카드 사진 탭 → 전체화면(핀치줌)
-import { loadFriendData } from '../utils/friendGroups';
+import { loadFriendData, friendDisplayName } from '../utils/friendGroups';   // friendDisplayName: 댓글 시트에 내가 붙인 별명 표시
 import { DMListScreen } from './DMListScreen';
 import { DMChatScreen } from './DMChatScreen';
 import { CrewListScreen } from './CrewListScreen'; // 크루(친구 소수그룹 공유앨범) — DM 형제 진입(docs/crew-space-design.md)
@@ -502,14 +502,27 @@ export function HomeScreen({ navigation, route }) {
     if (!pendingRoundCommentsId || !diariesHydrated) return;
     const rid = pendingRoundCommentsId;
     setPendingRoundCommentsId(null);
+    // ★시트(RN Modal)는 홈이 포커스된 뒤 + 잠깐 뒤에 연다 — 알림함(풀스크린 Modal)이 닫히는 애니 도중에 새 Modal을
+    //   띄우면 iOS가 'already presenting'으로 조용히 거부해 "탭하면 홈 메인만 보이고 끝"이 되던 것(사용자 2026-09-23).
+    //   [[ios-modal-stacking]]과 같은 뿌리. 탭바 전환 직후라 포커스 이벤트도 기다린다.
+    const openSheet = (r) => {
+      const show = () => setTimeout(() => setCommentsRound(r), 420);
+      if (!navigation?.isFocused || navigation.isFocused()) { show(); return; }
+      const un = navigation.addListener('focus', () => { un(); show(); });
+    };
     const d = (diaries || []).find((x) => x.id === rid);
-    if (d) { setCommentsRound(d); return; }
-    // 답글(@멘션) 알림 — 남의 글이라 내 diaries에 없다. 규칙상 볼 수 있는 글만 읽히고, 없으면 조용히 버린다.
+    if (d) { openSheet(d); return; }
+    // 답글(@멘션) 알림 — 남의 글이라 내 diaries에 없다. 규칙상 볼 수 있는 글만 읽힌다.
     //   ★cleanup으로 취소하면 안 된다 — 바로 위 setPendingRoundCommentsId(null)이 deps를 바꿔 이 effect가 곧장 정리되며
     //     로드 결과를 버렸다(리뷰 2026-09-23: 답글 알림을 눌러도 아무 일도 안 일어남). 시퀀스 ref로 최신 요청만 반영.
+    //   못 읽으면 조용히 버리지 않고 알려준다 — 조용히 버리면 "탭해도 아무 일 없음"과 구분이 안 된다.
     const seq = ++roundLoadSeqRef.current;
-    loadRound(rid).then((r) => { if (r && seq === roundLoadSeqRef.current) setCommentsRound(r); });
-  }, [pendingRoundCommentsId, diariesHydrated, diaries]);
+    loadRound(rid).then((r) => {
+      if (seq !== roundLoadSeqRef.current) return;
+      if (r) openSheet(r);
+      else showAppAlert('글을 열 수 없어요', '삭제됐거나 지금은 볼 수 없는 글이에요.');
+    });
+  }, [pendingRoundCommentsId, diariesHydrated, diaries]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 뒤풀이 푸시 탭 → 홈 착지 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선). MealDecisionBar에 autoOpen 신호 전달.
   const [autoOpenMeal, setAutoOpenMeal] = useState(false);
@@ -2386,6 +2399,7 @@ export function HomeScreen({ navigation, route }) {
         <RoundCommentsModal visible roundId={commentsRound.id} ownerUid={commentsRound.ownerUid || currentUid}
           label={commentsRound.course || (commentsRound.kind === 'moment' ? '일상' : '')}
           myUid={currentUid} myName={userProfile?.nickname || ''}
+          nameOf={(uid, snap) => friendDisplayName(friendMeta, uid, snap)}   // 피드 카드 시트와 동일 — 내가 붙인 별명 우선(2026-09-23)
           onClose={() => setCommentsRound(null)} />
       )}
 
