@@ -9,6 +9,7 @@ import { Spinner } from './common/Spinner'; // 핀 로딩 표시(공용 스피�
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/golfCourses';
 import { normalizeCourseName } from '../utils/top100';
+import { courseKey } from '../utils/courseNameKey';   // 다녀온 구장 매칭 키(CourseExploreTab visitedStats와 같은 규칙)
 import { getCurrentLocation } from '../utils/location';
 
 const _and = Platform.OS === 'android';
@@ -54,6 +55,28 @@ const CoursePin = React.memo(function CoursePin({ id, lat, lng, gold, track }) {
   );
 });
 
+// 다녀온 구장 표식(2026-09-23) — ★기존 핀(CoursePin)은 절대 안 건드리고 그 위에 '얹는' 별도 마커(선택 강조·내 위치와 같은 방식).
+//   라운딩 기록이 늘면 마커 하나가 새로 마운트될 뿐 477개 핀엔 prop 변화 0. 남색 원+흰 체크, zIndex 3(금색 2 위, 선택 999 아래).
+//   iOS는 라이브(true), 안드는 마운트 1.5초 뒤 스냅샷(false) — 내 위치 마커와 같은 규칙.
+const VisitedPin = React.memo(function VisitedPin({ id, lat, lng }) {
+  const [track, setTrack] = useState(true);
+  useEffect(() => {
+    if (Platform.OS === 'ios') return undefined;
+    const t = setTimeout(() => setTrack(false), 1500);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <Marker key={id} coordinate={{ latitude: lat, longitude: lng }} anchor={{ x: 0.5, y: 0.5 }} zIndex={3}
+      tracksViewChanges={Platform.OS === 'ios' ? true : track}>
+      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: C.navy, borderWidth: 2, borderColor: '#fff',
+        alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="check" size={13} color="#fff" strokeWidth={2.6} />
+      </View>
+    </Marker>
+  );
+});
+const pinKey = (c) => (c?.kakaoId ? `id:${c.kakaoId}` : courseKey(c?.name || ''));
+
 const distKm = (a, b) => {
   // 하버사인 — 카드 '내 위치에서 n km'용(정밀 불필요, 소수 1자리)
   const R = 6371, d2r = Math.PI / 180;
@@ -62,7 +85,8 @@ const distKm = (a, b) => {
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 };
 
-export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = [], top100 = [], savedFav = [], onPressCourse, onOpenCourseLog, onSwitchToList }, ref) {
+// visited: Map<구장키, {count, best}> — 내가 다녀온 구장(CourseExploreTab visitedStats). 없으면 표시 없음.
+export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = [], top100 = [], savedFav = [], visited = null, onPressCourse, onOpenCourseLog, onSwitchToList }, ref) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
   const [sel, setSel] = useState(null);          // 핀 탭 선택 골프장 → 하단 카드
@@ -97,6 +121,8 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
   const savedIds = useMemo(() => new Set(savedFav.map(s => String(s.kakaoId))), [savedFav]);
 
   const allPins = useMemo(() => master.filter(c => Number.isFinite(c.x) && Number.isFinite(c.y)), [master]);
+  // 다녀온 구장 — 핀 위에 얹을 마커 목록(보통 수 개~수십 개). key가 안정적이라 기록이 늘면 그 하나만 새로 마운트.
+  const visitedPins = useMemo(() => (visited && visited.size ? allPins.filter(c => visited.has(pinKey(c))) : []), [allPins, visited]);
 
   // 보이는 핀 — 전체 고정 셋. 선택 핀만 예외로 덧붙임(카카오 보완 검색 결과 등 마스터 밖 구장, 키 중복 방지 체크).
   const visiblePins = useMemo(() => {
@@ -215,6 +241,9 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
           );
         })}
 
+        {/* 다녀온 구장 — 기존 핀 위에 얹는 남색 체크 마커(2026-09-23). 핀 자체는 무변경. */}
+        {visitedPins.map(c => { const k = `v-${pinKey(c)}`; return <VisitedPin key={k} id={k} lat={c.y} lng={c.x} />; })}
+
         {/* 선택 강조 — 정적 핀들 위에 얹는 별도 마커 1개(핀 자체는 안 건드림 → 사라짐·크래시 원천 차단).
             tracksViewChanges 상시 true(1개뿐이라 부담 없음), zIndex로 최상단. */}
         {sel && Number.isFinite(sel.x) && Number.isFinite(sel.y) && (
@@ -287,7 +316,7 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.8} hitSlop={{ top: 10, bottom: 10, left: 6, right: 8 }}
             onPress={() => showAppAlert('코스 지도 안내',
-              '전국 골프장이 핀으로 떠 있어요.\n금색 핀은 100대 코스예요.\n\n핀을 탭하면 카드가 뜨고,\n상세 보기에서 코스 정보·골퍼 코멘트·\n주변 맛집을 볼 수 있어요.',
+              '전국 골프장이 핀으로 떠 있어요.\n금색 핀은 100대 코스,\n남색 체크는 내가 다녀온 구장이에요.\n\n핀을 탭하면 카드가 뜨고,\n상세 보기에서 코스 정보·골퍼 코멘트·\n주변 맛집을 볼 수 있어요.',
               [{ text: '확인' }])}
             style={[pill, { paddingHorizontal: 9 }]}>
             <Icon name="book" size={fs(16)} color={C.charcoal} strokeWidth={1.8} />
@@ -365,7 +394,7 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }}>상세 보기</Text>
               </TouchableOpacity>
             </View>
-            {(selRank || selDist != null || savedIds.has(String(sel.kakaoId))) && (
+            {(selRank || selDist != null || savedIds.has(String(sel.kakaoId)) || visited?.get(pinKey(sel))) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9 }}>
                 {selRank ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(201,162,39,0.14)', borderRadius: 9, paddingHorizontal: 8, paddingVertical: 3.5 }}>
@@ -384,6 +413,19 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
                     <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.charcoal }}>저장됨</Text>
                   </View>
                 ) : null}
+                {/* 다녀온 구장 — 내 기록 횟수·베스트(홈 '나도 가 본 구장'과 같은 계산, 2026-09-23) */}
+                {(() => {
+                  const v = visited?.get(pinKey(sel));
+                  if (!v || !v.count) return null;
+                  return (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(26,61,82,0.12)', borderRadius: 9, paddingHorizontal: 8, paddingVertical: 3.5 }}>
+                      <Icon name="check" size={fs(11)} color={C.navy} strokeWidth={2.4} />
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.navy }}>
+                        다녀옴 {v.count}번{v.best != null ? ` · 베스트 ${v.best}타` : ''}
+                      </Text>
+                    </View>
+                  );
+                })()}
               </View>
             )}
           </TouchableOpacity>

@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, useImperativeHandle, forwardRef, useContext } from 'react';
+import { DiariesContext } from '../contexts/DiariesContext';   // 지도 '다녀온 구장' 표시(2026-09-23) — 내 라운딩 기록에서 구장별 횟수·베스트
+import { isRoundDiary } from '../utils/diaryKind';
+import { courseKey, findCourseByName } from '../utils/courseNameKey';   // 구장 키 — 홈 '나도 가 본 구장'과 같은 기준(kakaoId 우선, 없으면 이름 정규화)
 import { View, Text, TouchableOpacity, ScrollView, Linking, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -129,6 +132,31 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const [masterLocal, setMasterLocal] = useState([]); // 전국 골프장 마스터(~477) — 지역탭 '전체 골프장' 목록용
   const top100 = top100Prop !== undefined ? top100Prop : top100Local;
   const master = masterProp !== undefined ? masterProp : masterLocal;
+  // 다녀온 구장(2026-09-23, 사용자 "내가 가본 구장에 표시가 되려나?") — 내 라운딩 기록을 구장 키로 묶어 {count, best}.
+  //   키 = 마스터 DB에서 찾아지면 id:kakaoId(표기 차이 흡수), 못 찾으면 이름 정규화 키 — 홈 myCourseStats와 동일 기준.
+  //   지도는 이 Map으로 ①다녀온 구장 위에 남색 마커를 '얹고'(기존 핀 무변경) ②카드에 '다녀옴 n번 · 베스트 n타' 칩.
+  const { diaries } = useContext(DiariesContext);
+  const visitedStats = useMemo(() => {
+    const m = new Map();
+    const cache = new Map();
+    const keyOf = (name) => {
+      if (!name) return '';
+      if (cache.has(name)) return cache.get(name);
+      const c = master.length ? findCourseByName(master, name) : null;
+      const k = c?.kakaoId ? `id:${c.kakaoId}` : courseKey(name);
+      cache.set(name, k);
+      return k;
+    };
+    (diaries || []).filter(isRoundDiary).forEach(d => {
+      const k = keyOf(d.course);
+      if (!k) return;
+      const e = m.get(k) || { count: 0, best: null };
+      e.count += 1;
+      if (typeof d.score === 'number' && d.score > 0 && (e.best == null || d.score < e.best)) e.best = d.score;
+      m.set(k, e);
+    });
+    return m;
+  }, [diaries, master]);
 
   // ※'주변 연습장'은 카카오 데이터 부정확으로 2026-06-20에 화면에서 뺐다(아래 '내 저장 골프장'으로 대체).
   //   그때 UI만 지우고 수집 코드가 남아, 코스 탭 열 때마다 아무도 안 보는 데이터를 받아오고 있었다.
@@ -333,7 +361,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   return (
     <View style={{ flex: 1 }}>
     {MAP_OK && (
-      <CourseMapExplore ref={mapExpRef} master={master} top100={top100} savedFav={savedFav}
+      <CourseMapExplore ref={mapExpRef} master={master} top100={top100} savedFav={savedFav} visited={visitedStats}
         onPressCourse={openMasterCourse} onOpenCourseLog={onOpenCourseLog}
         onSwitchToList={() => setViewMode('list')} />
     )}
