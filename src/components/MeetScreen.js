@@ -6,12 +6,16 @@ import { ROUTES } from '../constants/routes';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
 import { useAndroidBack } from '../hooks/useAndroidBack';
-import { loadMyFriends } from '../utils/friends';
+import { loadMyFriends, loadFriendProfiles } from '../utils/friends';
+import { loadFriendData, friendDisplayName } from '../utils/friendGroups'; // 대문 '즐겨찾는 친구' 표시명 = 내가 붙인 별명 우선
 import { subscribeMyCrews, subscribeCrewInvites } from '../utils/crews';
 import { loadAllRoundups } from '../utils/roundup'; // 대문 하단 '지금 모집 중' 미리보기(2026-08-27)
 import { SchedulesContext } from '../contexts/SchedulesContext'; // 대문 '함께하는 다음 라운딩'(2026-08-27)
-import { DiariesContext } from '../contexts/DiariesContext';     // 대문 '자주 함께한 골프 친구' 집계(2026-08-27)
-import { isRoundDiary } from '../utils/diaryKind';
+import { db } from '../utils/firebase';
+import { doc, getDoc } from 'firebase/firestore';   // 내 즐겨찾기(users.favoriteUids) 1회 읽기
+import { storage, STORAGE_KEYS } from '../utils/storage'; // 크루 별명·본 글 수·음소거(기기 로컬) — 대문 크루 칩 NEW 점
+import { Image as ExpoImage } from 'expo-image';
+import { CrewAvatar } from './common/CrewAvatar';
 import { Icon } from './common/Icon';
 import { RoundupTab } from './RoundupTab';
 import { FriendsScreen } from './FriendsScreen';
@@ -113,6 +117,7 @@ export function MeetScreen({ navigation, route }) {
   const { friendReqCount } = useContext(FriendBadgeContext);
   const [friendCount, setFriendCount] = useState(null);
   const [crewCount, setCrewCount] = useState(null);
+  const [crewDocs, setCrewDocs] = useState([]);       // 대문 '내 크루' 칩(같은 구독에서 받음)
   const [crewInviteCount, setCrewInviteCount] = useState(0);
   const [hubPosts, setHubPosts] = useState([]);
   useEffect(() => {
@@ -140,7 +145,7 @@ export function MeetScreen({ navigation, route }) {
   }, [seg]);
   useEffect(() => {
     if (!currentUid) return undefined;
-    const un1 = subscribeMyCrews(currentUid, (list) => setCrewCount((list || []).length));
+    const un1 = subscribeMyCrews(currentUid, (list) => { setCrewCount((list || []).length); setCrewDocs(list || []); });
     const un2 = subscribeCrewInvites(currentUid, (list) => setCrewInviteCount((list || []).length));
     return () => { un1 && un1(); un2 && un2(); };
   }, [currentUid]);
@@ -157,19 +162,53 @@ export function MeetScreen({ navigation, route }) {
       .sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))
       .slice(0, 2);
   }, [schedules]);
-  // ② 자주 함께한 골프 친구 — 라운딩 기록의 동반자 이름 빈도 상위 5명(이니셜 원 + 횟수)
-  const { diaries } = useContext(DiariesContext);
-  const topPartners = useMemo(() => {
-    const cnt = new Map();
-    (diaries || []).filter(isRoundDiary).forEach(d => {
-      (d.companions || []).forEach(c => {
-        if (typeof c === 'object' && c?.isMe) return;
-        const name = (typeof c === 'string' ? c : (c?.name || '')).trim();
-        if (name) cnt.set(name, (cnt.get(name) || 0) + 1);
-      });
-    });
-    return [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10); // 5→10명(사용자 2026-08-27, 가로 스크롤이라 부담 없음)
-  }, [diaries]);
+  // ② 즐겨찾는 친구 바로가기(2026-09-23, 사용자 제안) — 옛 '자주 함께한 골프 친구'는 동반자 '이름' 빈도 집계라
+  //   같은 사람이 실명·별명으로 두 번 떠 혼동("뒤죽박죽"). 친구 탭 즐겨찾기(users.favoriteUids, 카드 오른쪽 스와이프)를
+  //   그대로 꺼내 놓고, 표시명은 내가 붙인 별명 우선, 탭하면 그 친구 프로필로 직행. 대문에 돌아올 때마다 재조회.
+  const [favFriends, setFavFriends] = useState([]);   // [{ uid, name, avatar }]
+  useEffect(() => {
+    if (seg !== 'hub' || !currentUid) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const [friends, meSnap, fd] = await Promise.all([
+          loadMyFriends(), getDoc(doc(db, 'users', currentUid)), loadFriendData().catch(() => ({ friendMeta: {} })),
+        ]);
+        const favs = (meSnap.exists() ? meSnap.data().favoriteUids : []) || [];
+        const friendSet = new Set((friends || []).map(f => f.otherUid));
+        const uids = favs.filter(u => friendSet.has(u));   // 즐겨찾기 뒤 친구 끊긴 uid 제외
+        if (!uids.length) { if (alive) setFavFriends([]); return; }
+        const profiles = await loadFriendProfiles(uids).catch(() => ({}));
+        if (!alive) return;
+        setFavFriends(uids.map(u => ({
+          uid: u,
+          name: friendDisplayName(fd?.friendMeta, u, profiles[u]?.nickname),
+          avatar: /^https?:/.test(profiles[u]?.avatarUrl || '') ? profiles[u].avatarUrl : null,
+        })));
+      } catch { /* 무시 — 섹션만 안 뜬다 */ }
+    })();
+    return () => { alive = false; };
+  }, [seg, currentUid]);
+
+  // ③ 내 크루 바로가기(2026-09-23) — 크루는 상한이 있어 몇 개 안 되니 전부, 최근 활동순(lastPostAt). 새 글은 점(목록 NEW와 같은 판정:
+  //   본 글 수(crewSeen)보다 많고 · 마지막 글이 내 글 아니고 · 음소거 아님). 탭 → 크루 앨범 직행(모집→크루 복귀 경로 재사용).
+  const [crewLocal, setCrewLocal] = useState({ aliases: {}, seen: {}, muted: {} });
+  useEffect(() => {
+    if (seg !== 'hub') return undefined;
+    let alive = true;
+    Promise.all([storage.load(STORAGE_KEYS.crewAliases, {}), storage.load(STORAGE_KEYS.crewSeen, {}), storage.load(STORAGE_KEYS.crewMuted, {})])
+      .then(([aliases, seen, muted]) => { if (alive) setCrewLocal({ aliases: aliases || {}, seen: seen || {}, muted: muted || {} }); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [seg]);
+  const hubCrews = useMemo(() => (crewDocs || []).map((d) => {
+    const ts = d.lastPostAt || d.updatedAt || d.createdAt;
+    const raw = crewLocal.seen[d.id];
+    const seen = (typeof raw === 'number' && raw >= 0 && raw < 1e6) ? raw : 0;
+    const hasNew = raw !== undefined && !crewLocal.muted[d.id] && !(d.lastPostBy && d.lastPostBy === currentUid) && (d.postCount || 0) > seen;
+    return { id: d.id, name: crewLocal.aliases[d.id] || d.name || '크루', themeColor: d.themeColor || null, imageUrl: d.imageUrl || null,
+      hasNew, _ts: ts?.toMillis ? ts.toMillis() : 0 };
+  }).sort((a, b) => b._ts - a._ts), [crewDocs, crewLocal, currentUid]);
 
   const hubSub = {
     friends: friendCount == null ? '' : `${friendCount}명`,
@@ -245,19 +284,53 @@ export function MeetScreen({ navigation, route }) {
             </PressScale>
           </View>
 
-          {/* ② 자주 함께한 골프 친구 — 라운딩 기록 동반자 빈도 상위 5명(이니셜 원+횟수). 탭→친구 화면(2026-08-27) */}
-          {topPartners.length > 0 && (
+          {/* ② 즐겨찾는 친구 — 친구 탭 즐겨찾기 그대로(아바타+내 별명). 탭→그 친구 프로필 직행(2026-09-23).
+              즐겨찾기가 없으면 친구가 있을 때만 한 줄 안내(어디서 만드는지). */}
+          {(favFriends.length > 0 || (friendCount > 0)) && (
             <View style={{ marginTop: 24 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20 }}>자주 함께한 골프 친구</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20 }}>즐겨찾는 친구</Text>
+              {favFriends.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 14, paddingHorizontal: 20, paddingTop: 11 }}>
+                  {favFriends.map((f) => (
+                    <TouchableOpacity key={f.uid} activeOpacity={0.8} style={{ alignItems: 'center', width: 58 }}
+                      onPress={() => { navigation.setParams({ openFriendUid: f.uid }); go('friends'); }}>
+                      {f.avatar ? (
+                        <ExpoImage source={{ uri: f.avatar }} contentFit="cover" transition={0} style={{ width: 46, height: 46, borderRadius: 23 }} />
+                      ) : (
+                        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.navy }}>{(f.name || '친').slice(0, 1)}</Text>
+                        </View>
+                      )}
+                      <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.charcoal, marginTop: 5 }}>{f.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.warmGray, paddingHorizontal: 20, marginTop: 8 }}>
+                  친구 카드를 오른쪽으로 밀어 즐겨찾기하면 여기 모여요
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* ③ 내 크루 — 전부, 최근 활동순. 새 글이면 버건디 점. 탭→크루 앨범 직행(2026-09-23) */}
+          {hubCrews.length > 0 && (
+            <View style={{ marginTop: 24 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, paddingHorizontal: 20 }}>내 크루</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: 14, paddingHorizontal: 20, paddingTop: 11 }}>
-                {topPartners.map(([name, n]) => (
-                  <TouchableOpacity key={name} onPress={() => go('friends')} activeOpacity={0.8} style={{ alignItems: 'center', width: 58 }}>
-                    <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.paleSky, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(17), color: C.navy }}>{name.slice(0, 1)}</Text>
+                {hubCrews.map((c) => (
+                  <TouchableOpacity key={c.id} activeOpacity={0.8} style={{ alignItems: 'center', width: 64 }}
+                    onPress={() => { setCrewReturnId(c.id); go('crew'); }}>
+                    <View>
+                      <CrewAvatar name={c.name} color={c.themeColor || HUB.crew.fg} imageUrl={c.imageUrl} size={46} radius={14} />
+                      {c.hasNew && (
+                        <View style={{ position: 'absolute', top: -3, right: -3, width: 11, height: 11, borderRadius: 5.5,
+                          backgroundColor: C.burgundy, borderWidth: 1.5, borderColor: C.bgPrimary }} />
+                      )}
                     </View>
-                    <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.charcoal, marginTop: 5 }}>{name}</Text>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 1 }}>{n}회</Text>
+                    <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: C.charcoal, marginTop: 5 }}>{c.name}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
