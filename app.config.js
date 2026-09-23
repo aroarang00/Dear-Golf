@@ -7,7 +7,7 @@ try { require('dotenv').config(); } catch (e) {}
 
 module.exports = {
   expo: {
-    name: 'Dear Golf',
+    name: '디어골프',   // 홈화면 아이콘 라벨 한글화(2026-09-23) — ★네이티브: 아이콘(icon·adaptive-icon 모노그램 D)과 함께 다음 스토어 빌드에 실림. version은 빌드 직전에 올릴 것(미리 올리면 OTA가 새 런타임을 겨냥해 아무에게도 안 감)
     slug: 'dear-golf',
     scheme: 'deargolf',
     version: '1.1.1',
