@@ -38,9 +38,9 @@ import { SurfaceLight, PressScale, LIFT_AMBIENT_SOFT, LIFT_CONTACT_SOFT } from '
 //     / 정산={view:'settle'} / 모집=옛 라운지 파라미터(openPostId·openNoti·openView). 파라미터 없으면 대문.
 
 // 섹션 상단 바 테마 — 아래 화면의 헤더/바탕색과 이어 보이게.
-//   ★친구·라운딩 모집은 스트립 없음 — 각 화면 헤더가 ‹ 모임·섹션명까지 한 줄로 품음(두 줄 헤더 두꺼움 정리, 2026-08-26)
+//   ★친구·라운딩 모집·크루는 스트립 없음 — 각 화면 헤더가 ‹ 모임·섹션명까지 한 줄로 품음(두 줄 헤더 두꺼움 정리,
+//     친구·모집 2026-08-26 → 크루 2026-09-23 "크루 아이콘 헤더까지 두 줄이라 불필요하게 넓다")
 const STRIP = {
-  crew: { bg: '#C8D9E6', on: '#5E7E42' },   // 크루 페일스카이+세이지(CrewListScreen 팔레트)
   settle: { bg: C.bgPrimary, on: C.charcoal },
 };
 const SECTION_LABEL = { friends: '친구', crew: '크루', roundup: '라운딩 모집', settle: '정산' };

@@ -363,20 +363,35 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
     //   DMListScreen과 동일 처리: 자체 Provider로 재측정([[dm-design]] iOS safe-area 버그).
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
     <GestureHandlerRootView style={{ flex: 1 }}>
-    <SafeAreaView edges={embedded ? ['left', 'right'] : ['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
+    {/* embedded: top은 이 화면이 직접 채운다(모임 스트립 폐지, 2026-09-23) — 헤더 바탕이 상태바 뒤까지 이어짐. bottom은 제외(하단 벽 방지) */}
+    <SafeAreaView edges={embedded ? ['top', 'left', 'right'] : ['top', 'bottom', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
       {!embedded && <StatusBar barStyle="dark-content" backgroundColor={BG} />}
 
-      {/* 헤더 — ← 닫기 · 제목 · ＋ 만들기. ★embedded(모임 탭)에선 ← 생략(세그먼트가 입구라 닫을 곳이 없다) */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: embedded ? 8 : 12 }}>
-        {!embedded && (
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
-          <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
-        </TouchableOpacity>
+      {/* 헤더 — 단독(모달): ← 닫기 · 크루 아이콘 · 안내 · ＋ 만들기.
+          ★embedded(모임 탭): ‹ 모임(대문 복귀) · '크루' · 안내 · ＋ 만들기를 한 줄로 — 친구·모집 화면과 같은 규격(2026-09-23).
+            전엔 모임 스트립(‹ 모임 | 크루) 밑에 큰 크루 아이콘 줄이 또 있어 두 줄로 두꺼웠다(사용자 "불필요하게 넓다"). */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: embedded ? 12 : 14, paddingVertical: embedded ? 6 : 12 }}>
+        {embedded ? (
+          <>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 2, padding: 4 }}>
+              <Text style={{ fontSize: fs(21), color: SAGE_DEEP, fontWeight: '600', marginTop: -2 }}>‹</Text>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(13.5), color: SAGE_DEEP, opacity: 0.85 }}>모임</Text>
+            </TouchableOpacity>
+            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: SAGE_DEEP, marginLeft: 6 }}>크루</Text>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
+              <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
+            </TouchableOpacity>
+            {/* 타이틀 = 홈 진입점과 동일한 크루 아이콘(진한 세이지, 키움) */}
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Icon name="crew" size={fs(34)} color={SAGE_DEEP} strokeWidth={1.8} />
+            </View>
+          </>
         )}
-        {/* 타이틀 = 홈 진입점과 동일한 크루 아이콘(진한 세이지, 키움) */}
-        <View style={{ flex: 1, marginLeft: embedded ? 2 : 8 }}>
-          <Icon name="crew" size={fs(34)} color={SAGE_DEEP} strokeWidth={1.8} />
-        </View>
         {/* 이용안내(크루 소개) — 우리 book 아이콘. 첫 진입 1회 자동 + 여기서 다시 보기 */}
         <TouchableOpacity onPress={() => setShowIntro(true)} hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
           style={{ padding: 6, marginRight: 4 }}>
