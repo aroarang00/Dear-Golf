@@ -350,7 +350,10 @@ export function MeetScreen({ navigation, route }) {
                     .map(c => (typeof c === 'string' ? c : (c?.name || '')).trim()).filter(Boolean);
                   const label = names.slice(0, 3).join(', ') + (names.length > 3 ? ` 외 ${names.length - 3}명` : '');
                   return (
-                    <TouchableOpacity key={s.id || i} activeOpacity={0.7} onPress={() => navigation.navigate(ROUTES.HOME)}
+                    <TouchableOpacity key={s.id || i} activeOpacity={0.7}
+                      // 탭 → 홈에서 그 일정의 시트 바로 열기(일정 공지·변경 알림과 같은 openScheduleSheetId 경로).
+                      //   전엔 홈 메인으로만 보내 "탭했는데 홈만 뜬다"(사용자 2026-09-23). id 없는 옛 일정은 홈만.
+                      onPress={() => navigation.navigate(ROUTES.HOME, (s.id || s.groupId) ? { openScheduleSheetId: s.id || s.groupId } : undefined)}
                       style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13,
                         borderBottomWidth: i < togetherNext.length - 1 ? 0.5 : 0, borderBottomColor: C.hairline }}>
                       <Icon name="calendar" size={fs(18)} color={C.navy} strokeWidth={1.8} />
