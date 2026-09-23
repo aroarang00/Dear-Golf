@@ -360,7 +360,7 @@ export function MeetScreen({ navigation, route }) {
                       <View style={{ flex: 1, marginLeft: 10, minWidth: 0 }}>
                         <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: C.charcoal }}>{s.course || '라운딩'}</Text>
                         <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>
-                          {s.date?.slice(5)}{s.time ? ' ' + s.time : ''}{label ? ` · ${label}와` : ''}
+                          {s.date?.slice(5)}{s.time ? ' ' + s.time : ''}{label ? ` · ${label}` : ''}
                         </Text>
                       </View>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(18), color: C.warmGray }}>›</Text>
