@@ -40,9 +40,8 @@ import { SurfaceLight, PressScale, LIFT_AMBIENT_SOFT, LIFT_CONTACT_SOFT } from '
 // 섹션 상단 바 테마 — 아래 화면의 헤더/바탕색과 이어 보이게.
 //   ★친구·라운딩 모집·크루는 스트립 없음 — 각 화면 헤더가 ‹ 모임·섹션명까지 한 줄로 품음(두 줄 헤더 두꺼움 정리,
 //     친구·모집 2026-08-26 → 크루 2026-09-23 "크루 아이콘 헤더까지 두 줄이라 불필요하게 넓다")
-const STRIP = {
-  settle: { bg: C.bgPrimary, on: C.charcoal },
-};
+//     정산도 2026-09-23 "걷기 만들기 헤더 불필요하게 넓다" → SettlementModal embedded 헤더가 ‹ 모임·정산을 품음. STRIP은 비었지만 구조는 남겨둔다.
+const STRIP = {};
 const SECTION_LABEL = { friends: '친구', crew: '크루', roundup: '라운딩 모집', settle: '정산' };
 
 // 대문 카드 — 채움+여백(테두리 없음, [[feedback-minimal-borders]]), 커스텀 SVG 아이콘([[feedback-custom-svg-emoji]]).
@@ -465,7 +464,7 @@ export function MeetScreen({ navigation, route }) {
       )}
       {mounted.settle && (
         <View style={{ flex: 1, display: seg === 'settle' ? 'flex' : 'none' }}>
-          <SettlementModal embedded visible />
+          <SettlementModal embedded visible onBack={() => go('hub')} />
         </View>
       )}
       {/* ★크루는 display 토글이 아니라 활성일 때만 마운트 — CrewListScreen(useScreenBack)이 마운트 내내

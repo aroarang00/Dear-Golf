@@ -95,7 +95,8 @@ function parseNames(text) {
 // embedded — 모임 탭 '정산' 세그먼트로 얹힐 때 true(2026-08-26 정식 메뉴 승격):
 //   Modal 래퍼·자체 Provider 없이 일반 화면으로. 헤더 ✕ 없음(목록 레벨 헤더 자체 생략 —
 //   세그먼트 '정산'과 "모임 정산" 타이틀이 중복이라), 안내(book)는 걷기/회비장부 탭 줄 우측으로.
-export function SettlementModal({ visible, onClose, embedded = false }) {
+// onBack(embedded 전용) — 목록 레벨 헤더의 '‹ 모임'(대문 복귀). 모임 스트립을 폐지하고 이 화면이 한 줄 헤더로 품음(2026-09-23).
+export function SettlementModal({ visible, onClose, embedded = false, onBack }) {
   const insets = useSafeAreaInsets(); // 임베디드 하단 여백(플로팅 탭바 회피)용
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -221,27 +222,45 @@ export function SettlementModal({ visible, onClose, embedded = false }) {
     <>
             {/* 헤더 — 상세/작성 중이면 뒤로, 아니면 닫기. 회비장부 상세일 땐 숨김(LedgerScreen 자체 ← 헤더와 ✕ 중복 방지).
                 ★임베디드 목록 레벨에선 헤더 통째 생략 — 세그먼트 '정산'과 "모임 정산" 타이틀 중복(사용자 2026-08-26 라운지 타이틀과 같은 지적). */}
-            {!(tab === 'ledger' && ledgerDetail) && (!embedded || composing || !!openId) && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,
-              borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
-              {/* 뒤로/닫기 — Icon 맵에 chevron·close가 없어 가계부와 같은 기호 문자를 쓴다(이모지 아님) */}
-              <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={goBack}>
-                <Text style={{ fontSize: fs(20), color: C.charcoal, width: fs(22) }}>
-                  {(composing || openId) ? '‹' : '✕'}
-                </Text>
-              </TouchableOpacity>
-              <Text style={{ flex: 1, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>
-                {composing ? '걷기 만들기' : current ? (current.course || '걷기') : (tab === 'ledger' ? '회비 장부' : '모임 정산')}
-              </Text>
-              {/* 안내 — 라운지와 같은 관례(book 아이콘 + 시트). 걷기 탭에서만 노출(회비 장부는 아직 별도 안내 없음).
-                  뒤로 버튼과 같은 폭을 차지해 제목이 가운데를 유지한다. 회비 장부 탭에선 빈 자리로 폭만 유지. */}
-              {tab === 'settle' ? (
-                <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={{ width: fs(22), alignItems: 'flex-end' }}>
-                  <Icon name="book" size={fs(19)} color={C.charcoal} strokeWidth={1.8} />
-                </TouchableOpacity>
+            {/* ★임베디드(2026-09-23): 모임 스트립(‹ 모임 | 정산) 폐지 → 이 헤더가 한 줄로 품는다(친구·모집·크루와 같은 규격).
+                  목록 레벨 = ‹ 모임 · 정산 / 작성·상세 = ‹ · 제목 · 안내. 상태바 자리(insets.top)도 여기서 채운다.
+                  전엔 작성·상세에서 스트립 밑에 이 헤더가 또 있어 두 줄로 두꺼웠다(사용자 "걷기 만들기 헤더 불필요하게 넓다"). */}
+            {!(tab === 'ledger' && ledgerDetail) && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: embedded ? 12 : 16,
+              paddingTop: embedded ? insets.top + 6 : 12, paddingBottom: embedded ? 6 : 12,
+              borderBottomWidth: (embedded && !composing && !openId) ? 0 : 0.5, borderBottomColor: C.hairline }}>
+              {embedded && !composing && !openId ? (
+                <>
+                  <TouchableOpacity onPress={onBack} activeOpacity={0.7}
+                    hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 2, padding: 4 }}>
+                    <Text style={{ fontSize: fs(21), color: C.charcoal, fontWeight: '600', marginTop: -2 }}>‹</Text>
+                    <Text style={{ fontFamily: F.sysM, fontSize: fs(13.5), color: C.charcoal, opacity: 0.85 }}>모임</Text>
+                  </TouchableOpacity>
+                  <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, marginLeft: 6 }}>정산</Text>
+                </>
               ) : (
-                <View style={{ width: fs(22) }} />
+                <>
+                  {/* 뒤로/닫기 — Icon 맵에 chevron·close가 없어 가계부와 같은 기호 문자를 쓴다(이모지 아님) */}
+                  <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={goBack}>
+                    <Text style={{ fontSize: fs(20), color: C.charcoal, width: fs(22) }}>
+                      {(composing || openId) ? '‹' : '✕'}
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={{ flex: 1, textAlign: 'center', fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>
+                    {composing ? '걷기 만들기' : current ? (current.course || '걷기') : (tab === 'ledger' ? '회비 장부' : '모임 정산')}
+                  </Text>
+                  {/* 안내 — 라운지와 같은 관례(book 아이콘 + 시트). 걷기 탭에서만 노출(회비 장부는 아직 별도 안내 없음).
+                      뒤로 버튼과 같은 폭을 차지해 제목이 가운데를 유지한다. 회비 장부 탭에선 빈 자리로 폭만 유지. */}
+                  {tab === 'settle' ? (
+                    <TouchableOpacity onPress={() => setShowGuide(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={{ width: fs(22), alignItems: 'flex-end' }}>
+                      <Icon name="book" size={fs(19)} color={C.charcoal} strokeWidth={1.8} />
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={{ width: fs(22) }} />
+                  )}
+                </>
               )}
             </View>
             )}
