@@ -94,7 +94,9 @@ function AvatarStack({ avatars, total, max = 4 }) {
 
 // embedded — 모임 탭 '크루' 세그먼트로 얹힐 때 true(2026-08-26 홈 모달→탭 이사):
 //   상단 인셋은 MeetScreen 스트립이 처리, ← 닫기 버튼 생략(하드웨어 백은 useScreenBack이 onClose 호출 → 친구 세그먼트로).
-export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId, onReopenConsumed, embedded = false }) {
+// overlay(embedded 전용): 앨범 Modal '안'에 함께 렌더할 요소 — 크루 멤버 DM Modal. 부모(MeetScreen) 루트에 두면
+//   iOS가 앨범 Modal 뒤로 띄워 "DM이 안 열린 줄 알았는데 크루 나가니 뒤에 열려 있더라"(사용자 2026-09-23). Modal은 Modal의 자손이어야 위에 뜬다.
+export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId, onReopenConsumed, embedded = false, overlay = null }) {
   useScreenBack(true, onClose);
   const insets = useSafeAreaInsets();      // embedded 목록 하단 — 플로팅 탭바에 안 가리게(콘텐츠 패딩)
   const embBack = useRef(null);            // embedded 전체화면 Modal(앨범·만들기) 내부 다단계 뒤로가기 ref
@@ -518,6 +520,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
           onRequestClose={() => { if (embBack.current) embBack.current(); else if (albumCrew) closeAlbum(); else setCreateOpen(false); }}>
           <ModalBackContext.Provider value={embBack}>
             <View style={{ flex: 1, backgroundColor: BG }}>{deepView}</View>
+            {overlay}
           </ModalBackContext.Provider>
         </Modal>
       )}

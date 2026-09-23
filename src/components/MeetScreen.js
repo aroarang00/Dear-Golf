@@ -248,6 +248,26 @@ export function MeetScreen({ navigation, route }) {
     );
   };
 
+  // 크루 멤버 DM — ★앨범 Modal '안'에 넣어 렌더(CrewListScreen overlay). 여기 루트에 두면 iOS가 이미 떠 있는 앨범 Modal
+  //   뒤로 띄워 "DM이 안 열린 줄 알았는데 크루 나가니 뒤에 열려 있더라"(사용자 2026-09-23). Modal은 Modal의 자손일 때만 위에 뜬다.
+  const crewDmModal = (
+    <Modal visible={!!crewDm} transparent animationType="slide"
+      statusBarTranslucent={Platform.OS === 'android'}
+      onRequestClose={() => setCrewDm(null)}>
+      <View style={{ flex: 1, backgroundColor: '#211E1B' }}>
+        {crewDm && (
+          <DMChatScreen friendUid={crewDm.uid} friendName={crewDm.name} friendAvatarUri={crewDm.avatar || null}
+            onClose={() => setCrewDm(null)}
+            onOpenRoundup={(postId, hostUid, scope) => {
+              setCrewDm(null);
+              if (scope === 'select') navigation.navigate(ROUTES.MEET, { openView: 'mine' });
+              else navigation.navigate(ROUTES.MEET, { openPostId: postId, openPostHost: hostUid });
+            }} />
+        )}
+      </View>
+    </Modal>
+  );
+
   const th = seg === 'hub' ? null : STRIP[seg];
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
@@ -453,7 +473,7 @@ export function MeetScreen({ navigation, route }) {
           ★판 자체에 paddingBottom 금지 — 스크롤 영역이 잘려 '하단 벽'(사용자 2026-08-26). 탭바 회피는 콘텐츠 패딩. */}
       {seg === 'crew' && (
         <View style={{ flex: 1 }}>
-          <CrewListScreen embedded onClose={() => go('hub')}
+          <CrewListScreen embedded onClose={() => go('hub')} overlay={crewDmModal}
             reopenCrewId={crewReturnId} onReopenConsumed={() => setCrewReturnId(null)}
             onOpenDM={(uid, name, avatar) => { if (uid && uid !== currentUid) setCrewDm({ uid, name, avatar }); }}
             onOpenRoundup={(id, hostUid, crewId) => {
@@ -482,22 +502,6 @@ export function MeetScreen({ navigation, route }) {
         )}
       </Modal>
 
-      {/* 크루에서 연 멤버 DM — 화면 위 Modal(홈 모달 시절의 '모달 안 중첩'과 달리 여긴 일반 화면이라 안전) */}
-      <Modal visible={!!crewDm} transparent animationType="slide"
-        statusBarTranslucent={Platform.OS === 'android'}
-        onRequestClose={() => setCrewDm(null)}>
-        <View style={{ flex: 1, backgroundColor: '#211E1B' }}>
-          {crewDm && (
-            <DMChatScreen friendUid={crewDm.uid} friendName={crewDm.name} friendAvatarUri={crewDm.avatar || null}
-              onClose={() => setCrewDm(null)}
-              onOpenRoundup={(postId, hostUid, scope) => {
-                setCrewDm(null);
-                if (scope === 'select') navigation.navigate(ROUTES.MEET, { openView: 'mine' });
-                else navigation.navigate(ROUTES.MEET, { openPostId: postId, openPostHost: hostUid });
-              }} />
-          )}
-        </View>
-      </Modal>
     </View>
   );
 }
