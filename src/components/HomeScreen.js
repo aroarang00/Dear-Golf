@@ -142,7 +142,8 @@ export function HomeScreen({ navigation, route }) {
   const [commentsSchedule, setCommentsSchedule] = useState(null); // 일정 '이야기'(댓글) 모달 대상 — 시트 위에 겹쳐 열림
   // 동반자 별명(customName) 해석용 owner-only 메타 — 일정 시트에서 별명 표시 ([[friend_groups]])
   const [friendMeta, setFriendMeta] = useState({});
-  const [friendsFeed, setFriendsFeed] = useState([]); // 친구 최신 라운딩(홈 백그라운드 로드)
+  const [friendsFeed, setFriendsFeed] = useState([]); // 친구 최신 라운딩(홈 백그라운드 로드) — 최대 8개 보관
+  const [friendsFeedMore, setFriendsFeedMore] = useState(false); // '더 보기' — 처음 4개, 탭하면 그 자리에서 8개까지(사용자 2026-09-23, 2안)
   const [feedViewer, setFeedViewer] = useState(null); // 친구 소식 카드 사진 전체화면 { photos, index } — PhotoViewer(자체 Modal)
   useEffect(() => { loadFriendData().then(fd => setFriendMeta(fd.friendMeta || {})).catch(() => {}); }, []);
   // 코스 지도 프리페치 — 마스터(477곳)·100대를 홈에서 미리 당겨 모듈 캐시에 적재(fire-and-forget).
@@ -199,12 +200,12 @@ export function HomeScreen({ navigation, route }) {
       const ts = (r) => r?.createdAt?.toMillis?.() || 0;
       const newer = (a, b) => (ts(b) - ts(a)) || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
       const [roundsArr, profiles] = await Promise.all([
-        Promise.all(uids.map(u => loadFriendRounds(u).then(rs => [...rs].sort(newer).slice(0, 2).map(r => ({ ...r, _uid: u }))).catch(() => []))),
+        Promise.all(uids.map(u => loadFriendRounds(u).then(rs => [...rs].sort(newer).slice(0, 3).map(r => ({ ...r, _uid: u }))).catch(() => []))),
         loadFriendProfiles(uids).catch(() => ({})),
       ]);
       const all = roundsArr.flat()
         .sort(newer)
-        .slice(0, 4)
+        .slice(0, 8)   // 친구당 3개·전체 8개 보관, 화면은 4개+'더 보기'
         .map(r => ({ ...r, _friendName: profiles[r._uid]?.nickname || '친구', _friendAvatar: profiles[r._uid]?.avatarUrl || null }));
       if (seq === friendsFeedSeqRef.current) setFriendsFeed(all);
     } catch { friendsFeedAtRef.current = 0; /* 다음 포커스 때 재시도 */ }
@@ -2277,7 +2278,7 @@ export function HomeScreen({ navigation, route }) {
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: 'rgba(255,255,255,0.72)' }}>전체보기 ›</Text>
                 </TouchableOpacity>
               </View>
-              {friendsFeed.slice(0, 4).map((d) => {
+              {friendsFeed.slice(0, friendsFeedMore ? 8 : 4).map((d) => {
                 const avatar = /^https?:/.test(d._friendAvatar || '') ? d._friendAvatar : null;
                 return (
                   <View key={d.id} style={{ marginBottom: 18 }}>
@@ -2309,6 +2310,17 @@ export function HomeScreen({ navigation, route }) {
                   </View>
                 );
               })}
+              {/* '더 보기' — 4개 넘게 있을 때만. 탭하면 그 자리에서 8개까지 펼침(홈 길이는 기본 4개로 유지, 사용자 2026-09-23) */}
+              {!friendsFeedMore && friendsFeed.length > 4 && (
+                <TouchableOpacity onPress={() => setFriendsFeedMore(true)} activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 22, borderRadius: 18,
+                    backgroundColor: 'rgba(255,255,255,0.12)', marginTop: 2 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: 'rgba(255,255,255,0.85)' }}>
+                    친구 소식 {Math.min(friendsFeed.length, 8) - 4}개 더 보기
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
           {/* 하단 여백 22→8 — 캐러셀 점과 하단 탭 사이가 너무 벌어 보임(사용자 2026-07-03) */}
