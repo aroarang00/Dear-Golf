@@ -337,9 +337,12 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
         onPressCourse={openMasterCourse} onOpenCourseLog={onOpenCourseLog}
         onSwitchToList={() => setViewMode('list')} />
     )}
+    {/* ★zIndex/elevation 30 — 밑에 산 채로 있는 지도의 검색창·지역칩·하단 카드(20)가 목록 덮개를 뚫고
+        올라와 목록 검색창을 가리던 것(2026-09-23). 코스 상세 오버레이(GuideScreen, c50a1b8)와 같은 처방. */}
     {(viewMode === 'list' || !MAP_OK) && (
     <View onStartShouldSetResponder={() => true}
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bgPrimary }}>
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bgPrimary,
+        zIndex: 30, elevation: 30 }}>
     {/* 목록 모드 헤더 — 컴팩트 한 줄(코스·안내), 버터 띠를 상태바 뒤 상단 끝까지(친구·라운딩 모집과 동일 규격, 2026-08-26).
         옛 큰 타이틀 헤더(GuideScreen)는 폐기 — 지도 모드는 헤더 없이 풀블리드. */}
     <View style={{ backgroundColor: C.butter, paddingHorizontal: 12, paddingTop: insets.top + 6, paddingBottom: 6,
