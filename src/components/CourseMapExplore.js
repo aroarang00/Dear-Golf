@@ -394,8 +394,9 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(12.5), color: '#fff' }}>상세 보기</Text>
               </TouchableOpacity>
             </View>
+            {/* 칩 줄 — 100대·거리·저장·다녀옴이 다 뜨면 한 줄을 넘어 카드 밖으로 삐져나감 → 줄바꿈(2026-09-28) */}
             {(selRank || selDist != null || savedIds.has(String(sel.kakaoId)) || visited?.get(pinKey(sel))) && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 6, rowGap: 6, marginTop: 9 }}>
                 {selRank ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(201,162,39,0.14)', borderRadius: 9, paddingHorizontal: 8, paddingVertical: 3.5 }}>
                     <Icon name="trophy" size={fs(11)} color={GOLD} />
