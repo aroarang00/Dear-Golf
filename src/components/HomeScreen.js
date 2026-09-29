@@ -80,6 +80,7 @@ import { showAppAlert } from './AppAlert';
 import { showToast } from './AppToast'; // 순수 성공 알림('초대를 보냈어요')은 차단형 대신 토스트로
 import { getGolfCourses } from '../utils/golfCourses'; // 코스 지도 프리페치 — 탭 열기 전 마스터 477곳 준비(핀 2~3초 지연 해소, 2026-08-26)
 import { getTop100Courses } from '../utils/top100';
+import { usePassportCounts } from '../hooks/usePassportCounts';   // 골프 여권 레일 버튼 숫자([[golf-passport]] 3단계)
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -250,6 +251,7 @@ export function HomeScreen({ navigation, route }) {
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
   //   loadFailed·hydrated도 받아 빈 상태 판정에 반영 — 기록 로드 실패를 '기록 없음'으로 위장하지 않게([[read-failure-disguise]]).
   const { diaries, reloadDiaries, loadFailed: diariesLoadFailed, hydrated: diariesHydrated } = React.useContext(DiariesContext);
+  const passport = usePassportCounts(diaries, schedules);   // 우측 레일 '여권' 버튼 — 도장 수 뱃지
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
   const [pendingQuickAlarm, setPendingQuickAlarm] = useState(null); // '이대로 자동' 모드 — 식사시각만 묻는 가벼운 프롬프트
@@ -1631,6 +1633,28 @@ export function HomeScreen({ navigation, route }) {
                 textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>알림</Text>
             </TouchableOpacity>
           )}
+          {/* 골프 여권 — 우측 레일 2번 슬롯(알림 아래, 알림이 없어도 자리 고정). 도장 수를 뱃지로([[golf-passport]] 3단계, 2026-09-29).
+              탭 → 코스 탭 { openPassport }. 코스 탭에만 있던 입구를 홈에서도 — "발견이 늦다". */}
+          <TouchableOpacity onPress={() => navigation.navigate(ROUTES.COURSE, { openPassport: true })} activeOpacity={0.8}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP + RAIL_STEP, zIndex: 20, elevation: 20, alignItems: 'center' }}>
+            <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: 'rgba(245,230,168,0.9)',
+              backgroundColor: 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="idCard" size={fs(RAIL_ICON - 2)} color={C.butter} strokeWidth={2} />
+            </View>
+            {passport.stampCount > 0 && (
+              <View style={{ position: 'absolute', top: -4, right: -6, minWidth: 18, height: 18, borderRadius: 9,
+                backgroundColor: C.navy, borderWidth: 1, borderColor: '#F5E6A8',
+                alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(passport.stampCount > 99 ? 8 : 10), lineHeight: fs(12), color: C.butter,
+                  includeFontPadding: false, marginTop: Platform.OS === 'ios' ? 1 : 0 }} allowFontScaling={false}>
+                  {passport.stampCount > 99 ? '99+' : passport.stampCount}
+                </Text>
+              </View>
+            )}
+            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter, marginTop: 2, includeFontPadding: false,
+              textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>여권</Text>
+          </TouchableOpacity>
         </View>
 
         {/* 일정 전파 수신 — 친구가 보낸 일정 초대 배너(홈 상단). 수락 시 내 일정·캘린더에 자기파생 ([[schedule-propagation-spec]])

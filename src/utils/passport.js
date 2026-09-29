@@ -17,7 +17,7 @@ import { isRoundDiary } from './diaryKind';
 import { top100RankOf } from './top100';
 
 // 지역 구분 — CourseExploreTab의 getRegion과 같은 표. 못 나누면 '기타'(여권에선 빈 칸 대신 묶어서 보여준다).
-export const PASSPORT_REGIONS = ['수도권', '강원', '충청', '경상', '전라', '제주', '기타'];
+export const PASSPORT_REGIONS = ['수도권', '강원', '충청', '경상', '전라', '제주', '해외', '기타'];   // 해외=overseas 기록(마스터에 없음, 총수 없이 도장만)
 export function regionOf(loc) {
   if (!loc) return '기타';
   const first = String(loc).split(' ')[0];
@@ -38,6 +38,7 @@ export const REGION_INK = {
   경상:   '#6B1E2A',   // 버건디
   전라:   '#5A4A8A',   // 보라
   제주:   '#B85C2E',   // 화산 주황
+  해외:   '#3E6E8E',   // 바다 청색
   기타:   '#5F5A54',   // 웜 차콜
 };
 
@@ -67,13 +68,14 @@ export function buildPassport({ master = [], top100 = [], diaries = [], schedule
     keyCache.set(name, r);
     return r;
   };
-  const touch = (name, date, score, manual) => {
-    const r = resolve(name);
-    if (!r || !r.key) return;
+  const touch = (name, date, score, manual, overseas = false) => {
+    // 해외 라운딩 — 마스터(국내 478)에 없으니 이름 키에 os: 접두사로 국내 구장과 절대 안 섞이게, 지역은 '해외'.
+    const r = overseas ? { key: `os:${courseKey(name)}`, course: null } : resolve(name);
+    if (!r || !r.key || r.key === 'os:') return;
     const displayName = r.course?.name || String(name).trim();
     let s = stamps.get(r.key);
     if (!s) {
-      s = { key: r.key, name: displayName, region: regionOf(r.course?.loc), loc: r.course?.loc || '', kakaoId: r.course?.kakaoId || null,
+      s = { key: r.key, name: displayName, region: overseas ? '해외' : regionOf(r.course?.loc), loc: r.course?.loc || '', kakaoId: r.course?.kakaoId || null,
         x: r.course?.x ?? null, y: r.course?.y ?? null, firstDate: null, lastDate: null, count: 0, best: null, manual: false };
       stamps.set(r.key, s);
     }
@@ -88,13 +90,13 @@ export function buildPassport({ master = [], top100 = [], diaries = [], schedule
   };
 
   // ① 라운딩 기록
-  (diaries || []).filter(isRoundDiary).forEach(d => touch(d.course, d.date || null, d.score, false));
+  (diaries || []).filter(isRoundDiary).forEach(d => touch(d.course, d.date || null, d.score, false, !!d.overseas));
   // ② 지난 일정 — 취소된 건 제외. 오늘 일정은 아직 안 갔을 수 있어 '어제까지'만.
   (schedules || []).forEach(s => {
     if (!s || !s.course || !s.date) return;
     if (s.cancelled || s.status === 'cancelled') return;
     if (String(s.date) >= today) return;
-    touch(s.course, String(s.date), null, false);
+    touch(s.course, String(s.date), null, false, !!s.overseas);
   });
   // ③ 직접 체크 — 키가 마스터 항목이면 이름을 복원해 도장을 만든다
   const masterByKey = new Map((master || []).map(c => [masterKeyOf(c), c]));

@@ -39,6 +39,8 @@ import { getGolfCourses } from '../utils/golfCourses';            // 새 도장 
 import { getTop100Courses } from '../utils/top100';               // 새 도장 100대 순위 배지
 import { detectNewStamp, getVisitedChecks } from '../utils/passport';   // 골프 여권 새 도장 판정([[golf-passport]])
 import { showNewStamp } from './NewStampHost';                    // 새 도장 '쾅' 연출(전역 호스트)
+import { PassportBanner } from './PassportBanner';                // 골프 여권 진입 배너(내 스코어 아래)
+import { usePassportCounts } from '../hooks/usePassportCounts';   // 배너 숫자(도장·100대)
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { uploadAvatar } from '../utils/avatarStorage';
@@ -105,6 +107,10 @@ export function DiaryScreen({ route, navigation }) {
   const { userProfile, setUserProfile } = React.useContext(UserContext);
   const { schedules, editSchedule, removeSchedule } = React.useContext(SchedulesContext);
   const { diaries, hydrated: diariesHydrated, loadFailed: diariesLoadFailed, addDiary, editDiary, removeDiary, reloadDiaries } = React.useContext(DiariesContext);
+  // 골프 여권 배너 숫자 — 탭 포커스마다 직접 체크(여권 화면에서 찍은 것)를 다시 읽는다(tick).
+  const [passportTick, setPassportTick] = useState(0);
+  useEffect(() => (navigation?.addListener ? navigation.addListener('focus', () => setPassportTick(t => t + 1)) : undefined), [navigation]);
+  const passport = usePassportCounts(diaries, schedules, passportTick);
   // 친구 좋아요 표시용 — 내 다이어리 likes(uid)를 닉네임으로 해석 (좋아요는 친구만 가능)
   const [friendNameByUid, setFriendNameByUid] = useState({});
   const [diagOn, setDiagOn] = useState(false);   // ★임시 진단 — 보기 방식 줄 왼쪽 빈 곳을 길게 누르면 사진 위에 로드 정보 표시
@@ -893,8 +899,13 @@ export function DiaryScreen({ route, navigation }) {
 
       {/* 인덱스 1 — 내 스코어 배너(공용 ScoreBanner). 옛 통계박스(탭 안 되는 숫자판+접기토글) 대체.
           탭 → 통계·추세·마일스톤·분포·구장별 전용 화면. 자식 순서 고정 유지(명함0·스코어1·필터2·피드3). */}
-      <ScoreBanner key={scoreBannerKey} diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)}
-        collapsible style={{ marginTop: 4, marginBottom: 6 }} />
+      {/* ★인덱스 1은 View 하나로 묶는다 — 아래 sticky 인덱스(필터=2)가 밀리지 않게. 스코어 배너 + 골프 여권 배너. */}
+      <View>
+        <ScoreBanner key={scoreBannerKey} diaries={diaries} userProfile={userProfile} onPress={() => setScoreStatsOpen(true)}
+          collapsible style={{ marginTop: 4, marginBottom: 6 }} />
+        <PassportBanner stampCount={passport.stampCount} top100Count={passport.top100Count} recent={passport.recent}
+          onPress={() => navigation.navigate(ROUTES.COURSE, { openPassport: true })} style={{ marginBottom: 6 }} />
+      </View>
 
       {/* 인덱스 2 — ★sticky 필터 바(필터 칩 + 🔍 + 검색입력 한 묶음). 위에 딱 붙도록 배경 불투명(C.bgPrimary)으로
           아래 카드가 비쳐 보이지 않게, 하단 구분선은 dS.filterRow 자체 borderBottom. 로딩·빈 상태엔 빈 View(인덱스 2 자리 유지·sticky 항상 적용). */}

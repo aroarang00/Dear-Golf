@@ -150,7 +150,7 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
           </View>
           {/* 지역 진행 — 막대 길이는 지역 총수 비례, 채움은 다녀온 수 */}
           <View style={{ marginTop: 14, gap: 5 }}>
-            {pp.regionGroups.filter(g => g.region !== '기타').map(g => (
+            {pp.regionGroups.filter(g => g.region !== '기타' && g.region !== '해외').map(g => (   /* 해외·기타는 총수가 없어 막대 없음(내 도장 묶음에만) */
               <View key={g.region} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={{ width: 40, fontFamily: F.sysSb, fontSize: fs(11), color: 'rgba(255,255,255,0.85)', includeFontPadding: false }}>{g.region}</Text>
                 <View style={{ flex: 1, height: 7, borderRadius: 4, overflow: 'hidden' }}>
