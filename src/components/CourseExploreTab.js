@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useImperativeHandle, forwardRef, useContext } from 'react';
 import { DiariesContext } from '../contexts/DiariesContext';   // 지도 '다녀온 구장' 표시(2026-09-23) — 내 라운딩 기록에서 구장별 횟수·베스트
 import { isRoundDiary } from '../utils/diaryKind';
+import { SchedulesContext } from '../contexts/SchedulesContext';   // 골프 여권 — 지난 일정도 '다녀온 구장'으로 도장([[golf-passport]])
+import { GolfPassportScreen } from './GolfPassportScreen';          // 골프 여권 덮개(2026-09-29)
 import { courseKey, findCourseByName } from '../utils/courseNameKey';   // 구장 키 — 홈 '나도 가 본 구장'과 같은 기준(kakaoId 우선, 없으면 이름 정규화)
 import { View, Text, TouchableOpacity, ScrollView, Linking, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import AppTextInput from './common/AppTextInput';
@@ -106,6 +108,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
     refresh: () => { refreshSaved(); refreshRecent(); refreshFav(); }, // 코스 상세에서 저장/해제 후 '내 저장 골프장' 즉시 갱신
     // 탭 재탭·복귀 → '지도 처음'(지도 모드 + 전국 뷰)으로. 목록 모드였어도 지도로 돌아온다(사용자 2026-08-26).
     resetHome: () => {
+      setPassportOpen(false);   // 여권 덮개도 접는다(탭 재탭=지도 처음)
       if (!MAP_OK) return;
       viewModeCache = 'map'; setViewModeState('map'); AsyncStorage.setItem(VIEW_MODE_KEY, 'map').catch(() => {});
       mapExpRef.current?.reset();
@@ -136,6 +139,8 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   //   키 = 마스터 DB에서 찾아지면 id:kakaoId(표기 차이 흡수), 못 찾으면 이름 정규화 키 — 홈 myCourseStats와 동일 기준.
   //   지도는 이 Map으로 ①다녀온 구장 위에 남색 마커를 '얹고'(기존 핀 무변경) ②카드에 '다녀옴 n번 · 베스트 n타' 칩.
   const { diaries } = useContext(DiariesContext);
+  const { schedules } = useContext(SchedulesContext);   // 골프 여권 — 지난 일정 도장용
+  const [passportOpen, setPassportOpen] = useState(false); // 골프 여권 덮개(지도·목록 어느 모드 위에서든 열림, z 31)
   const visitedStats = useMemo(() => {
     const m = new Map();
     const cache = new Map();
@@ -363,7 +368,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
     {MAP_OK && (
       <CourseMapExplore ref={mapExpRef} master={master} top100={top100} savedFav={savedFav} visited={visitedStats}
         onPressCourse={openMasterCourse} onOpenCourseLog={onOpenCourseLog}
-        onSwitchToList={() => setViewMode('list')} />
+        onSwitchToList={() => setViewMode('list')} onOpenPassport={() => setPassportOpen(true)} />
     )}
     {/* ★zIndex/elevation 30 — 밑에 산 채로 있는 지도의 검색창·지역칩·하단 카드(20)가 목록 덮개를 뚫고
         올라와 목록 검색창을 가리던 것(2026-09-23). 코스 상세 오버레이(GuideScreen, c50a1b8)와 같은 처방. */}
@@ -376,6 +381,13 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
     <View style={{ backgroundColor: C.butter, paddingHorizontal: 12, paddingTop: insets.top + 6, paddingBottom: 6,
       flexDirection: 'row', alignItems: 'center' }}>
       <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, marginLeft: 4, marginRight: 4 }}>코스</Text>
+      {/* 골프 여권 진입 — 목록 모드 헤더(지도 모드는 지도 위 필). */}
+      <TouchableOpacity onPress={() => setPassportOpen(true)} activeOpacity={0.75} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 6, marginRight: 2, paddingHorizontal: 9, paddingVertical: 5,
+          borderRadius: 9, backgroundColor: C.charcoal }}>
+        <Icon name="idCard" size={fs(13)} color={C.butter} strokeWidth={1.9} />
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter, includeFontPadding: false }}>여권</Text>
+      </TouchableOpacity>
       <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
         onPress={() => showAppAlert('코스 둘러보기 안내',
           '골프장을 검색해 탭하면\n코스 정보·골퍼 코멘트·주변 맛집을\n한눈에 볼 수 있어요.\n\n아래로 내리면 내 주변\n스크린골프장을 찾을 수 있어요.',
@@ -804,6 +816,12 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
       </TouchableOpacity>
     )}
     </View>
+    )}
+    {/* 골프 여권 — 지도·목록 어느 모드 위에서든 덮는 전체 화면(z 31 > 목록 덮개 30). 뒤로 가면 아래 모드 그대로. */}
+    {passportOpen && (
+      <GolfPassportScreen onClose={() => setPassportOpen(false)}
+        master={master} top100={top100} diaries={diaries} schedules={schedules}
+        onPressCourse={(c) => { setPassportOpen(false); openMasterCourse(c); }} />
     )}
     </View>
   );

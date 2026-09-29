@@ -86,7 +86,7 @@ const distKm = (a, b) => {
 };
 
 // visited: Map<구장키, {count, best}> — 내가 다녀온 구장(CourseExploreTab visitedStats). 없으면 표시 없음.
-export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = [], top100 = [], savedFav = [], visited = null, onPressCourse, onOpenCourseLog, onSwitchToList }, ref) {
+export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = [], top100 = [], savedFav = [], visited = null, onPressCourse, onOpenCourseLog, onSwitchToList, onOpenPassport }, ref) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
   const [sel, setSel] = useState(null);          // 핀 탭 선택 골프장 → 하단 카드
@@ -314,6 +314,14 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
             <Icon name="list" size={fs(15)} color={C.charcoal} strokeWidth={1.9} />
             <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal }}>목록</Text>
           </TouchableOpacity>
+          {/* 골프 여권 — 내가 밟은 구장 도장([[golf-passport]], 2026-09-29). 진한 필로 눈에 띄게(다른 필은 흰색). */}
+          {!!onOpenPassport && (
+            <TouchableOpacity onPress={onOpenPassport} activeOpacity={0.8} style={[pill, { backgroundColor: C.charcoal }]}
+              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}>
+              <Icon name="idCard" size={fs(15)} color={C.butter} strokeWidth={1.9} />
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter }}>여권</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity activeOpacity={0.8} hitSlop={{ top: 10, bottom: 10, left: 6, right: 8 }}
             onPress={() => showAppAlert('코스 지도 안내',
               '전국 골프장이 핀으로 떠 있어요.\n금색 핀은 100대 코스,\n남색 체크는 내가 다녀온 구장이에요.\n\n핀을 탭하면 카드가 뜨고,\n상세 보기에서 코스 정보·골퍼 코멘트·\n주변 맛집을 볼 수 있어요.',
