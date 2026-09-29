@@ -1,8 +1,9 @@
 import React, { useContext } from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../constants/colors';
-import { tabS } from '../styles/tabS';
+import { tabS, TAB_BAR_HEIGHT } from '../styles/tabS';
+import { tabBarHide } from '../utils/tabBarHide';   // 스크롤 방향 숨김(전역 값) — 골프 여권 등 긴 화면이 올린다(2026-09-29)
 import { ROUTES } from '../constants/routes';
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -49,8 +50,10 @@ export function TabBar({ state, navigation }) {
   const onHome = activeName === ROUTES.HOME;
   // 밝은 화면: 선택 아이콘 색을 그 화면 대표색으로(라운지=네이비 등). 홈은 자체 버터 테마.
   const t = onHome ? THEME_HOME : { ...THEME_LIGHT, on: SCREEN_ACCENT[activeName] || THEME_LIGHT.on };
+  // 스크롤 숨김 — 값 1이면 바 전체 높이(+인셋)만큼 아래로 내려 화면 밖. transform이라 네이티브 드라이버, 터치도 같이 내려가 안 눌림.
+  const hideY = tabBarHide.interpolate({ inputRange: [0, 1], outputRange: [0, TAB_BAR_HEIGHT + insets.bottom + 30] });
   return (
-    <View style={[tabS.wrap, { paddingBottom: insets.bottom + 12 }]}>
+    <Animated.View style={[tabS.wrap, { paddingBottom: insets.bottom + 12, transform: [{ translateY: hideY }] }]}>
       <View style={tabS.pillShadow}>
         <View style={[tabS.pill, { backgroundColor: t.bg, borderColor: t.border }]}>
           {state.routes.map((route, i) => {
@@ -82,6 +85,6 @@ export function TabBar({ state, navigation }) {
           })}
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }

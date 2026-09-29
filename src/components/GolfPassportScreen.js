@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, useWindowDimensions, Platform, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useScrollHide } from '../utils/tabBarHide';   // 내려 읽으면 헤더·탭바 숨김, 되돌리면 복귀(사용자 2026-09-29)
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import AppTextInput from './common/AppTextInput';
@@ -25,6 +26,10 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
   const s4 = Math.floor((W - PAD * 2 - GAP4 * 3) / 4);   // 내 도장 4열
   const s5 = Math.floor((W - PAD * 2 - GAP5 * 4) / 5);   // 100대 구장 5열
   const cardRef = useRef(null);
+  // 스크롤 숨김 — 헤더는 절대배치로 띄워 위로 밀어 올리고(hide→-headerH), 탭바는 훅이 전역 값으로 같이 내린다.
+  const { hide, onScroll } = useScrollHide();
+  const [headerH, setHeaderH] = useState(insets.top + 48);
+  const headerY = hide.interpolate({ inputRange: [0, 1], outputRange: [0, -headerH] });
 
   const [manualKeys, setManualKeys] = useState([]);
   const [top100Checks, setTop100Checks] = useState([]);
@@ -105,8 +110,10 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
   return (
     <View onStartShouldSetResponder={() => true}
       style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bgPrimary, zIndex: 31, elevation: 31 }}>
-      {/* 헤더 — 코스 목록 헤더와 같은 버터 띠 한 줄(상태바 뒤까지) */}
-      <View style={{ backgroundColor: C.butter, paddingHorizontal: 8, paddingTop: insets.top + 6, paddingBottom: 6, flexDirection: 'row', alignItems: 'center' }}>
+      {/* 헤더 — 코스 목록 헤더와 같은 버터 띠 한 줄(상태바 뒤까지). 절대배치 + translateY로 스크롤 시 위로 밀려 숨음. */}
+      <Animated.View onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h && Math.abs(h - headerH) > 1) setHeaderH(h); }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, elevation: 2, transform: [{ translateY: headerY }],
+          backgroundColor: C.butter, paddingHorizontal: 8, paddingTop: insets.top + 6, paddingBottom: 6, flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 6, paddingRight: 10 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, includeFontPadding: false }}>‹</Text>
         </TouchableOpacity>
@@ -117,9 +124,11 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
           <Icon name="share" size={fs(14)} color={C.butter} strokeWidth={2} />
           <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter, includeFontPadding: false }}>{sharing ? '준비 중…' : '공유'}</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 96 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: headerH, paddingBottom: insets.bottom + 96 }}
+        onScroll={onScroll} scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* ── ① 요약 카드 = 공유 이미지. 남색 바탕에 도장 수·100대·지역 진행·최근 도장 3개. */}
         <View ref={cardRef} collapsable={false} style={{ marginHorizontal: PAD, marginTop: 14, borderRadius: 18, backgroundColor: C.navy, padding: 18, overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
