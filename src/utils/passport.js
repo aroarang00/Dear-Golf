@@ -134,6 +134,28 @@ export function buildPassport({ master = [], top100 = [], diaries = [], schedule
   return { stamps, stampList, stampCount: stampList.length, top100Rows, top100Count, regionGroups, recent };
 }
 
+// ── 새 도장 판정 — 라운딩 기록을 저장한 직후 호출. 이 기록 '이전' 여권에 그 구장 도장이 없었으면 정보를 돌려준다.
+//   ★이 라운딩의 자기 일정(같은 구장·같은 날)은 이전 여권에서 뺀다 — 일정 잡고 다음 날 기록하는 게 보통 흐름인데,
+//     지난 일정이 이미 도장을 만들어 "새 도장"이 영영 안 뜨는 걸 막는다. 다른 날 다녀온 일정이 있으면 새 도장 아님(맞음).
+//   반환: null | { name, region, ink, ordinal, regionOrdinal, top100Rank, date }
+export function detectNewStamp({ master = [], top100 = [], diaries = [], schedules = [], manualKeys = [], course, date }) {
+  const { key, course: mc } = stampKeyOf(master, course);
+  if (!key) return null;
+  const own = (schedules || []).filter(s => !(s && s.date === date && stampKeyOf(master, s.course).key === key));
+  const before = buildPassport({ master, top100, diaries, schedules: own, manualKeys, top100Checks: [] });
+  if (before.stamps.has(key)) return null;
+  const region = regionOf(mc?.loc);
+  const name = mc?.name || String(course).trim();
+  const regionCount = (before.regionGroups.find(g => g.region === region)?.stamps.length) || 0;
+  return {
+    name, region, ink: REGION_INK[region] || REGION_INK.기타,
+    ordinal: before.stampCount + 1,
+    regionOrdinal: regionCount + 1,
+    top100Rank: top100RankOf(top100, name),
+    date: date || null,
+  };
+}
+
 // ── 직접 체크 저장 — top100Checks와 같은 패턴(로컬 + users/{uid}.visitedChecks 백업, 재설치 복원) ──
 export async function getVisitedChecks() {
   const list = await storage.load(STORAGE_KEYS.visitedChecks, []);

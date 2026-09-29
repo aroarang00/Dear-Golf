@@ -35,6 +35,10 @@ import { getMannerGrade } from '../constants/mannerGrade';
 import { calcHandicap, syncMyHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds, countVisitedCourses } from '../utils/roundStats';
 import { roundsOnly, isMomentDiary, isRoundDiary } from '../utils/diaryKind';
+import { getGolfCourses } from '../utils/golfCourses';            // 새 도장 판정용 마스터(캐시)
+import { getTop100Courses } from '../utils/top100';               // 새 도장 100대 순위 배지
+import { detectNewStamp, getVisitedChecks } from '../utils/passport';   // 골프 여권 새 도장 판정([[golf-passport]])
+import { showNewStamp } from './NewStampHost';                    // 새 도장 '쾅' 연출(전역 호스트)
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { uploadAvatar } from '../utils/avatarStorage';
@@ -479,6 +483,7 @@ export function DiaryScreen({ route, navigation }) {
       // 특별한 순간·퍼스트 싱글 카드는 기록에서 파생(diaryHof) — 여기서 직접 등재하지 않음(추가 즉시 자동 반영).
       // 저장 직후 라운딩 카드 — 최근 라운딩(2일 이내) + 일정 복귀 동선 아닐 때만 축하 시트. 방금 만든 라운딩을 자랑/기록 카드로.
       // 옛 기록 몰아입력 시엔 안 뜸(상세 골드칩으로 언제든 가능). 톤은 카드가 스코어 따라 분기 ([[score-brag-card]])
+      let pendingCard = null;   // 저장 직후 라운딩 카드 — 새 도장 연출이 있으면 그걸 닫은 뒤에 띄운다(겹치지 않게)
       if (data.kind !== 'moment' && !cameFromSchedule) {
         const parts = String(data.date || '').split('.').map(n => parseInt(n, 10));
         if (parts.length === 3 && parts.every(n => !isNaN(n))) {
@@ -486,10 +491,32 @@ export function DiaryScreen({ route, navigation }) {
           const today = new Date().setHours(0, 0, 0, 0);
           const days = Math.round((today - rd) / 86400000);
           if (days >= 0 && days <= 2) {
-            const card = { ...data, id: created.id, par: 72, shareKind: 'round', playerName: (userProfile.realName || userProfile.nickname || '').trim() };
-            setTimeout(() => setShareMoment(card), 350); // 작성 모달 닫힘 애니메이션 후 자연스럽게
+            pendingCard = { ...data, id: created.id, par: 72, shareKind: 'round', playerName: (userProfile.realName || userProfile.nickname || '').trim() };
           }
         }
+      }
+      // 골프 여권 새 도장([[golf-passport]] 2단계) — 이 기록 '이전' 여권에 없던 구장이면 '쾅' 연출(전역 호스트, 어느 탭에서든).
+      //   재료(마스터·100대·직접체크)는 캐시라 빠르지만 저장 흐름은 안 막는다(기다리지 않음).
+      //   순서: 작성 모달 닫힘(≈450ms) → 새 도장 → 닫으면 라운딩 카드(420ms 뒤). 새 도장이 없으면 카드만 350ms 뒤(종전).
+      if (data.kind !== 'moment') {
+        const beforeDiaries = diaries;   // 저장 전 스냅샷(클로저) — created는 혹시 몰라 한 번 더 뺀다
+        (async () => {
+          let stamp = null;
+          try {
+            const [master, top100, manualKeys] = await Promise.all([getGolfCourses(), getTop100Courses(), getVisitedChecks()]);
+            stamp = detectNewStamp({ master, top100, diaries: (beforeDiaries || []).filter(d => d.id !== created.id),
+              schedules, manualKeys, course: data.course, date: data.date });
+          } catch (e) { if (__DEV__) console.warn('[passport] new stamp detect fail', e?.message); }
+          const card = pendingCard;
+          if (stamp) {
+            setTimeout(() => showNewStamp({ ...stamp,
+              onOpenPassport: () => navigation.navigate(ROUTES.COURSE, { openPassport: true }),
+              onClose: () => { if (card) setTimeout(() => setShareMoment(card), 420); },
+            }), 450);
+          } else if (card) {
+            setTimeout(() => setShareMoment(card), 350); // 작성 모달 닫힘 애니메이션 후 자연스럽게
+          }
+        })();
       }
       // 직접 작성 다이어리(scheduleId 없음) → 미리 잡아둔 일정이 있으면 거기에만 연결.
       // ★ 과거 기록의 '일정 자동 생성'은 폐지 — 통계·방문수에 0 기여(roundStats가 diary와

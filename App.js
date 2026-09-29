@@ -103,6 +103,7 @@ import { GuideScreen } from './src/components/GuideScreen';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 import { AppToastHost } from './src/components/AppToast';
+import { NewStampHost } from './src/components/NewStampHost';   // 골프 여권 새 도장 연출(전역, [[golf-passport]])
 import { AndroidExitGuard } from './src/components/AndroidExitGuard'; // 뒤로가기로 앱 닫히기 직전 1회 경고(맨 첫 자식으로 둘 것)
 import { SplashOverlay, SplashContent } from './src/components/SplashOverlay';
 import { UpdateGate } from './src/components/UpdateGate';   // 구버전 차단·권장 (config/app)
@@ -825,6 +826,7 @@ function App() {
 
       <AppAlertHost />
       <AppToastHost />
+      <NewStampHost />
 
       {/* 라운딩 일정 알림 팝업 — 앱 전역(어느 탭에서나). 안 읽은 scheduleNotice가 있으면 모집 단위로 하나씩 표시. */}
       {(() => {

@@ -107,6 +107,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
     scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
     refresh: () => { refreshSaved(); refreshRecent(); refreshFav(); }, // 코스 상세에서 저장/해제 후 '내 저장 골프장' 즉시 갱신
     // 탭 재탭·복귀 → '지도 처음'(지도 모드 + 전국 뷰)으로. 목록 모드였어도 지도로 돌아온다(사용자 2026-08-26).
+    openPassport: () => setPassportOpen(true),   // 새 도장 연출 '여권 보기' → 코스 탭 { openPassport } 파라미터로 진입
     resetHome: () => {
       setPassportOpen(false);   // 여권 덮개도 접는다(탭 재탭=지도 처음)
       if (!MAP_OK) return;

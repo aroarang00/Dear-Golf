@@ -317,6 +317,16 @@ export function GuideScreen({ route, navigation }) {
     storage.save(STORAGE_KEYS.favorites, favorites);
   }, [favorites, favoritesHydrated]);
 
+  // 골프 여권 열기 — 새 도장 연출 '여권 보기'가 { openPassport } 로 들어온다. 상세가 떠 있으면 닫고 여권 덮개를 연다.
+  //   ★탭 재탭(resetHome)과 달리 navigate는 tabPress를 안 내므로 지도 리셋과 충돌 없음.
+  useEffect(() => {
+    if (route?.params?.openPassport) {
+      navigation.setParams({ openPassport: undefined });
+      setSelected(null);
+      setTimeout(() => exploreRef.current?.openPassport?.(), 60);   // 상세 언마운트·포커스 뒤 한 틱
+    }
+  }, [route?.params?.openPassport]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (route?.params?.openCourseId) {
       const id = route.params.openCourseId;
