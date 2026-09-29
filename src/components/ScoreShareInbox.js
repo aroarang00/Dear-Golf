@@ -70,16 +70,24 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
     if (modalOpen && !active && shares.length === 0) close();
   }, [modalOpen, active, shares.length]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ★안내창은 반드시 시트를 '완전히 닫은 뒤' 띄운다 — 예전엔 setActive(null)만 하고 띄웠는데, 7/31 리팩터
+  //   (열림=modalOpen 별도 상태) 이후 그걸로는 시트가 안 닫혀 목록 화면 위에 AppAlert Modal이 겹쳤다.
+  //   모달 위 모달에서 '확인'을 누르면 안내창이 언마운트되며 iOS 터치가 전부 죽음(사용자 제보 2026-09-29,
+  //   [[project_deargolf_modal_unmount_freeze]]). 슬라이드 닫힘이 끝난 뒤(≈300ms) 띄워 겹침을 피한다.
+  const closeThenAlert = (title, msg) => {
+    close();
+    setTimeout(() => showAppAlert(title, msg), 350);
+  };
+
   // 처리 중 상태가 영영 안 풀리는 것 방지 — 응답이 안 오면 15초 뒤 풀고 안내한다(무한 '추가 중…' 차단).
   useEffect(() => {
     if (!busy) return;
     const t = setTimeout(() => {
       setBusy(false);
-      setActive(null); setSelIdx(null);
-      showAppAlert('응답이 지연되고 있어요', '네트워크 상태를 확인해 주세요.\n이미 처리됐다면 잠시 후 목록에서 사라져요.');
+      closeThenAlert('응답이 지연되고 있어요', '네트워크 상태를 확인해 주세요.\n이미 처리됐다면 잠시 후 목록에서 사라져요.');
     }, 15000);
     return () => clearTimeout(t);
-  }, [busy]);
+  }, [busy]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // 한 건 처리 후 — 남은 게 있으면 목록으로 되돌리고, 없으면 시트를 닫는다.
   //   (구독 갱신을 기다리지 않고 방금 처리한 id를 빼서 판단 — 스냅샷은 몇백 ms 늦게 온다)
@@ -100,8 +108,7 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
       onDerived && onDerived();   // 내 기록 새로고침(파생 round 반영)
     } catch (e) {
       if (__DEV__) console.warn('[scoreShare] accept fail', e?.message);
-      setActive(null); setSelIdx(null);   // 모달 닫고(루트 알럿이 모달 뒤로 안 깔리게) 안내
-      showAppAlert('스코어 추가 실패', '잠시 후 다시 시도해 주세요.');
+      closeThenAlert('스코어 추가 실패', '잠시 후 다시 시도해 주세요.');   // 시트 닫은 뒤 안내(모달 겹침 금지)
     }
     finally { setBusy(false); }
   };
@@ -112,8 +119,7 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
     try { const id = active.id; await declineScoreShare(id, uid); doneWith(id); }
     catch (e) {
       if (__DEV__) console.warn('[scoreShare] decline fail', e?.message);
-      setActive(null); setSelIdx(null);
-      showAppAlert('처리 실패', '잠시 후 다시 시도해 주세요.');
+      closeThenAlert('처리 실패', '잠시 후 다시 시도해 주세요.');   // 시트 닫은 뒤 안내(모달 겹침 금지)
     }
     finally { setBusy(false); }
   };

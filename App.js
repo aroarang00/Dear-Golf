@@ -615,8 +615,8 @@ function App() {
         }
         // 뒤풀이 결정·변경 → 홈 + 뒤풀이 시트 자동 오픈(푸시→길찾기 한 동선) ([[afterround-meal-decision]])
         if (type === 'mealSuggestion') { navigationRef.navigate(ROUTES.HOME, { openMeal: data.mealId || true }); return; }
-        // 스코어 공유 → MY(ScoreShareInbox 수신 배너가 MY 피드 상단)
-        if (type === 'scoreShare') { navigationRef.navigate(ROUTES.MY); return; }
+        // 스코어 공유 → 홈(수신 배너 ScoreShareInbox가 2026-07-23 MY 피드→홈 상단 배너 큐로 이사. MY엔 아무것도 없음)
+        if (type === 'scoreShare') { navigationRef.navigate(ROUTES.HOME); return; }
         // 크루 초대 → 모임 탭 크루 세그먼트(2026-08-26 홈 모달→탭 이사) ([[crew-space-design]])
         if (type === 'crewInvite') { navigationRef.navigate(ROUTES.MEET, { view: 'crew' }); return; }
         const openPostId = (POST_DETAIL_TYPES.has(type) && data.postId) ? data.postId : null;
