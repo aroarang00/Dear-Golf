@@ -30,6 +30,33 @@ const REGION_CAM = {
   제주: { latitude: 33.38, longitude: 126.53, latitudeDelta: 0.55, longitudeDelta: 0.7 },
 };
 const REGIONS = Object.keys(REGION_CAM);
+
+// ── 전국 뷰를 '우리나라만 화면에 꽉 차게' 맞추기 (2026-09-30, 사용자 "전 세계가 다 보이는 것 안 되게, 제주도까지 한 화면에 꽉") ──
+//   고정 델타(REGION_CAM.전체)는 폰 비율마다 결과가 달라 — 짧은 폰은 제주가 하단 버튼 뒤로 숨고, 축소 한계(줌 5.5)는
+//   일본·중국까지 보였다. 그래서 지도 크기(onLayout)에서 직접 계산한다:
+//   ①남한(고성 북단~제주 남단)이 위 오버레이(검색·칩)와 아래 오버레이(필·탭바) '사이'에 딱 들어가는 영역 = 첫 화면이자 '전체' 칩
+//   ②그 영역이 곧 축소 한계(안드 minZoomLevel / iOS cameraZoomRange) ③팬은 보이는 영역이 그 밖으로 못 나가게 되돌림.
+//   상자 = 구장이 있는 범위(최북단 구장 38.32 · 제주 남해안 33.2)에 약간의 여유. 고성 맨 끝 땅(38.45~38.6)은 지역 칩 밑으로 들어가도 된다 —
+//   그만큼 나라가 크게 보인다. 세로가 항상 먼저 차서(폰은 세로로 길다) 좌우엔 바다가 조금 남는다.
+const KOREA_BOX = { west: 126.0, east: 129.62, south: 33.15, north: 38.45 };
+const mercY = (lat) => (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));   // 위도 → 메르카토르 y(도 단위)
+const invMercY = (y) => (360 / Math.PI) * Math.atan(Math.exp((y * Math.PI) / 180)) - 90;
+function fitKorea(w, h, padTop, padBottom, padSide = 8) {
+  const usableH = Math.max(120, h - padTop - padBottom);
+  const yN = mercY(KOREA_BOX.north), yS = mercY(KOREA_BOX.south);
+  const s = Math.min((w - padSide * 2) / (KOREA_BOX.east - KOREA_BOX.west), usableH / (yN - yS));   // 화면 px / 메르카토르 1도
+  const lngDelta = w / s;
+  const cx = (KOREA_BOX.west + KOREA_BOX.east) / 2;
+  const yTop = (yN + yS) / 2 + (padTop + usableH / 2) / s;   // 화면 맨 위의 메르카토르 y — 남한 중심이 '쓸 수 있는 영역'의 가운데 오게
+  const north = invMercY(yTop), south = invMercY(yTop - h / s);
+  return {
+    region: { latitude: (north + south) / 2, longitude: cx, latitudeDelta: north - south, longitudeDelta: lngDelta },
+    west: cx - lngDelta / 2, east: cx + lngDelta / 2, south, north,
+    zoom: Math.log2((360 * w) / (256 * lngDelta)),   // 구글 줌 기준. 애플 지도(react-native-maps 계산식)는 이 값 - 1
+  };
+}
+// 보이는 영역이 허용 범위 [lo, hi] 안에 있도록 중심을 고정 — 보이는 폭이 범위보다 크면 가운데.
+const clampCenter = (c, span, lo, hi) => (span >= hi - lo ? (lo + hi) / 2 : Math.min(Math.max(c, lo + span / 2), hi - span / 2));
 const GOLD = '#C9A227'; // 100대 코스 핀·뱃지
 
 // ★핀은 477개 전부를 처음부터 올려두고 이후 '절대' 갈아끼우지 않는다(2026-08-26 확정 구조).
@@ -105,10 +132,61 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
   const [searching, setSearching] = useState(false);
 
   // 탭 재탭·복귀 시 '지도 처음'(전국 뷰·선택 해제·검색 비움)으로 — GuideScreen resetView가 호출(2026-08-26)
+  // 전국 맞춤 영역 — 지도 크기를 알아야 계산되므로 onLayout 뒤에 지도를 올린다(한 프레임). 키보드로 높이가 줄어드는 건 무시.
+  const [mapSize, setMapSize] = useState(null);
+  const onMapBoxLayout = (e) => {
+    const { width: w, height: h } = e.nativeEvent.layout;
+    if (!(w > 0 && h > 0)) return;
+    setMapSize(prev => ((!prev || Math.abs(prev.w - w) > 1 || h > prev.h + 1) ? { w, h } : prev));
+  };
+  // padTop = 상태바 + 검색줄 + 지역 칩 / padBottom = 탭바 + 하단 필(내 코스 모아보기·내 위치)
+  const fit = useMemo(() => (mapSize ? fitKorea(mapSize.w, mapSize.h, insets.top + 98, insets.bottom + 120) : null),
+    [mapSize, insets.top, insets.bottom]);
+  const fitRef = useRef(null);
+  fitRef.current = fit;
+  const camOf = (r) => (r === '전체' && fitRef.current ? fitRef.current.region : REGION_CAM[r]);
+  // iOS(애플 지도) 축소 한계 — cameraZoomRange는 '카메라 거리(m)'라 식으로 못 구한다. 첫 화면(=전국 맞춤)이 뜬 직후
+  //   실제 카메라 고도를 읽어 그 값을 최대 거리로 건다. 읽는 순간 지도가 전국 맞춤 그대로인지(경도 폭 비교) 확인 —
+  //   사용자가 이미 확대한 상태의 고도를 한계로 걸면 다시 전국으로 못 나온다. 실패하면 기존 방식(놓으면 되돌아옴)이 남는다.
+  const [iosZoomRange, setIosZoomRange] = useState(null);
+  const iosRangeDone = useRef(false);
+  const measureIosRange = async () => {
+    const f = fitRef.current, map = mapRef.current;
+    if (_and || iosRangeDone.current || !f || !map) return;
+    try {
+      const [cam, b] = await Promise.all([map.getCamera(), map.getMapBoundaries()]);
+      const span = b?.northEast && b?.southWest ? b.northEast.longitude - b.southWest.longitude : 0;
+      if (!(cam?.altitude > 0) || !(span > 0) || Math.abs(span - f.region.longitudeDelta) / f.region.longitudeDelta > 0.06) return;
+      iosRangeDone.current = true;
+      setIosZoomRange({
+        maxCenterCoordinateDistance: cam.altitude * 1.03,
+        minCenterCoordinateDistance: cam.altitude * Math.pow(2, (f.zoom - 1) - 16),   // 확대 한계는 종전 maxZoomLevel 16(애플 기준)과 같게
+        animated: false,
+      });
+    } catch {}
+  };
+  // onMapReady가 안 오는 경우 대비 — 지도가 올라오고 1.5초 뒤 한 번 더 시도(이미 됐으면 무동작).
+  useEffect(() => {
+    if (_and || !fit) return undefined;
+    const t = setTimeout(measureIosRange, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!fit]);
+  const onMapReady = () => {
+    const f = fitRef.current;
+    if (!f) return;
+    if (_and) {
+      // 안드(구글 지도) — 카메라 중심이 전국 영역 밖으로 못 나가게 네이티브에서 막는다(팬 중에도 적용).
+      try { mapRef.current?.setMapBoundaries({ latitude: f.north, longitude: f.east }, { latitude: f.south, longitude: f.west }); } catch {}
+    } else {
+      setTimeout(measureIosRange, 300);
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     reset: () => {
       setSel(null); setSearch(''); setResults([]); setRegionChip('전체');
-      mapRef.current?.animateToRegion(REGION_CAM.전체, 400);
+      mapRef.current?.animateToRegion(camOf('전체'), 400);
     },
   }), []);
 
@@ -179,7 +257,7 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
 
   const goRegion = (r) => {
     setRegionChip(r); setSel(null);
-    mapRef.current?.animateToRegion(REGION_CAM[r], 450);
+    mapRef.current?.animateToRegion(camOf(r), 450);
   };
 
   // 검색 — 디바운스. 마스터 로컬 우선(searchGolfCourses)이라 두 글자면 즉시 뜬다.
@@ -211,21 +289,29 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
     shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3 };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1 }} onLayout={onMapBoxLayout}>
+      {!!fit && (
       <MapView
         ref={mapRef}
         style={{ flex: 1 }}
         provider={PROVIDER_DEFAULT}
-        initialRegion={REGION_CAM.전체}
+        initialRegion={fit.region}   // 남한이 위·아래 오버레이 사이에 꽉 차는 영역(fitKorea) — 폰 비율마다 계산
         maxZoomLevel={16}
-        minZoomLevel={5.5}      // 대한민국 전도보다 더 못 빠지게 — 전세계가 보이던 것(사용자 2026-08-27)
+        // 축소 한계 = 전국 맞춤 그 자체(2026-09-30). 안드는 네이티브 하드 리밋. iOS는 애플 줌 기준(-1)이고, '놓으면 되돌아오는' 방식이라
+        //   아래 cameraZoomRange(실측 고도)가 걸리면 그쪽이 제스처 중에도 막는다.
+        minZoomLevel={_and ? fit.zoom - 0.01 : fit.zoom - 1 - 0.05}
+        cameraZoomRange={!_and && iosZoomRange ? iosZoomRange : undefined}
+        onMapReady={onMapReady}
         rotateEnabled={false}   // 북쪽 고정 — 확대 중 실수로 돌아간 지도를 못 되돌려 헤매는 것 방지(사용자 문의 2026-08-26)
         pitchEnabled={false}    // 기울이기도 잠금 — 탐색 지도는 평면이 명확
-        // 팬으로 한반도를 벗어나면 중심을 국내로 되돌림 — state 없이 animate만(핀 리렌더 0 유지)
+        // 팬으로 전국 영역을 벗어나면 되돌림 — '보이는 영역'이 전국 맞춤 영역 안에 있도록 중심을 고정(확대할수록 더 멀리 갈 수 있다).
+        //   state 없이 animate만(핀 리렌더 0 유지). 허용 오차(보이는 폭의 3%)로 되돌린 뒤의 이벤트가 다시 되돌리기를 부르지 않게.
         onRegionChangeComplete={(r) => {
-          const lat = Math.min(Math.max(r.latitude, 32.8), 38.9);
-          const lng = Math.min(Math.max(r.longitude, 124.8), 130.5);
-          if (Math.abs(lat - r.latitude) > 0.001 || Math.abs(lng - r.longitude) > 0.001) {
+          const f = fitRef.current;
+          if (!f || !(r?.latitudeDelta > 0) || !(r?.longitudeDelta > 0)) return;
+          const lat = clampCenter(r.latitude, r.latitudeDelta, f.south, f.north);
+          const lng = clampCenter(r.longitude, r.longitudeDelta, f.west, f.east);
+          if (Math.abs(lat - r.latitude) > r.latitudeDelta * 0.03 || Math.abs(lng - r.longitude) > r.longitudeDelta * 0.03) {
             mapRef.current?.animateToRegion({ ...r, latitude: lat, longitude: lng }, 250);
           }
         }}
@@ -280,6 +366,7 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
           </Marker>
         )}
       </MapView>
+      )}
 
       {/* 핀 로딩 — 마스터 로드+마커 생성 동안 중앙 필(2~3초 빈 지도 지적, 2026-08-27). 탭 방해 없음.
           이 동안은 마커 477개 네이티브 생성으로 화면 전체가 순간 둔해져, 멈춘 게 아니라 로딩임이
