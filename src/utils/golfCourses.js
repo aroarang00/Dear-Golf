@@ -105,6 +105,7 @@ export async function searchGolfCoursesLocal(query) {
     let rank = -1;
     if (core) {
       if (nName === core) rank = 0;
+      else if (nInput === core) rank = 0.5;   // 공공데이터 원본명과 완전 일치 — '한양CC' 검색에 '서울한양CC'(원본명 한양컨트리클럽)가 '한양파인CC'보다 먼저(2026-09-30)
       else if (nName.startsWith(core)) rank = 1;
       else if (nName.includes(core)) rank = 2;
       else if (nInput.includes(core)) rank = 3;

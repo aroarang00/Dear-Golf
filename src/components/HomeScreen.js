@@ -90,11 +90,16 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 //   쇼핑·예약 등 커머스·유틸은 이 레일이 아니라 별도 가로 액션줄로 분리 예정([[home-shopping-reservation-buttons]]).
 //   안드는 상태바와 안 붙게, iOS는 공간 여유라 더 내리고 버튼·간격을 크게. 한 곳만 고치면 둘이 같이 움직임.
 const _railAnd = Platform.OS === 'android';
-const RAIL_TOP = _railAnd ? 16 : 26;    // 2026-09-23 12px 위로 — 사용자 "알림 종 위치를 좀 올리고 싶다"(지금은 종만 이 좌표를 쓴다)
+const RAIL_TOP = _railAnd ? 16 : 26;    // 2026-09-23 12px 위로 — 사용자 "알림 종 위치를 좀 올리고 싶다"(지금은 여권 버튼이 혼자 있을 때 이 좌표를 쓴다 — 종이 뜨면 RAIL_STACK_TOP 묶음)
 const RAIL_STEP = _railAnd ? 80 : 88;
 const RAIL_BTN = _railAnd ? 44 : 50;     // 버튼 원 지름
 const RAIL_ICON = _railAnd ? 26 : 30;    // 크루 라인 아이콘
 const RAIL_SEND = _railAnd ? 28 : 32;    // 메시지 종이비행기(살짝 큼)
+// 알림 종 + 여권이 같이 뜰 때의 세로 묶음(2026-09-30) — 여권은 평소 종 자리(RAIL_TOP)에 혼자 있고, 미확인 알림이 생기면
+//   종이 그 위로 올라와 둘이 붙는다(사용자 선택 2번). 2번 슬롯(RAIL_TOP+RAIL_STEP)은 달력 줄과 겹쳐서 안 쓴다.
+//   둘이 붙을 땐 글자 라벨을 빼고 간격을 좁혀 달력 월 라벨 줄(안드 ≈125 / iOS ≈123) 위에서 끝나게 한다.
+const RAIL_STACK_TOP = _railAnd ? 8 : 14;   // 묶음일 때 종 원의 top
+const RAIL_STACK_GAP = 6;                   // 종 원과 여권 원 사이
 
 // 디어골프 스토어(네이버 스마트스토어) — 이용안내 띠가 1회성이 되며 빈 인사말 아래 슬롯에 노출.
 //   버튼은 상시 노출하되 STORE_URL이 비어있는 동안은 탭 시 '준비 중' 토스트(사용자 2026-07-03 — 디자인 보며 다듬는 중).
@@ -1611,10 +1616,11 @@ export function HomeScreen({ navigation, route }) {
               평상시 홈을 비워두고, 놓친 게 있을 때만 눈에 띄게 하는 게 목적. 다 읽은 뒤 지난 알림은
               라운지 종 아이콘에서 계속 볼 수 있다(진입점이 사라져도 알림함 자체는 그대로).
               절대좌표 슬롯이라 나타나고 사라져도 위의 메시지·크루 위치는 안 밀림. */}
+          {/* ★여권과 세로 묶음(2026-09-30) — 종이 뜨면 여권 위(RAIL_STACK_TOP)에 붙는다. 묶음에선 '알림' 글자 라벨을 뺀다(자리 절약). */}
           {notiUnread > 0 && (
             <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MEET,{ openNoti: true })} activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP, zIndex: 20, elevation: 20, alignItems: 'center' }}>
+              hitSlop={{ top: 12, bottom: 3, left: 12, right: 12 }}
+              style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_STACK_TOP, zIndex: 21, elevation: 21, alignItems: 'center' }}>
               <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: '#E2C275',
                 backgroundColor: 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
                 <Icon name="bell" size={fs(RAIL_ICON)} color="#E2C275" strokeWidth={2} />
@@ -1628,16 +1634,16 @@ export function HomeScreen({ navigation, route }) {
                   {notiUnread > 99 ? '99+' : notiUnread}
                 </Text>
               </View>
-              {/* 라벨 — 메시지·크루와 짝 */}
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: '#E2C275', marginTop: 2, includeFontPadding: false,
-                textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>알림</Text>
             </TouchableOpacity>
           )}
-          {/* 골프 여권 — 우측 레일 2번 슬롯(알림 아래, 알림이 없어도 자리 고정). 도장 수를 뱃지로([[golf-passport]] 3단계, 2026-09-29).
-              탭 → 코스 탭 { openPassport }. 코스 탭에만 있던 입구를 홈에서도 — "발견이 늦다". */}
+          {/* 골프 여권 — 우측 레일 맨 위(평소 알림 종이 쓰던 자리). 도장 수를 뱃지로([[golf-passport]] 3단계, 2026-09-29).
+              탭 → 코스 탭 { openPassport }. 코스 탭에만 있던 입구를 홈에서도 — "발견이 늦다".
+              ★2026-09-30 자리 이동 — 2번 슬롯은 달력 줄과 겹쳤다(사용자). 평소엔 RAIL_TOP에 혼자(글자 라벨 '여권'),
+                미확인 알림이 있으면 종 바로 아래로 내려가 붙고 라벨은 뺀다. */}
           <TouchableOpacity onPress={() => navigation.navigate(ROUTES.COURSE, { openPassport: true })} activeOpacity={0.8}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ position: 'absolute', right: SIDE_PAD, top: RAIL_TOP + RAIL_STEP, zIndex: 20, elevation: 20, alignItems: 'center' }}>
+            hitSlop={{ top: notiUnread > 0 ? 3 : 12, bottom: 12, left: 12, right: 12 }}
+            style={{ position: 'absolute', right: SIDE_PAD, top: notiUnread > 0 ? RAIL_STACK_TOP + RAIL_BTN + RAIL_STACK_GAP : RAIL_TOP,
+              zIndex: 20, elevation: 20, alignItems: 'center' }}>
             <View style={{ width: RAIL_BTN, height: RAIL_BTN, borderRadius: RAIL_BTN / 2, borderWidth: 2, borderColor: 'rgba(245,230,168,0.9)',
               backgroundColor: 'rgba(26,61,82,0.34)', alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="idCard" size={fs(RAIL_ICON - 2)} color={C.butter} strokeWidth={2} />
@@ -1652,8 +1658,10 @@ export function HomeScreen({ navigation, route }) {
                 </Text>
               </View>
             )}
-            <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter, marginTop: 2, includeFontPadding: false,
-              textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>여권</Text>
+            {notiUnread === 0 && (
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.butter, marginTop: 2, includeFontPadding: false,
+                textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }} allowFontScaling={false}>여권</Text>
+            )}
           </TouchableOpacity>
         </View>
 

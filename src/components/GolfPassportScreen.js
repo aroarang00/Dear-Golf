@@ -9,16 +9,63 @@ import { Icon } from './common/Icon';
 import { showAppAlert } from './AppAlert';
 import { PassportStamp, EmptyStamp } from './PassportStamp';
 import { C, F, fs } from '../constants/colors';
-import { normalizeCourseName, syncTop100ChecksFromFirestore, saveManualTop100Checks } from '../utils/top100';
-import { buildPassport, masterKeyOf, syncVisitedChecksFromFirestore, saveVisitedChecks, REGION_INK } from '../utils/passport';
+import { normalizeCourseName, syncTop100ChecksFromFirestore, saveManualTop100Checks, getManualTop100Checks } from '../utils/top100';
+import { buildPassport, masterKeyOf, syncVisitedChecksFromFirestore, saveVisitedChecks, getVisitedChecks, REGION_INK } from '../utils/passport';
 
 // =============================================================
 // 골프 여권 — 코스 탭 위에 덮이는 전체 화면 ([[golf-passport]], 2026-09-29)
 //  구성(사장님 결정 C안): ① 요약 카드(공유 이미지 그대로) ② 100대 구장 100칸 ③ 내 도장(지역별) — 지도는 뒤로 가면 그대로.
 //  ★Modal을 쓰지 않는다 — 코스 탭 목록 덮개와 같은 절대배치 덮개(zIndex 31). 안내창(AppAlert)만 띄우므로 모달 겹침 없음.
+//  ★덮개에 onStartShouldSetResponder를 달지 않는다(2026-09-30) — 덮개가 JS responder를 잡으면 안의 ScrollView 네이티브
+//    스크롤을 가로채, 버튼 없는 곳(요약 카드·제목·여백)에서 시작한 드래그가 안 먹는다. 첫 화면이 거의 요약 카드라
+//    "처음 화면이 살짝 멈췄다가 스크롤된다"(사용자)로 나타났다. 코스 상세 덮개(GuideScreen, e2a2398)와 같은 함정.
+//    밑의 지도로 터치가 새는 것은 CourseExploreTab이 여권이 열린 동안 아래 층을 pointerEvents 'none'으로 잠가 막는다.
 //  ★100칸 중 빈 칸은 Svg 없는 View(EmptyStamp) — Svg 100개를 한 번에 그리면 저사양 기기가 버벅인다.
 // =============================================================
+//  ★첫 화면은 가볍게(2026-09-30, 사용자 "처음 화면이 살짝 멈췄다가 스크롤된다") — 열자마자 보이는 것(요약 카드 + 100대 첫 5줄)만
+//    먼저 그리고, 나머지 75칸과 내 도장은 첫 장면이 뜬 뒤에 붙인다. 격자 높이는 미리 잡아 둬서 화면이 밀리지 않는다.
+//    격자·내 도장은 memo — 헤더 높이 측정·체크 동기화 같은 작은 상태 변화에 도장 백여 개를 다시 그리지 않는다.
 const GAP4 = 10, GAP5 = 8, PAD = 16;
+const FIRST_ROWS = 5;   // 첫 장면에 그리는 100대 줄 수(5열 × 5줄 = 25칸)
+
+const sameList = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+
+// 100대 구장 격자 — rows가 바뀔 때만 다시 그린다. total은 전체 칸 수(높이 예약용).
+const Top100Grid = React.memo(function Top100Grid({ rows, total, size, onPressRow }) {
+  const lines = Math.ceil(total / 5);
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP5, marginTop: 12, minHeight: lines ? lines * size + (lines - 1) * GAP5 : 0 }}>
+      {rows.map(row => (
+        <TouchableOpacity key={row.rank} onPress={() => onPressRow(row)} activeOpacity={0.75} style={{ width: size, height: size }}>
+          {row.visited
+            ? <PassportStamp size={size} ink={REGION_INK[row.stamp?.region] || C.burgundy} name={row.name} rank={row.rank}
+                date={row.stamp?.firstDate || null} count={row.stamp?.count || 0} manual={!row.stamp || row.stamp.count === 0} />
+            : <EmptyStamp size={size} rank={row.rank} />}
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+});
+
+// 내 도장 — 지역별 묶음. groups가 바뀔 때만 다시 그린다.
+const StampRegions = React.memo(function StampRegions({ groups, size, onPressStamp }) {
+  return groups.map(g => (
+    <View key={g.region} style={{ marginTop: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+        <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: g.ink }} />
+        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>{g.region}</Text>
+        <Text style={{ fontFamily: F.en, fontSize: fs(12), color: C.warmGray }}>{g.stamps.length}{g.total ? ` / ${g.total}` : ''}</Text>
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP4 }}>
+        {g.stamps.map(s => (
+          <TouchableOpacity key={s.key} onPress={() => onPressStamp(s)} activeOpacity={0.75} style={{ width: size, height: size }}>
+            <PassportStamp size={size} ink={g.ink} name={s.name} date={s.firstDate} count={s.count} manual={s.count === 0} best={s.best} />
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  ));
+});
 
 export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries = [], schedules = [], onPressCourse }) {
   const insets = useSafeAreaInsets();
@@ -37,12 +84,28 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
   const [addOpen, setAddOpen] = useState(false);
   const [addQuery, setAddQuery] = useState('');
 
-  // 직접 체크 복원 — 로컬+Firestore 합집합(재설치·타기기). 실패해도 화면은 뜬다(기록·일정 도장은 로컬 컨텍스트).
+  // 첫 장면이 그려진 다음 프레임에 나머지(100대 6줄~ + 내 도장)를 붙인다.
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    let r2 = 0;
+    const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setFull(true)); });
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); };
+  }, []);
+
+  // 직접 체크 복원 — ①로컬 먼저(수 ms) ②Firestore 합집합(재설치·타기기)은 그 뒤. 실패해도 화면은 뜬다(기록·일정 도장은 로컬 컨텍스트).
+  //   ★내용이 같으면 상태를 안 바꾼다 — 전엔 서버 응답이 올 때마다(열고 0.3~1초 뒤) 여권 전체를 다시 계산·다시 그려
+  //     막 스크롤을 시작한 순간과 겹쳤다.
   useEffect(() => {
     let alive = true;
-    Promise.all([syncVisitedChecksFromFirestore(), syncTop100ChecksFromFirestore()])
-      .then(([v, t]) => { if (alive) { setManualKeys(v || []); setTop100Checks(t || []); } })
-      .catch(() => {});
+    const put = (v, t) => {
+      if (!alive) return;
+      setManualKeys(prev => (sameList(prev, v || []) ? prev : (v || [])));
+      setTop100Checks(prev => (sameList(prev, t || []) ? prev : (t || [])));
+    };
+    (async () => {
+      try { const [v, t] = await Promise.all([getVisitedChecks(), getManualTop100Checks()]); put(v, t); } catch {}
+      try { const [v, t] = await Promise.all([syncVisitedChecksFromFirestore(), syncTop100ChecksFromFirestore()]); put(v, t); } catch {}
+    })();
     return () => { alive = false; };
   }, []);
 
@@ -104,12 +167,17 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
     setAddQuery(''); setAddOpen(false);
   };
 
-  const regionRows = pp.regionGroups.filter(g => g.region !== '기타' || g.stamps.length);
+  // 격자·내 도장(memo)에 넘기는 값은 참조를 고정한다 — 누름 핸들러는 최신 상태를 ref로 읽는다.
+  const pressRef = useRef({});
+  pressRef.current = { pressTop100, pressStamp };
+  const onPressRow = useCallback((row) => pressRef.current.pressTop100(row), []);
+  const onPressStamp = useCallback((s) => pressRef.current.pressStamp(s), []);
+  const gridRows = useMemo(() => (full ? pp.top100Rows : pp.top100Rows.slice(0, FIRST_ROWS * 5)), [full, pp.top100Rows]);
+  const stampGroups = useMemo(() => pp.regionGroups.filter(g => g.stamps.length), [pp.regionGroups]);
   const maxTotal = Math.max(1, ...pp.regionGroups.map(g => g.total));
 
   return (
-    <View onStartShouldSetResponder={() => true}
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bgPrimary, zIndex: 31, elevation: 31 }}>
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bgPrimary, zIndex: 31, elevation: 31 }}>
       {/* 헤더 — 코스 목록 헤더와 같은 버터 띠 한 줄(상태바 뒤까지). 절대배치 + translateY로 스크롤 시 위로 밀려 숨음. */}
       <Animated.View onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h && Math.abs(h - headerH) > 1) setHeaderH(h); }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, elevation: 2, transform: [{ translateY: headerY }],
@@ -182,16 +250,7 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
             <Text style={{ fontFamily: F.en, fontSize: fs(14), color: C.burgundy }}>{pp.top100Count} / {top100.length || 100}</Text>
           </View>
           <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 3 }}>빈 칸을 누르면 다녀온 구장으로 체크할 수 있어요</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP5, marginTop: 12 }}>
-            {pp.top100Rows.map(row => (
-              <TouchableOpacity key={row.rank} onPress={() => pressTop100(row)} activeOpacity={0.75} style={{ width: s5, height: s5 }}>
-                {row.visited
-                  ? <PassportStamp size={s5} ink={REGION_INK[row.stamp?.region] || C.burgundy} name={row.name} rank={row.rank}
-                      date={row.stamp?.firstDate || null} count={row.stamp?.count || 0} manual={!row.stamp || row.stamp.count === 0} />
-                  : <EmptyStamp size={s5} rank={row.rank} />}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Top100Grid rows={gridRows} total={pp.top100Rows.length} size={s5} onPressRow={onPressRow} />
           {top100.length === 0 && <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginTop: 10 }}>100대 구장 목록을 불러오는 중이에요…</Text>}
         </View>
 
@@ -238,22 +297,9 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
                 라운딩을 기록하거나 일정을 잡아두면{'\n'}다녀온 날 도장이 저절로 찍혀요.
               </Text>
             </View>
-          ) : regionRows.filter(g => g.stamps.length).map(g => (
-            <View key={g.region} style={{ marginTop: 16 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-                <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: g.ink }} />
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.charcoal }}>{g.region}</Text>
-                <Text style={{ fontFamily: F.en, fontSize: fs(12), color: C.warmGray }}>{g.stamps.length}{g.total ? ` / ${g.total}` : ''}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP4 }}>
-                {g.stamps.map(s => (
-                  <TouchableOpacity key={s.key} onPress={() => pressStamp(s)} activeOpacity={0.75} style={{ width: s4, height: s4 }}>
-                    <PassportStamp size={s4} ink={g.ink} name={s.name} date={s.firstDate} count={s.count} manual={s.count === 0} best={s.best} />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          ))}
+          ) : full ? (
+            <StampRegions groups={stampGroups} size={s4} onPressStamp={onPressStamp} />
+          ) : null}
         </View>
       </ScrollView>
     </View>

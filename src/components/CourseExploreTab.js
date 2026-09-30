@@ -28,7 +28,7 @@ import { getCurrentLocation, hasLocationPermission } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
 import { getSavedCourses, saveSavedCoursesOrder } from '../utils/savedCourses'; // 내 저장 골프장(위시리스트)
 import { getRecentCourses, addRecentCourse, clearRecentCourses } from '../utils/recentCourses';
-import { getTop100Courses, normalizeCourseName } from '../utils/top100';
+import { getTop100Courses, normalizeCourseName, top100RankOf } from '../utils/top100';
 import { naverSearchUrl } from '../utils/naverMap';
 
 // 주변 연습장·스크린골프 결과 디스크 캐시 — 위치 fix 간헐 실패·카카오 일시오류(429·순단) 시 직전 성공값 폴백.
@@ -100,7 +100,7 @@ function MoreButton({ moreCount, expanded, onPress }) {
 }
 
 // forwardRef — 코스 탭 재탭(tabPress) 시 부모(GuideScreen)가 scrollToTop()을 호출해 목록을 맨 위로 올림.
-export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectCourse, onOpenPreview, onOpenCourseLog, region: regionProp, onRegionChange, top100: top100Prop, master: masterProp }, ref) {
+export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectCourse, onOpenPreview, onOpenCourseLog, region: regionProp, onRegionChange, top100: top100Prop, master: masterProp, startInPassport = false }, ref) {
   const scrollRef = useRef(null);   // 메인 목록 ScrollView — 스크롤 톱 복귀용
   const mapExpRef = useRef(null);   // 지도(CourseMapExplore) — 탭 재탭 시 전국 뷰 리셋용
   useImperativeHandle(ref, () => ({
@@ -141,7 +141,12 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   //   지도는 이 Map으로 ①다녀온 구장 위에 남색 마커를 '얹고'(기존 핀 무변경) ②카드에 '다녀옴 n번 · 베스트 n타' 칩.
   const { diaries } = useContext(DiariesContext);
   const { schedules } = useContext(SchedulesContext);   // 골프 여권 — 지난 일정 도장용
-  const [passportOpen, setPassportOpen] = useState(false); // 골프 여권 덮개(지도·목록 어느 모드 위에서든 열림, z 31)
+  const [passportOpen, setPassportOpen] = useState(!!startInPassport); // 골프 여권 덮개(지도·목록 어느 모드 위에서든 열림, z 31)
+  // ★여권으로 바로 들어온 첫 진입(홈 레일·내 스코어·새 도장 '여권 보기')이면 지도를 나중에 올린다(2026-09-30).
+  //   코스 탭이 처음 열리는 순간이라 지도 핀 478개가 여권 밑에서 같이 마운트되는데, 그 2~3초 동안 메인 스레드가 잠겨
+  //   여권 스크롤이 "살짝 멈췄다가" 움직였다(사용자 2026-09-30). 여권을 닫는 순간 지도를 올린다(그때부턴 평소 첫 진입과 같다).
+  const [mapMounted, setMapMounted] = useState(!startInPassport);
+  useEffect(() => { if (!passportOpen && !mapMounted) setMapMounted(true); }, [passportOpen, mapMounted]);
   const visitedStats = useMemo(() => {
     const m = new Map();
     const cache = new Map();
@@ -298,8 +303,14 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
       .catch(() => Linking.openURL('https://map.naver.com/'));
   };
 
-  // 지역 100대 코스 항목 탭 → 카카오 검색으로 해당 코스 열기 (목록엔 좌표가 없어서 검색으로 해석)
+  // 지역 100대 코스 항목 탭 → 해당 코스 열기 (목록엔 좌표가 없어서 마스터·검색으로 해석)
+  //   ★마스터에서 먼저 찾는다(2026-09-30) — 검색 1위를 그대로 열면 이름이 비슷한 다른 구장이 열린다
+  //     ('한양 컨트리클럽' → '한양파인CC'). 여권·배지와 같은 규칙(top100RankOf, 큐레이션 포함)으로 순위가 맞는 구장만.
+  //     다중코스(라비에벨 올드·듄스)는 이름순 첫 코스. 마스터에 없는 구장(트리니티 등)만 아래 검색으로.
   const openTop100Course = async (c) => {
+    const hit = master.filter(m => top100RankOf([c], m.name) === c.rank)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))[0];
+    if (hit) { openMasterCourse(hit); return; }
     try {
       const list = await searchGolfCourses(c.name);
       const top = list && list[0];
@@ -364,9 +375,12 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   //   토글 먹통의 원인이었다. 재생성 2~3초(빈 지도+스피너)도 함께 사라진다.
   //   ★display:none 토글 금지 — 안드 MapView가 GONE 되면 서피스가 죽어 재표시 때 회색 지도 고질병.
   //   ★덮개엔 onStartShouldSetResponder — 버튼 없는 맨 영역의 터치가 밑의 지도로 새어 몰래 팬 되는 것 차단.
+  //   ★여권이 열린 동안엔 아래 층(지도·목록)을 통째로 pointerEvents 'none' — 여권 덮개는 responder를 잡지 않으므로
+  //     (잡으면 여권 스크롤이 막힌다) 터치 누수는 여기서 막는다. GuideScreen의 상세 오버레이 잠금과 같은 방식(2026-09-30).
   return (
     <View style={{ flex: 1 }}>
-    {MAP_OK && (
+    <View style={{ flex: 1 }} pointerEvents={passportOpen ? 'none' : 'auto'}>
+    {MAP_OK && mapMounted && (
       <CourseMapExplore ref={mapExpRef} master={master} top100={top100} savedFav={savedFav} visited={visitedStats}
         onPressCourse={openMasterCourse} onOpenCourseLog={onOpenCourseLog}
         onSwitchToList={() => setViewMode('list')} onOpenPassport={() => setPassportOpen(true)} />
@@ -818,6 +832,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
     )}
     </View>
     )}
+    </View>
     {/* 골프 여권 — 지도·목록 어느 모드 위에서든 덮는 전체 화면(z 31 > 목록 덮개 30). 뒤로 가면 아래 모드 그대로. */}
     {passportOpen && (
       <GolfPassportScreen onClose={() => setPassportOpen(false)}

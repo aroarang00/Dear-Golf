@@ -17,7 +17,21 @@ let inflight = null;       // 진행 중 fetch dedupe
 //  - 공백/문장부호 제거, 골프장 유형어(CC/GC/골프&리조트 등) 제거
 //  - 다중 코스 구분어(올드/뉴 등 '코스')도 제거 — 같은 골프장의 표기 차이 흡수
 //    예: '라비에벨CC 올드코스' 와 '라비에벨 골프 & 리조트' 가 모두 '라비에벨'로 매칭
+//  ★결과를 캐시한다(2026-09-30) — 여권·방문 집계가 마스터 478곳 × 내 구장 수만큼 이 함수를 불러(정규식 6번씩)
+//    화면을 열 때마다 JS가 잠깐 멈췄다. 순수 함수라 같은 이름은 한 번만 계산하면 된다.
+const _normCache = new Map();
 export function normalizeCourseName(name) {
+  if (typeof name === 'string') {
+    const hit = _normCache.get(name);
+    if (hit !== undefined) return hit;
+    const out = normalizeCourseNameRaw(name);
+    if (_normCache.size > 4000) _normCache.clear();   // 검색어 타이핑으로 무한히 쌓이지 않게
+    _normCache.set(name, out);
+    return out;
+  }
+  return normalizeCourseNameRaw(name);
+}
+function normalizeCourseNameRaw(name) {
   let s = (name || '').toLowerCase().trim();
   s = s.replace(/\s+/g, '');
   // 골프장 유형어 제거 — CC/GC/컨트리클럽/골프&리조트 등 표기 차이 흡수
@@ -85,6 +99,12 @@ const TOP100_CURATION = {
   21: { mode: 'course', prefixes: ['72하늘'] },        // 클럽72 — 하늘코스만 100대(레이크·클래식·오션 제외)
   22: { mode: 'course', prefixes: ['소노펠리체비발디파크east'] }, // 소노펠리체 CC — EAST(비발디파크 홍천)만 100대(WEST·마운틴·델피노 제외)
   45: { mode: 'resort', prefixes: ['휘닉스평창'] },   // 휘닉스 평창 CC — 휘닉스CC
+  // 표기가 다른 구장(2026-09-30) — 100대 목록 이름과 마스터(카카오) 이름이 달라 연결이 끊기던 것.
+  //   53 '한양 컨트리클럽'(고양) = 마스터 '서울한양CC'. 이름이 '한양'으로 시작하는 '한양파인CC'(옆의 9홀 대중제)는 다른 구장 —
+  //   100대 목록에서 눌렀을 때 검색 1위가 한양파인이라 엉뚱한 구장이 열렸다(사용자 2026-09-30).
+  //   66 '파인리지 리조트'(고성) = 마스터 '파인리즈CC'(목록 쪽 표기 차이).
+  53: { mode: 'resort', prefixes: ['서울한양'] },
+  66: { mode: 'resort', prefixes: ['파인리즈'] },
   78: { mode: 'resort', prefixes: ['무주덕유산'] },   // 덕유산 CC — 무주덕유산CC
 };
 

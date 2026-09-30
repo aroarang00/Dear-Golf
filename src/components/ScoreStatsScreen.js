@@ -51,7 +51,9 @@ export function ScoreSparkline({ scores, width, height = 32 }) {
 
 // 스코어 진입 배너(공용) — 미니 추세 스파크라인 + 평균·베스트·핸디 + 하이라이트 배지 + CTA.
 //   MY 명함 화면·내 코스 모아보기 양쪽에서 같은 배너 사용(onPress로 ScoreStatsScreen 진입). 다이어리 클라 집계라 추가 저장 0.
-export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible = false }) {
+//   onPressPassport를 주면 제목 옆에 '여권 n' 알약이 붙는다 — MY의 골프 여권 입구(2026-09-30, 사용자 "내 스코어 안에 넣던가").
+//   따로 배너를 하나 더 두지 않고 스코어 카드 안에 넣는다. 접기 버튼처럼 배너 탭(통계 진입)과 분리된 터치영역.
+export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible = false, passportCount = 0, onPressPassport }) {
   // collapsible이면 '기본 접힘'으로 시작 — 평소엔 한 줄로 깔끔, 필요할 때만 펼침. 로컬 상태라
   //   다른 화면 갔다 오면(재마운트) 다시 접힌다. 비-collapsible(코스 모아보기)은 항상 펼침.
   const [collapsed, setCollapsed] = useState(collapsible);
@@ -98,7 +100,19 @@ export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible 
       <SurfaceLight radius={12} tone="dark" />
       {/* 상단 — 제목 + 평균·베스트·핸디 */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>내 스코어</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, minWidth: 0, marginRight: 8 }}>
+          <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>내 스코어</Text>
+          {!!onPressPassport && (
+            <TouchableOpacity onPress={onPressPassport} activeOpacity={0.75} hitSlop={{ top: 12, bottom: 12, left: 6, right: 8 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1, paddingHorizontal: 8, paddingVertical: 4,
+                borderRadius: 9, backgroundColor: 'rgba(245,230,168,0.16)' }}>
+              <Icon name="idCard" size={fs(13)} color={C.butter} strokeWidth={1.9} />
+              <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter, includeFontPadding: false }}>
+                여권{passportCount > 0 ? ` ${passportCount}` : ''}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           {[['평균', avg], ['베스트', best], ['핸디', handi]].map(([l, v]) => (
             <View key={l} style={{ alignItems: 'center' }}>

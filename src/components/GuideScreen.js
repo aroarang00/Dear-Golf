@@ -317,6 +317,9 @@ export function GuideScreen({ route, navigation }) {
     storage.save(STORAGE_KEYS.favorites, favorites);
   }, [favorites, favoritesHydrated]);
 
+  // 코스 탭이 '여권 열기'로 처음 마운트됐는지 — 그렇다면 지도를 여권 밑에서 같이 올리지 않는다(CourseExploreTab 참고, 2026-09-30).
+  const startInPassportRef = useRef(!!route?.params?.openPassport);
+  useEffect(() => { startInPassportRef.current = false; }, []);   // 첫 마운트에만 — 나중에 CourseExploreTab이 다시 마운트돼도 여권이 저절로 열리지 않게
   // 골프 여권 열기 — 새 도장 연출 '여권 보기'가 { openPassport } 로 들어온다. 상세가 떠 있으면 닫고 여권 덮개를 연다.
   //   ★탭 재탭(resetHome)과 달리 navigate는 tabPress를 안 내므로 지도 리셋과 충돌 없음.
   useEffect(() => {
@@ -1640,6 +1643,7 @@ export function GuideScreen({ route, navigation }) {
         style={{ flex: 1, backgroundColor: C.bgPrimary, paddingLeft: insets.left, paddingRight: insets.right }}>
         <CourseExploreTab
           ref={exploreRef}
+          startInPassport={startInPassportRef.current}
           region={exploreRegion}
           onRegionChange={setExploreRegion}
           top100={top100}

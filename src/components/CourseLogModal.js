@@ -4,6 +4,7 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { Icon } from './common/Icon';
 import { CourseLogTab } from './CourseLogTab';
+import { ROUTES } from '../constants/routes';
 
 // 내 코스기록 — 코스 탭 헤더에서 진입하는 전체화면 페이지.
 // 라운딩 통계는 MY 탭에 있으므로 여기선 코스 목록만 보여준다.
@@ -55,6 +56,16 @@ export function CourseLogModal({ visible, onClose, navigation }) {
                 <Icon name="book" size={fs(18)} color="#fff" strokeWidth={1.8} />
               </TouchableOpacity>
             </View>
+            {/* 골프 여권 입구(2026-09-30, 사용자 "내 코스 모아보기에서도 진입점") — 코스 목록 헤더의 '여권' 알약과 같은 모양.
+                wrappedNav가 이 모달을 먼저 닫고(iOS는 닫힘이 끝난 뒤) 코스 탭 여권으로 간다 — 모달 위에 화면 전환을 겹치지 않는다. */}
+            {!!wrappedNav && (
+              <TouchableOpacity onPress={() => wrappedNav.navigate(ROUTES.COURSE, { openPassport: true })} activeOpacity={0.75}
+                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: C.charcoal }}>
+                <Icon name="idCard" size={fs(13)} color={C.butter} strokeWidth={1.9} />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter, includeFontPadding: false }}>여권</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <CourseLogTab navigation={wrappedNav} />

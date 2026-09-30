@@ -8,7 +8,7 @@ import { showAppAlert } from './AppAlert'; // 안내(책) — 헤더 없는 풀�
 import { Spinner } from './common/Spinner'; // 핀 로딩 표시(공용 스피너, [[feedback-loading-spinner]])
 import { C, F, fs } from '../constants/colors';
 import { searchGolfCourses } from '../utils/golfCourses';
-import { normalizeCourseName } from '../utils/top100';
+import { normalizeCourseName, top100RankOf } from '../utils/top100';
 import { courseKey } from '../utils/courseNameKey';   // 다녀온 구장 매칭 키(CourseExploreTab visitedStats와 같은 규칙)
 import { getCurrentLocation } from '../utils/location';
 
@@ -114,10 +114,14 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
 
   // 100대 매칭 — 정규화 이름 → 순위 (마스터 핀에 금색·뱃지)
   const rankMap = useMemo(() => {
+    //   ★top100RankOf(큐레이션 포함)로 판정(2026-09-30) — 이름 완전일치만 보면 표기가 다른 구장(서울한양CC=53위)과
+    //     다중코스 리조트(클럽72 하늘코스=21위)가 금색 핀·순위 뱃지에서 빠진다. 여권·코스 상세 배지와 같은 규칙.
     const m = new Map();
-    top100.forEach(c => m.set(normalizeCourseName(c.name), c.rank));
+    const put = (name) => { const r = top100RankOf(top100, name); if (r != null) m.set(normalizeCourseName(name), r); };
+    top100.forEach(c => put(c.name));
+    master.forEach(c => put(c.name));
     return m;
-  }, [top100]);
+  }, [top100, master]);
   const savedIds = useMemo(() => new Set(savedFav.map(s => String(s.kakaoId))), [savedFav]);
 
   const allPins = useMemo(() => master.filter(c => Number.isFinite(c.x) && Number.isFinite(c.y)), [master]);
