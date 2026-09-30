@@ -16,7 +16,8 @@ export function setTabBarHidden(hidden) {
   Animated.timing(tabBarHide, { toValue: hidden ? 1 : 0, duration: 200, useNativeDriver: true }).start();
 }
 
-// 화면 훅 — { hide(자기 헤더용 0/1), onScroll }. ScrollView에 onScroll={onScroll} scrollEventThrottle={16}.
+// 화면 훅 — { hide(자기 헤더용 0/1), onScroll, show }. ScrollView에 onScroll={onScroll} scrollEventThrottle={16}.
+//   show(): 강제로 다시 보이기 — 탭 화면(홈)은 언마운트되지 않으므로, 탭바가 숨은 채 다른 탭으로 넘어갈 때(blur) 직접 부른다.
 //   threshold: 방향이 바뀐 뒤 이만큼 누적 이동해야 전환(손 떨림·관성 끝 미세 역주행 무시).
 export function useScrollHide({ threshold = 12, minY = 48 } = {}) {
   const hide = useRef(new Animated.Value(0)).current;
@@ -41,6 +42,7 @@ export function useScrollHide({ threshold = 12, minY = 48 } = {}) {
     if (acc.current > threshold) set(true);
     else if (acc.current < -threshold) set(false);
   }, [set, minY, threshold]);
+  const show = useCallback(() => { acc.current = 0; set(false); }, [set]);
   useEffect(() => () => setTabBarHidden(false), []);   // 화면 이탈 시 탭바 복원
-  return { hide, onScroll };
+  return { hide, onScroll, show };
 }

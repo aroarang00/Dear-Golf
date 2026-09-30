@@ -81,6 +81,7 @@ import { showToast } from './AppToast'; // 순수 성공 알림('초대를 보�
 import { getGolfCourses } from '../utils/golfCourses'; // 코스 지도 프리페치 — 탭 열기 전 마스터 477곳 준비(핀 2~3초 지연 해소, 2026-08-26)
 import { getTop100Courses } from '../utils/top100';
 import { usePassportCounts } from '../hooks/usePassportCounts';   // 골프 여권 레일 버튼 숫자([[golf-passport]] 3단계)
+import { useScrollHide } from '../utils/tabBarHide';              // 스크롤 방향으로 하단 탭바 숨김(여권 화면과 같은 훅, 2026-09-30)
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -175,13 +176,17 @@ export function HomeScreen({ navigation, route }) {
   // 홈 스크롤 원위치 — 다른 탭 갔다 오면 맨 위부터(사용자 2026-08-27, 코스 탭 blur 리셋과 동일 컨벤션).
   //   blur에서 애니메이션 없이 올려 돌아올 때 이미 맨 위 상태로 보인다. 재탭(tabPress)도 동일.
   const homeScrollRef = useRef(null);
+  // ★하단 탭바 숨김(2026-09-30, 사용자 "여권 화면처럼 홈도 스크롤에 따라 하단 메뉴가 안 보이게") — 내려 읽으면 숨고, 되돌리면 나타난다.
+  //   맨 위 근처(48px)에선 항상 보인다. 홈은 탭 화면이라 언마운트되지 않으므로, 탭바가 숨은 채 홈 안의 버튼(여권·알림 등)으로
+  //   다른 탭에 가면 거기서도 탭바가 없다 → blur에서 반드시 다시 보이게 한다(showTabBar).
+  const { onScroll: onTabHideScroll, show: showTabBar } = useScrollHide();
   useEffect(() => {
     if (!navigation?.addListener) return undefined;
-    const toTop = () => homeScrollRef.current?.scrollTo({ y: 0, animated: false });
+    const toTop = () => { showTabBar(); homeScrollRef.current?.scrollTo({ y: 0, animated: false }); };
     const un1 = navigation.addListener('blur', toTop);
     const un2 = navigation.addListener('tabPress', () => { if (navigation.isFocused?.()) homeScrollRef.current?.scrollTo({ y: 0, animated: true }); });
     return () => { un1(); un2(); };
-  }, [navigation]);
+  }, [navigation, showTabBar]);
   // 빈 상태 '친구 추가' CTA 노출 판별 — 진짜 친구 수(accepted)로만. friendMeta는 별명·그룹 지정분만이라 0명 판별엔 부정확.
   //   null=미확정(로드 전엔 CTA 숨겨 깜빡임 방지), false=친구 0명일 때만 보조 CTA 노출.
   const [hasFriends, setHasFriends] = useState(null);
@@ -919,7 +924,10 @@ export function HomeScreen({ navigation, route }) {
   const HDR_COLLAPSE_AT = 64;
   const onHomeScroll = useMemo(() => Animated.event([{ nativeEvent: { contentOffset: { y: homeScrollY } } }], {
     useNativeDriver: true,
-    listener: (e) => { const c = e.nativeEvent.contentOffset.y > HDR_COLLAPSE_AT; setHdrCollapsed(prev => (prev === c ? prev : c)); },
+    listener: (e) => {
+      const c = e.nativeEvent.contentOffset.y > HDR_COLLAPSE_AT; setHdrCollapsed(prev => (prev === c ? prev : c));
+      onTabHideScroll(e);   // 스크롤 방향으로 하단 탭바 숨김/복귀(onTabHideScroll은 참조가 고정된 콜백)
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
   const hdrBarStyle = {
