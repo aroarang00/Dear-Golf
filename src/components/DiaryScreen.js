@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Platform, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Animated } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -40,6 +40,7 @@ import { getTop100Courses } from '../utils/top100';               // 새 도장 
 import { detectNewStamp, getVisitedChecks } from '../utils/passport';   // 골프 여권 새 도장 판정([[golf-passport]])
 import { showNewStamp } from './NewStampHost';                    // 새 도장 '쾅' 연출(전역 호스트)
 import { usePassportCounts } from '../hooks/usePassportCounts';   // 내 스코어 배너 안 '여권 n' 알약 숫자
+import { useScrollHide, tabBarHide } from '../utils/tabBarHide';  // 스크롤 방향으로 하단 탭바 숨김(홈·여권과 같은 훅, 2026-09-30)
 import { fetchKakaoProfileImage } from '../utils/kakaoAuth';
 import { persistPhoto, resolvePhotoUri } from '../utils/photoStorage';
 import { uploadAvatar } from '../utils/avatarStorage';
@@ -110,6 +111,11 @@ export function DiaryScreen({ route, navigation }) {
   const [passportTick, setPassportTick] = useState(0);
   useEffect(() => (navigation?.addListener ? navigation.addListener('focus', () => setPassportTick(t => t + 1)) : undefined), [navigation]);
   const passport = usePassportCounts(diaries, schedules, passportTick);
+  // ★하단 탭바 숨김(2026-09-30, 사용자 "MY에서도 마찬가지로") — 피드를 내려 읽으면 숨고, 되돌리면 나타난다. 맨 위 48px 안에선 항상 보임.
+  //   MY는 탭 화면이라 언마운트되지 않는다 → 탭바가 숨은 채 화면이 바뀌는 길목(다른 탭으로 blur · 기록 상세 진입)에서 showTabBar로 복원.
+  //   + FAB는 탭바 바로 위에 떠 있으므로, 탭바가 내려가면 같은 값(tabBarHide)으로 60px 같이 내려 빈 자리를 메운다.
+  const { onScroll: onTabHideScroll, show: showTabBar } = useScrollHide();
+  const fabY = useRef(tabBarHide.interpolate({ inputRange: [0, 1], outputRange: [0, 60] })).current;
   // 친구 좋아요 표시용 — 내 다이어리 likes(uid)를 닉네임으로 해석 (좋아요는 친구만 가능)
   const [friendNameByUid, setFriendNameByUid] = useState({});
   const [diagOn, setDiagOn] = useState(false);   // ★임시 진단 — 보기 방식 줄 왼쪽 빈 곳을 길게 누르면 사진 위에 로드 정보 표시
@@ -173,15 +179,18 @@ export function DiaryScreen({ route, navigation }) {
   //   그대로 남아 있었다(사용자 2026-07-22). collapseSignal이 바뀌면 DiaryCard들이 일제히 접힌다.
   const [collapseSignal, setCollapseSignal] = useState(0);
   const [rowOpenId, setRowOpenId] = useState(null);   // 요약보기에서 그 자리에 펼친 행(한 번에 하나)
+  // 기록 상세로 들어가면(목록 ScrollView가 내려가고 상세가 뜬다) 탭바를 다시 보이게 — 상세엔 스크롤 숨김이 없어 숨은 채로 남는다.
+  useEffect(() => { if (selected) showTabBar(); }, [selected, showTabBar]);
   useEffect(() => {
     if (!navigation?.addListener) return;
     const unsub = navigation.addListener('blur', () => {
+      showTabBar();                // 탭바가 숨은 채 다른 탭으로 넘어가지 않게
       setScoreBannerKey(k => k + 1);
       setCollapseSignal(n => n + 1);
       setRowOpenId(null);          // 요약보기에서 펼쳐둔 행도 원위치
     });
     return unsub;
-  }, [navigation]);
+  }, [navigation, showTabBar]);
   // 미기록 라운딩 — 지난 일정(오늘은 티오프+4h 경과분만) 중 라운딩 기록이 1:1로 배정되지 않은 것.
   //  · 같은 날 같은 구장 2건(36홀·더블)도 각각 일정-기록 1:1로 매칭(정책: 2건 따로 지원)
   //  · 기록의 scheduleId가 가리키던 일정이 삭제(dangling)됐어도 course+date로 다시 이어 '이미 기록인데 미기록으로 떠 중복 기록'을 방지
@@ -814,6 +823,7 @@ export function DiaryScreen({ route, navigation }) {
           if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 600) {
             setFeedLimit(l => (l < filtered.length ? l + feedStep : l));
           }
+          onTabHideScroll(e);   // 스크롤 방향으로 하단 탭바 숨김/복귀
         }}
         scrollEventThrottle={16}
         stickyHeaderIndices={[2]}
@@ -1153,13 +1163,16 @@ export function DiaryScreen({ route, navigation }) {
       </ScrollView>
 
       {/* + 다이어리 추가 — 우하단 FAB */}
-      <TouchableOpacity onPress={openAddFlow} activeOpacity={0.85}
-        style={{ position: 'absolute', bottom: insets.bottom + 84, right: 20, width: 56, height: 56, borderRadius: 28,
-          backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center',
-          shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 8, elevation: 6 }}>
-        <View style={{ width: 18, height: 2.5, borderRadius: 1, backgroundColor: '#fff' }} />
-        <View style={{ position: 'absolute', width: 2.5, height: 18, borderRadius: 1, backgroundColor: '#fff' }} />
-      </TouchableOpacity>
+      {/* ★탭바가 스크롤로 숨으면 FAB도 같이 60px 내려간다(fabY) — 탭바 자리가 비는데 버튼만 떠 있지 않게. 위치는 Animated.View가 잡는다. */}
+      <Animated.View style={{ position: 'absolute', bottom: insets.bottom + 84, right: 20, transform: [{ translateY: fabY }] }}>
+        <TouchableOpacity onPress={openAddFlow} activeOpacity={0.85}
+          style={{ width: 56, height: 56, borderRadius: 28,
+            backgroundColor: C.burgundy, alignItems: 'center', justifyContent: 'center',
+            shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 8, elevation: 6 }}>
+          <View style={{ width: 18, height: 2.5, borderRadius: 1, backgroundColor: '#fff' }} />
+          <View style={{ position: 'absolute', width: 2.5, height: 18, borderRadius: 1, backgroundColor: '#fff' }} />
+        </TouchableOpacity>
+      </Animated.View>
 
       <DiaryAddModal visible={showModal} onClose={handleAddModalClose} onSave={handleSave} initial={addSeed}
         loadableRounds={unrecordedRounds}

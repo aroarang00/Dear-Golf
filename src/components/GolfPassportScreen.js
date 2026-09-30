@@ -69,7 +69,7 @@ const StampRegions = React.memo(function StampRegions({ groups, size, onPressSta
 
 export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries = [], schedules = [], onPressCourse }) {
   const insets = useSafeAreaInsets();
-  const { width: W } = useWindowDimensions();
+  const { width: W, height: H } = useWindowDimensions();
   const s4 = Math.floor((W - PAD * 2 - GAP4 * 3) / 4);   // 내 도장 4열
   const s5 = Math.floor((W - PAD * 2 - GAP5 * 4) / 5);   // 100대 구장 5열
   const cardRef = useRef(null);
@@ -83,6 +83,16 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
   const [sharing, setSharing] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addQuery, setAddQuery] = useState('');
+  // ★'예전에 간 구장 추가'를 열면 그 칸을 화면 맨 위로 올린다(2026-09-30, 사용자 "자동검색이 안 된다").
+  //   검색은 글자마다 돌고 있었는데, 입력칸이 화면 아래쪽(내 도장 구역)에 있어 결과 목록이 키보드 뒤에 깔려 안 보였다.
+  //   구역 위치(onLayout)로 스크롤 + 열려 있는 동안 아래 여백을 늘려 끝까지 올릴 수 있게 한다.
+  const scrollRef = useRef(null);
+  const stampSecY = useRef(0);
+  useEffect(() => {
+    if (!addOpen) return undefined;
+    const t = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, stampSecY.current - insets.top - 8), animated: true }), 80);
+    return () => clearTimeout(t);
+  }, [addOpen, insets.top]);
 
   // 첫 장면이 그려진 다음 프레임에 나머지(100대 6줄~ + 내 도장)를 붙인다.
   const [full, setFull] = useState(false);
@@ -194,7 +204,8 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
         </TouchableOpacity>
       </Animated.View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: headerH, paddingBottom: insets.bottom + 96 }}
+      <ScrollView ref={scrollRef} style={{ flex: 1 }}
+        contentContainerStyle={{ paddingTop: headerH, paddingBottom: insets.bottom + 96 + (addOpen ? Math.round(H * 0.7) : 0) }}
         onScroll={onScroll} scrollEventThrottle={16}
         showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* ── ① 요약 카드 = 공유 이미지. 남색 바탕에 도장 수·100대·지역 진행·최근 도장 3개. */}
@@ -255,7 +266,7 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
         </View>
 
         {/* ── ③ 내 도장 — 지역별, 다녀온 것만. 478칸을 빈칸으로 늘어놓지 않는다(압도됨). */}
-        <View style={{ marginTop: 26, paddingHorizontal: PAD }}>
+        <View onLayout={(e) => { stampSecY.current = e.nativeEvent.layout.y; }} style={{ marginTop: 26, paddingHorizontal: PAD }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>내 도장 <Text style={{ fontFamily: F.en, color: C.burgundy }}>{pp.stampCount}</Text></Text>
             <TouchableOpacity onPress={() => { setAddOpen(v => !v); setAddQuery(''); }} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -270,7 +281,8 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
             <View style={{ marginTop: 10, backgroundColor: C.bgSecondary, borderRadius: 12, borderWidth: 1, borderColor: C.hairline, padding: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.bgPrimary, borderRadius: 10, paddingHorizontal: 10 }}>
                 <Icon name="search" size={fs(15)} color={C.warmGray} />
-                <AppTextInput value={addQuery} onChangeText={setAddQuery} placeholder="구장 이름" placeholderTextColor={C.warmGray} autoFocus
+                <AppTextInput value={addQuery} onChangeText={setAddQuery} placeholder="구장 이름 (예: 한양, 파인비치)" placeholderTextColor={C.warmGray} autoFocus
+                  autoCorrect={false} returnKeyType="search"
                   style={{ flex: 1, paddingVertical: Platform.OS === 'android' ? 8 : 10, paddingHorizontal: 8, fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }} />
               </View>
               {addResults.map(c => (
@@ -283,7 +295,8 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
                   <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.navy }}>도장 찍기</Text>
                 </TouchableOpacity>
               ))}
-              {!!addQuery.trim() && addResults.length === 0 && (
+              {/* 한글 조합 중(ㅎ·하ㄴ처럼 낱자음·모음이 섞인 상태)엔 '없어요'를 띄우지 않는다 — 글자마다 깜빡이지 않게. */}
+              {!!addQuery.trim() && addResults.length === 0 && !/[ㄱ-ㅎㅏ-ㅣ]/.test(addQuery) && (
                 <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, paddingVertical: 10, paddingHorizontal: 4 }}>찾는 구장이 없어요. 다른 이름으로 검색해 보세요.</Text>
               )}
             </View>
