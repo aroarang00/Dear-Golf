@@ -69,6 +69,94 @@ App Store Connect · Google Play Console · TestFlight에 입력할 텍스트 �
 ## 키워드 (App Store, 100자 · 쉼표 구분, ★2026-10-01)
 > 골프,라운딩,골프장,스코어,골프 일정,골프 기록,스코어카드,골프 정산,골프 모임,100대 코스
 
+## 이 버전의 새로운 기능 (1.2.0, 양 스토어 공용, ★2026-10-01)
+
+```
+디어골프가 새 아이콘과 한글 이름으로 돌아왔어요.
+
+• 골프 여권: 다녀온 구장마다 도장이 찍히고, 100대 코스 달성 현황을 한눈에
+• 코스 지도: 전국 골프장을 지도에서 바로 찾고 저장·다녀온 구장 표시
+• 모임 정산 개편: 선입금·정산·회비를 질문 몇 개로 만들고 카톡 전송까지 한 번에
+• 회비 걷기가 회비 장부와 연결되고, 미납자가 목록에서 바로 보여요
+• 일정에서 선입금 걷기·정산하기 바로 시작
+• 친구 기록에 댓글·답글, 모임 대문에 즐겨찾는 친구·내 크루
+• 홈 화면 새 단장: 주간 달력, 친구 소식, 스크롤하면 숨는 탭바
+• 스코어카드 사진 인식 정확도 향상
+• 친구가 보낸 스코어를 받을 때 내 기록과 겹치지 않게 정리
+• 그 밖에 자잘한 오류 수정과 속도 개선
+```
+
+---
+
+## English (App Store 영어 현지화, ★2026-10-01)
+
+- Name: **Dear Golf**
+- Subtitle (30): `Every round, made memorable`
+- Promotional text (170):
+  > A golf passport that stamps every course you play, scores entered from one photo of your scorecard, and group settlements that make the treasurer's life easy.
+- Keywords (100): `golf,round,golf course,score,scorecard,tee time,golf diary,golf group,golf buddies,golf trip`
+
+### Description
+```
+Dear Golf is the golf-life app that makes every round more memorable.
+From planning and prep to scores, group money and memories — a golfer's day in one place.
+
+[ Golf Passport ]
+· Every course you play earns a stamp. See how many you have visited by region
+· Track your progress on Korea's Top 100 courses
+· Share your passport card with friends
+
+[ Course Map ]
+· Find courses across Korea on a map
+· Save courses you want to play, mark the ones you have played
+· Your best and average score, and visit history, per course
+
+[ Scores ]
+· Snap a photo of your scorecard — hole-by-hole scores are filled in for you
+· Keep round diaries with photos and videos
+· Accept scores a playing partner shares with you
+· Hole-in-ones, eagles and your first single get a keepsake card in the Hall of Fame
+· Score trends and per-course stats
+
+[ Before the Round ]
+· D-day countdown and a weekly calendar at a glance
+· Hourly weather and a golf index for the course location
+· Wake-up and departure alarms counted back from your tee time, with traffic estimates
+· Share schedules with partners — add once, it appears on their calendar too
+
+[ Group Settlements — for the treasurer ]
+· Create a prepayment, a split or monthly dues in a few taps and send it to the group chat
+· Add a receipt photo or card-payment text and amounts are split per person
+· Members tap "Sent" on a link — no app needed
+· Reminder messages written for you, only for those who have not paid
+· A club ledger keeps the group account, linked to dues collection
+
+[ Together ]
+· Comment and reply on friends' rounds
+· Shared crew albums and notices
+· Find playing partners, pick a place to eat after the round, 1:1 messages
+
+Start today with Dear Golf and make every round a little more special.
+
+Contact: deargolf.official@gmail.com
+```
+
+### What's New (1.2.0)
+```
+Dear Golf is back with a new icon.
+
+• Golf Passport: a stamp for every course you play, plus your Top 100 progress
+• Course Map: find courses across Korea, save them, and mark the ones you have played
+• Group settlements rebuilt: prepayments, splits and dues in a few taps, sent straight to your group chat
+• Dues collection now links to the club ledger, and unpaid members show right in the list
+• Start a prepayment or settlement directly from a schedule
+• Comments and replies on friends' rounds; favorite friends and your crews on the Groups page
+• Refreshed home screen: weekly calendar, friends' updates, tab bar that hides as you scroll
+• Better scorecard photo recognition
+• Scores shared by a partner no longer duplicate your own record
+• Bug fixes and performance improvements
+```
+
 ## 개인정보 처리방침 URL (★배포됨)
 - `https://deargolf.app/privacy`
 
