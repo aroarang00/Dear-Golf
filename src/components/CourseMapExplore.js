@@ -316,7 +316,9 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
           }
         }}
         onMarkerPress={(e) => { const c = pinIndex.get(String(e?.nativeEvent?.id)); if (c) setSel(c); }}
-        onPress={(e) => { if (e?.nativeEvent?.action === 'marker-press') return; setSel(null); }}
+        // 지도를 탭하거나 끌면 검색 키보드부터 내린다 — 검색창 밖(지도)을 눌러도 키보드가 안 내려갔다(사용자 2026-10-01).
+        onPress={(e) => { Keyboard.dismiss(); if (e?.nativeEvent?.action === 'marker-press') return; setSel(null); }}
+        onPanDrag={() => Keyboard.dismiss()}
         showsUserLocation={false}     // 기본 파란 점 — 전국 뷰에선 핀 사이에 묻혀 있는지도 몰랐음(사용자 2026-09-21) → 아래 전용 마커로
         showsMyLocationButton={false} // 기본 내위치 버튼 — 우리 '내 위치' 필과 중복이라 제거(우상단 겹침 지적 2026-08-27)
         showsCompass={false}          // 나침반 — 회전을 잠갔으니(rotateEnabled false) 무의미, 안내 버튼 아래 겹치던 것 제거
