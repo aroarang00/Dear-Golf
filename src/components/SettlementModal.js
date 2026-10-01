@@ -434,6 +434,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
   const [editing, setEditing] = useState(false);
   const [dItems, setDItems] = useState([]);
   const [dMembers, setDMembers] = useState([]);
+  const [dMemo, setDMemo] = useState('');   // 덧붙인 한 줄 — 만든 뒤에도 고친다(사용자 2026-10-01 "수정할 때 메모 수정은 안 되네")
 
   // 수정 중 '영수증 다시 읽기' — 만들 때와 같은 AI 흐름(computeSettlement). 새 영수증/카드문자/요구사항을
   //   넣으면 금액·내역을 다시 채운다(사용자 2026-07-27: 텍스트만 고쳐지던 걸 개선). ★이미 입금 확인한
@@ -454,6 +455,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
   const startEdit = () => {
     setDItems((s.items || []).map(i => ({ label: i.label || '', amount: String(i.amount || '') })));
     setDMembers((s.members || []).map(m => ({ ...m, amount: String(m.amount || '') })));
+    setDMemo(s.memo || '');
     resetRecompute();
     setEditing(true);
   };
@@ -465,7 +467,7 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
     const members = dMembers.map(m => ({ ...m, amount: Math.max(0, parseInt(m.amount, 10) || 0) }));
     if (members.length === 0) { showToast('참가자가 없어요'); return; }
     // total은 사람별 금액의 합 — 화면 요약과 정산서 합계가 어긋나면 안 된다
-    onSave({ items, members, total: members.reduce((a, m) => a + m.amount, 0) });
+    onSave({ items, members, total: members.reduce((a, m) => a + m.amount, 0), memo: dMemo.trim().slice(0, 120) });
     resetRecompute();
     setEditing(false);
   };
@@ -597,8 +599,13 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
           color: allDone ? '#6B8B5E' : '#6B1E2A' }}>
           {allDone ? '전원 입금 완료' : `${sum.confirmedCount}/${sum.count} 입금 · ${won(sum.remain)}원 남음`}
         </Text>
-        {/* 덧붙인 한 줄(memo) — 정산서 머리 아래에 그대로 나간 문구("입금은 금요일까지") */}
-        {!!s.memo && (
+        {/* 덧붙인 한 줄(memo) — 정산서 머리 아래에 그대로 나간 문구("입금은 금요일까지"). 수정 중엔 칸으로 */}
+        {editing ? (
+          <AppTextInput value={dMemo} onChangeText={t => setDMemo(t.slice(0, 120))}
+            placeholder="전달할 말 한 줄 (예: 입금은 금요일까지)" placeholderTextColor={C.warmGray}
+            style={{ marginTop: 12, backgroundColor: '#FFFFFF', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+              fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal }} />
+        ) : !!s.memo && (
           <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: C.textSecondary, marginTop: 8 }}>{s.memo}</Text>
         )}
       </View>

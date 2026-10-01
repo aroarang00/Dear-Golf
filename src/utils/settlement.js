@@ -210,6 +210,7 @@ export async function updateSettlement(id, patch) {
   const p = { ...patch, ownerUid: uid, updatedAt: serverTimestamp() };
   if (p.members) p.members = p.members.map(normMember);
   if (p.total !== undefined) p.total = won(p.total);
+  if (p.memo !== undefined) p.memo = String(p.memo || '').trim().slice(0, 120);   // 상세 수정에서 고친 한 줄 메모 — create와 같은 길이 규칙
   await updateDoc(doc(db, COLLECTION, id), p);
 }
 
