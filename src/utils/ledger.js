@@ -1,5 +1,5 @@
 import {
-  collection, query, where, orderBy, getDocs, onSnapshot,
+  collection, query, where, orderBy, getDocs, getDoc, onSnapshot,
   addDoc, updateDoc, deleteDoc, doc, serverTimestamp, increment, writeBatch,
 } from 'firebase/firestore';
 import { db, getUid } from './firebase';
@@ -358,6 +358,40 @@ export async function updateLedgerDues(ledgerId, dues) {
   await updateDoc(doc(db, COLLECTION, ledgerId), {
     dues: normDues(dues), ownerUid: uid, updatedAt: serverTimestamp(),
   });
+}
+
+// ★회비 걷기(settlements kind='dues') ↔ 장부 회원 회비 연결(2026-10-01).
+//   걷기에서 입금 '확인'한 사람을 장부의 그 달(periodKey) 납부로 체크한다. 거래(entry)를 만들지 않는 이유는
+//   totalDuesCollected 주석과 같다 — 회비는 명단 체크가 원본이고, 거래를 따로 만들면 둘이 어긋나기 시작한다.
+//   · 이름으로 회원을 찾는다(걷기 참가자는 이름 문자열뿐). 명단에 없으면 그 달부터 재적(since)으로 넣는다.
+//   · paid=false(확인 취소)면 그 달 납부에서만 뺀다. 명단은 건드리지 않는다.
+//   · 월 회비 체크라 monthly를 켠다(꺼져 있으면 걷기의 1인 금액으로). 연회비(yearly)는 그대로.
+//   · 최신 문서를 읽어 그 위에 쓴다 — 장부 화면이 열려 있지 않은 상태에서 호출되므로 화면의 dues를 믿을 수 없다.
+export async function syncDuesPaidFromSettlement(ledgerId, { names, periodKey, amount, paid }) {
+  if (!ledgerId || !Array.isArray(names) || !names.length || !/^\d{4}\.\d{2}$/.test(periodKey || '')) return;
+  const snap = await getDoc(doc(db, COLLECTION, ledgerId));
+  if (!snap.exists()) return;
+  const d = normDues(snap.data()?.dues);
+  const members = [...d.members];
+  const ids = [];
+  names.forEach(raw => {
+    const name = String(raw || '').trim().slice(0, 20);
+    if (!name) return;
+    let m = members.find(x => x.name === name);
+    if (!m && paid) { m = { name, since: periodKey }; members.push(m); }   // 정규화(normMembers)가 id를 붙인다
+    if (m) ids.push(m);
+  });
+  const normed = normMembers(members);
+  const idOf = (m) => normed[members.indexOf(m)]?.id;
+  const targetIds = ids.map(idOf).filter(Boolean);
+  if (!targetIds.length) return;
+  const periods = { ...d.periods };
+  const p = periods[periodKey] || { paid: [], amount: d.monthly.amount || won(amount) };
+  const set = new Set(p.paid || []);
+  targetIds.forEach(id => (paid ? set.add(id) : set.delete(id)));
+  periods[periodKey] = { paid: [...set], amount: p.amount || d.monthly.amount || won(amount) };
+  const monthly = d.monthly.on ? d.monthly : { on: true, amount: d.monthly.amount || won(amount) };
+  await updateLedgerDues(ledgerId, { ...d, enabled: true, monthly, members: normed, periods });
 }
 
 // 한 기간의 요약 — 완료/미납 인원, 걷힌 금액(완료수 × 그 기간 1인 회비), 남은 금액, 미납자 목록.

@@ -197,6 +197,9 @@ export async function createSettlement(data) {
     // 연결은 선택 — 없어도 완전히 동작한다(독립 문서인 이유)
     linkedRoundupId: data.linkedRoundupId || null,
     linkedScheduleId: data.linkedScheduleId || null,
+    // 회비 걷기 ↔ 회비 장부(2026-10-01): 입금 확인한 사람을 이 장부의 duesPeriod('YYYY.MM') 납부로 체크한다(ledger.syncDuesPaidFromSettlement).
+    linkedLedgerId: data.linkedLedgerId || null,
+    duesPeriod: /^\d{4}\.\d{2}$/.test(data.duesPeriod || '') ? data.duesPeriod : null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };

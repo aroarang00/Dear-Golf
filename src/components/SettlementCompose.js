@@ -18,6 +18,7 @@ import { getScheduleGroup } from '../utils/scheduleShares';
 import { loadFriendData } from '../utils/friendGroups';
 import { loadMyFriendsEnriched } from '../utils/friends';
 import { storage, STORAGE_KEYS } from '../utils/storage';
+import { loadMyLedgers, syncDuesPaidFromSettlement, duesPeriodKey } from '../utils/ledger';   // 회비 걷기 ↔ 회비 장부
 import {
   settleKindLabel, settleTitle, PAY_PENDING, PAY_CONFIRMED,
   splitEvenly, buildSettlementText, createSettlement, computeSettlement, RECEIPT_MAX, newShareToken,
@@ -128,6 +129,24 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
   const [freeTitle, setFreeTitle] = useState('');
   const [freeDate, setFreeDate] = useState(today());
   const [duesTitle, setDuesTitle] = useState(monthDuesTitle());
+  // 회비 장부 연결(2026-10-01) — 회비 걷기에서 입금 확인한 사람이 장부의 이번 달 납부로 체크된다.
+  //   장부가 하나면 자동, 여럿이면 고르고, 없으면 연결 없이 걷기만 한다(장부를 만들라고 막지 않는다).
+  const [ledgers, setLedgers] = useState([]);
+  const [ledgerId, setLedgerId] = useState(null);
+  const [ledgerPickOpen, setLedgerPickOpen] = useState(false);
+  useEffect(() => {
+    if (!myUid) return undefined;
+    let alive = true;
+    loadMyLedgers(myUid).then(list => {
+      if (!alive) return;
+      const live = (list || []).filter(l => !l.archived);
+      setLedgers(live);
+      setLedgerId(prev => prev || live[0]?.id || null);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [myUid]);
+  const ledger = ledgers.find(l => l.id === ledgerId) || null;
+  const duesPeriod = duesPeriodKey('monthly');   // 'YYYY.MM' — 제목 'N월 회비'와 같은 달
   const [namesText, setNamesText] = useState('');
   const [includeSelf, setIncludeSelf] = useState(false);
   const [newName, setNewName] = useState('');
@@ -235,6 +254,7 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
     }
     if (preset.fromId && preset.kind === 'dues') {
       const prev = (recent || []).find(x => x?.id === preset.fromId) || (recent || []).find(x => x?.kind === 'dues');
+      if (prev?.linkedLedgerId) setLedgerId(prev.linkedLedgerId);   // 지난번과 같은 장부
       if (namesTouched.current) return;
       const prevNames = (prev?.members || []).map(m => m.name).filter(n => n && n !== myName);
       setNamesText(prevNames.join('\n'));
@@ -439,12 +459,13 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
     const prev = (recent || []).find(s => s?.kind === k);
     if (k === 'dues') {
       setIncludeSelf(true);
+      // 명단·금액: 지난번 회비 걷기 → 없으면 연결된 장부의 회원 명단·월 회비 금액
       const prevNames = (prev?.members || []).map(m => m.name).filter(n => n && n !== myName);
-      setNamesText(prevNames.join('\n'));
-      if (prev?.members?.length) {
-        const amounts = prev.members.map(m => m.amount).filter(a => a > 0);
-        if (amounts.length && amounts.every(a => a === amounts[0])) setPerHead(String(amounts[0]));
-      }
+      const ledgerNames = (ledger?.dues?.members || []).map(m => m?.name).filter(n => n && n !== myName);
+      setNamesText((prevNames.length ? prevNames : ledgerNames).join('\n'));
+      const amounts = (prev?.members || []).map(m => m.amount).filter(a => a > 0);
+      if (amounts.length && amounts.every(a => a === amounts[0])) setPerHead(String(amounts[0]));
+      else if (ledger?.dues?.monthly?.amount > 0) setPerHead(String(ledger.dues.monthly.amount));
       setDuesTitle(monthDuesTitle());
       goto('who');
       return;
@@ -522,7 +543,9 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
     memo: memo.trim(),
     shareToken: shareTokenRef.current,
     linkedScheduleId: src?.type === 'schedule' ? src.id : null,
-  }), [kind, duesTitle, free, freeTitle, freeDate, src, members, selfAdded, myName, sumAmount, effAccount, effAccountName, aiItems, aiNote, memo]);
+    linkedLedgerId: kind === 'dues' ? (ledgerId || null) : null,
+    duesPeriod: kind === 'dues' ? duesPeriod : null,
+  }), [kind, duesTitle, free, freeTitle, freeDate, src, members, selfAdded, myName, sumAmount, effAccount, effAccountName, aiItems, aiNote, memo, ledgerId, duesPeriod]);
   const previewText = useMemo(() => buildSettlementText(draft, { detail: true }), [draft]);
 
   const finish = async (send) => {
@@ -536,6 +559,11 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
       created = await createSettlement(draft);
       rememberAccount(draft.account, draft.accountName);
       setSent(true);
+      // 회비 걷기 — 나(총무)는 만들 때부터 '확인'이라 장부 납부에도 바로 체크(다른 사람은 상세에서 확인할 때).
+      if (draft.kind === 'dues' && draft.linkedLedgerId && selfAdded) {
+        syncDuesPaidFromSettlement(draft.linkedLedgerId, { names: [myName], periodKey: draft.duesPeriod, amount: Number(perHead) || 0, paid: true })
+          .catch(() => {});
+      }
     } catch (e) { setSaving(false); showToast('저장하지 못했어요'); return; }
     setSaving(false);
     if (send) {
@@ -686,6 +714,33 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
               <AppTextInput value={duesTitle} onChangeText={setDuesTitle} placeholder="10월 회비"
                 style={[input, { marginBottom: 16 }]} />
             </>
+          )}
+          {/* 회비 장부 연결 — 입금 확인한 사람이 장부의 이번 달 납부로 체크된다. 장부가 하나면 한 줄만, 여럿이면 고른다 */}
+          {kind === 'dues' && ledgers.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <TouchableOpacity onPress={() => ledgers.length > 1 && setLedgerPickOpen(v => !v)} activeOpacity={ledgers.length > 1 ? 0.7 : 1}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+                <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(13.5), color: C.textSecondary }} numberOfLines={1}>
+                  {ledger ? `회비 장부  ${ledger.name} · 입금 확인하면 ${Number(duesPeriod.slice(5))}월 납부로 체크돼요` : '회비 장부에 기록하지 않아요'}
+                </Text>
+                {ledgers.length > 1 && (
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: BURGUNDY }}>{ledgerPickOpen ? '접기' : '바꾸기'}</Text>
+                )}
+              </TouchableOpacity>
+              {ledgerPickOpen && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {[...ledgers, { id: null, name: '기록 안 함' }].map(l => {
+                    const on = (l.id || null) === (ledgerId || null);
+                    return (
+                      <TouchableOpacity key={l.id || 'none'} activeOpacity={0.7} onPress={() => { setLedgerId(l.id); setLedgerPickOpen(false); }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: on ? C.navy : C.bgSecondary }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: on ? C.butter : C.charcoal }}>{l.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
           )}
           <Text style={hint}>1인당</Text>
           <View style={[box, { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }]}>

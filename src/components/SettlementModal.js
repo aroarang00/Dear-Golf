@@ -15,6 +15,7 @@ import { SettlementGuideModal } from './SettlementGuideModal';   // 이용 안�
 import { SettlementCompose } from './SettlementCompose';         // 걷기 만들기 위저드(2026-10-01 분리)
 import { LedgerScreen } from './LedgerScreen';   // 회비 장부(모임 통장) — 같은 화면 안에서 탭으로 전환
 import { storage, STORAGE_KEYS } from '../utils/storage';
+import { syncDuesPaidFromSettlement } from '../utils/ledger';   // 회비 걷기 입금 확인 → 장부 납부 체크
 import {
   settleKindLabel, settleTitle, PAY_CONFIRMED, PAY_CLAIMED,
   summarize, toggleMemberStatus, buildSettlementText, buildReminderText,
@@ -427,7 +428,18 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
   const allDone = sum.count > 0 && sum.confirmedCount === sum.count;
 
   // 이름 탭 → 입금 확정 토글. 총무가 은행앱 보면서 하나씩 찍는 동작.
-  const tapMember = (memberId) => onSave({ members: toggleMemberStatus(s.members, memberId) });
+  const tapMember = (memberId) => {
+    const next = toggleMemberStatus(s.members, memberId);
+    onSave({ members: next });
+    // 회비 걷기면 장부의 그 달 납부 체크도 같이 — 확인하면 체크, 취소하면 해제(2026-10-01).
+    if (s.kind === 'dues' && s.linkedLedgerId && s.duesPeriod) {
+      const m = next.find(x => x.id === memberId);
+      if (m) {
+        syncDuesPaidFromSettlement(s.linkedLedgerId, { names: [m.name], periodKey: s.duesPeriod, amount: m.amount, paid: m.status === PAY_CONFIRMED })
+          .catch(() => showToast('회비 장부에는 반영하지 못했어요'));
+      }
+    }
+  };
 
   // 수정 — AI가 영수증을 잘못 읽거나 금액이 틀릴 수 있어 만든 뒤에도 손볼 수 있어야 한다(사용자 2026-07-22).
   //   편집 중에는 원본을 건드리지 않고 초안(draft)에만 쓰고, 저장할 때 한 번에 반영한다.
