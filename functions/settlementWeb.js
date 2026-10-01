@@ -27,7 +27,7 @@ const EXPIRE_DAYS = 120;
 // 한 정산서에 허용하는 체크 횟수 상한 — 공개 엔드포인트라 장난으로 연타하는 걸 막는다.
 const MAX_CLAIMS = 200;
 
-const KIND_LABEL = { prepay: '선입금', meal: '식사 정산', etc: '기타' };
+const KIND_LABEL = { prepay: '선입금', meal: '정산', dues: '회비', etc: '기타' };   // 앱 SETTLE_KINDS와 맞출 것
 const won = (n) => Number(n || 0).toLocaleString('ko-KR');
 
 // HTML 이스케이프 — 이름·상호는 사용자가 넣은 값이라 그대로 넣으면 스크립트 주입이 된다.
@@ -100,7 +100,7 @@ function render(d, token) {
   const members = Array.isArray(d.members) ? d.members : [];
   const items = Array.isArray(d.items) ? d.items.filter(i => i && i.label && i.amount > 0) : [];
   const total = members.reduce((a, m) => a + Number(m.amount || 0), 0);
-  const head = [d.course, d.date].filter(Boolean).join(' · ');
+  const head = [d.title || d.course, d.date].filter(Boolean).join(' · ');   // 회비·회식은 구장 대신 title
 
   const itemHtml = items.length
     ? `<div class="card items">${items.map(i =>

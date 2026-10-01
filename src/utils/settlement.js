@@ -31,14 +31,19 @@ import { db, getUid, functions } from './firebase';
 
 const COLLECTION = 'settlements';
 
+// 종류 — 2026-10-01 '회비'(dues) 추가, '식사 정산'→'정산'(식사뿐 아니라 회식 등 쓴 돈을 나눠 걷는 것 전부).
+//   'etc'는 옛 문서 호환용(새로 만들 땐 고를 수 없다).
 export const SETTLE_KINDS = [
   { key: 'prepay', label: '선입금', hint: '라운딩 전 · 캐디피·참가비' },
-  { key: 'meal',   label: '식사 정산', hint: '라운딩 후 · 참석자만' },
+  { key: 'meal',   label: '정산', hint: '라운딩 후 · 쓴 돈 나눠 걷기' },
+  { key: 'dues',   label: '회비', hint: '매달 똑같이' },
   { key: 'etc',    label: '기타', hint: '' },
 ];
 const KIND_KEYS = SETTLE_KINDS.map(k => k.key);
 export const settleKindLabel = (key) =>
   (SETTLE_KINDS.find(k => k.key === key)?.label) || '기타';
+// 목록·상세·정산서 머리에 쓰는 이름 — 회비·회식은 구장이 없고 title에 이름이 있다('10월 회비', '송년 회식').
+export const settleTitle = (s) => String(s?.title || s?.course || '').trim();
 
 // 입금 상태 — 순서가 곧 진행도. 총무 화면 정렬·집계에 쓴다.
 export const PAY_PENDING = 'pending';
@@ -185,7 +190,9 @@ export async function createSettlement(data) {
     // 보관 — 끝난 걷기를 목록에서 치우되 데이터는 남긴다. 삭제는 되살릴 수 없어 별도로 둔다
     //   ("작년에 얼마 걷었지"·모임 운영비 정산은 지난 기록이 있어야 한다). 보관/삭제는 총무가 고른다.
     archived: false,
-    shareToken: newShareToken(),   // 카톡 정산서에 붙는 웹 링크 — 참가자가 설치 없이 '보냈어요'를 누른다
+    // 카톡 정산서에 붙는 웹 링크 — 참가자가 설치 없이 '보냈어요'를 누른다.
+    //   작성 화면이 미리보기에 쓴 토큰을 넘기면 그대로 쓴다(미리보기 링크와 실제 링크가 같아야 한다).
+    shareToken: /^[A-Za-z0-9]{22}$/.test(data.shareToken || '') ? data.shareToken : newShareToken(),
     // 연결은 선택 — 없어도 완전히 동작한다(독립 문서인 이유)
     linkedRoundupId: data.linkedRoundupId || null,
     linkedScheduleId: data.linkedScheduleId || null,
@@ -321,7 +328,7 @@ export function buildSettlementText(s, { detail = true } = {}) {
   const uniform = list.length > 0 && list.every(m => m.amount === list[0].amount);
   const lines = [];
 
-  const head = [s?.course, s?.date].filter(Boolean).join(' · ');
+  const head = [settleTitle(s), s?.date].filter(Boolean).join(' · ');
   if (head) lines.push(head);
   lines.push(settleKindLabel(s?.kind));
   lines.push('');
@@ -392,7 +399,7 @@ export function buildReminderText(s) {
   if (pending.length === 0) return '';
 
   const lines = [];
-  const head = [s?.course, s?.date].filter(Boolean).join(' · ');
+  const head = [settleTitle(s), s?.date].filter(Boolean).join(' · ');
   if (head) lines.push(head);
   lines.push(settleKindLabel(s?.kind));
   lines.push('');
