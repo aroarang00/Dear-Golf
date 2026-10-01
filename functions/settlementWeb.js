@@ -128,6 +128,7 @@ function render(d, token) {
   const body = `
     <p class="head">${esc(head || '정산')}</p>
     <p class="sub">${esc(KIND_LABEL[d.kind] || '정산')}</p>
+    ${d.memo ? `<p class="sub">${esc(d.memo)}</p>` : ''}
     ${accHtml}
     ${itemHtml}
     <div class="card">${rows}<div class="tot"><span>합계</span><span>${won(total)}원</span></div></div>

@@ -597,6 +597,10 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
           color: allDone ? '#6B8B5E' : '#6B1E2A' }}>
           {allDone ? '전원 입금 완료' : `${sum.confirmedCount}/${sum.count} 입금 · ${won(sum.remain)}원 남음`}
         </Text>
+        {/* 덧붙인 한 줄(memo) — 정산서 머리 아래에 그대로 나간 문구("입금은 금요일까지") */}
+        {!!s.memo && (
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: C.textSecondary, marginTop: 8 }}>{s.memo}</Text>
+        )}
       </View>
 
       {/* ★카톡으로 보내기를 요약 바로 아래로(2026-09-22 "정산 과정이 너무 복잡") — 만든 직후 총무가 할 일은
