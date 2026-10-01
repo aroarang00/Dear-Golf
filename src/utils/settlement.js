@@ -181,7 +181,6 @@ export async function createSettlement(data) {
     account: String(data.account || '').trim().slice(0, 60),   // 계좌 — 한 번 넣으면 다음에도 재사용
     accountName: String(data.accountName || '').trim().slice(0, 20),
     note: String(data.note || '').trim().slice(0, 60),         // 계산 근거 한 줄 — '내역 넣기' 정산서에 붙인다
-    memo: String(data.memo || '').trim().slice(0, 120),        // 총무가 덧붙인 한 줄("입금은 금요일까지") — 정산서 머리 아래·웹에 그대로(2026-10-01)
     // 건별 내역 [{label:"1차 복돌이식당", amount}] — 카드문자 가맹점명을 그대로. 한 건이면 빈 배열.
     items: (Array.isArray(data.items) ? data.items : [])
       .map(i => ({ label: String(i?.label || '').trim().slice(0, 20), amount: won(i?.amount) }))
@@ -332,7 +331,6 @@ export function buildSettlementText(s, { detail = true } = {}) {
   const head = [settleTitle(s), s?.date].filter(Boolean).join(' · ');
   if (head) lines.push(head);
   lines.push(settleKindLabel(s?.kind));
-  if (s?.memo) lines.push(String(s.memo).trim());   // 덧붙인 한 줄 — 머리 바로 아래, 금액보다 먼저 읽히게
   lines.push('');
 
   // 건별 내역 — 영수증을 첨부하는 대신 어디서 얼마 썼는지를 상호명 그대로 남긴다

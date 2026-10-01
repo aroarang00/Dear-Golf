@@ -120,8 +120,6 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
 
   const [step, setStep] = useState(() => (preset?.kind ? 'who' : 'kind'));
   const [kind, setKind] = useState(() => preset?.kind || null);
-  const [memo, setMemo] = useState('');            // 정산서에 덧붙일 한 줄("입금은 금요일까지")
-  const [showMemo, setShowMemo] = useState(false);
   const namesTouched = useRef(false);              // 명단을 손댔으면 일정 명단 자동 갱신으로 덮지 않는다
   const [src, setSrc] = useState(null);          // 고른 일정/기록 { key, type, id, course, date, day, names }
   const [free, setFree] = useState(false);       // 골프 아닌 모임(회식) — 제목·날짜 직접
@@ -519,10 +517,9 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
     members: selfAdded ? members.map(m => (m.name === myName ? { ...m, status: PAY_CONFIRMED } : m)) : members,
     total: sumAmount, account: effAccount, accountName: effAccountName,
     items: kind === 'meal' ? aiItems : [], note: kind === 'meal' ? aiNote : '',
-    memo: memo.trim(),
     shareToken: shareTokenRef.current,
     linkedScheduleId: src?.type === 'schedule' ? src.id : null,
-  }), [kind, duesTitle, free, freeTitle, freeDate, src, members, selfAdded, myName, sumAmount, effAccount, effAccountName, aiItems, aiNote, memo]);
+  }), [kind, duesTitle, free, freeTitle, freeDate, src, members, selfAdded, myName, sumAmount, effAccount, effAccountName, aiItems, aiNote]);
   const previewText = useMemo(() => buildSettlementText(draft, { detail: true }), [draft]);
 
   const finish = async (send) => {
@@ -891,17 +888,7 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
         <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal, lineHeight: fs(21) }}>{previewText}</Text>
       </View>
 
-      {/* 덧붙일 한 줄(사용자 제안 2026-10-01 "더 넣을 메모칸") — "입금은 금요일까지", "회비는 5일까지" 같은 당부.
-          정산서 머리 아래에 그대로 들어가고 웹 링크에도 보인다. 접힌 채 시작, 적으면 위 미리보기에 바로 반영. */}
-      {showMemo || memo ? (
-        <AppTextInput value={memo} onChangeText={t => setMemo(t.slice(0, 120))} autoFocus={!memo}
-          placeholder="예) 입금은 금요일까지 부탁드려요" placeholderTextColor={C.warmGray}
-          style={[input, { marginTop: 12 }]} />
-      ) : (
-        <TouchableOpacity onPress={() => setShowMemo(true)} activeOpacity={0.7} style={{ paddingTop: 14, paddingBottom: 2, paddingHorizontal: 4 }}>
-          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: BURGUNDY }}>+ 한 줄 덧붙이기 (입금 기한 등)</Text>
-        </TouchableOpacity>
-      )}
+      {/* ※정산서 '한 줄 메모' 칸은 넣었다가 뺐다(사용자 2026-10-01 "넣지마"). 다시 제안하지 말 것. */}
 
       {/* 계좌 한 줄 — 기억해둔 계좌가 자동으로 들어갔다. 다른 계좌면 여기서 바꾼다 */}
       <TouchableOpacity onPress={() => goto('account')} activeOpacity={0.7}
