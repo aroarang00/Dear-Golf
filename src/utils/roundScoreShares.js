@@ -4,6 +4,8 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { normalizeScoreRow } from './scorecardOcr';   // 파대비/오버파 오독 → 홀 합으로 총타 정규화
+import { normalizeCourseName } from './top100';       // 구장명 표기 차이('서울한양CC'·'한양 CC') 흡수
+import { roundsOnly } from './diaryKind';
 
 // =============================================================
 // roundScoreShares/{shareId} — 동반자 스코어 공유 (Phase C, docs/companion-design.md §11)
@@ -83,14 +85,53 @@ export function subscribeIncomingScoreShares(uid, cb) {
   }, (e) => { if (__DEV__) console.warn('[scoreShare] subscribe fail', e?.message); cb([]); });
 }
 
-// 공유 + 선택한 행 → 내 rounds 파생 payload(프리필). 수신자가 검토·수정 가능(visibility=private 기본).
-export function buildDerivedRound(share, selectedRow, { uid, nickname }) {
+// 공유 + 선택한 행 → 스코어 필드만(총타·홀별·파·버디). 새 기록을 만들 때(buildDerivedRound)와
+//   이미 있는 내 기록에 스코어만 넣을 때(ScoreShareInbox '스코어만 넣기') 같은 계산을 쓴다.
+export function scoreFieldsFromShare(share, selectedRow) {
   // 정규화(멱등) — 공유 생성 시 이미 맞춘 값은 그대로 통과하고, 이 수정 전에 전송된 옛 공유(오버파/파대비 total)만 홀 합으로 교정.
   const row = normalizeScoreRow(selectedRow, Array.isArray(share?.pars) ? share.pars : null);
   const holes = Array.isArray(row?.holes) ? row.holes : null;
   const total = Number.isFinite(row?.total) ? row.total : (parseInt(row?.total) || 0);
   // 홀별 합이 총타와 어긋나면(OCR 저신뢰) 홀별·버디를 버려 헤드라인 총타와 표가 모순되지 않게 — 일반 저장(DiaryAddModal)과 동일 정책.
   const holesOk = Array.isArray(holes) && holes.length > 0 && holes.every(h => Number.isFinite(h)) && holes.reduce((s, h) => s + h, 0) === total;
+  return {
+    score: total,
+    holeScores: holesOk ? holes : null,
+    holePars: Array.isArray(share.pars) ? share.pars : null,
+    // par(총) — OCR 홀별 par 합이 있으면 그 값, 없으면 정규 72. createRound와 동일하게 항상 숫자 보장.
+    par: Array.isArray(share.pars) && share.pars.length
+      ? (share.pars.reduce((s, p) => s + (Number(p) || 0), 0) || 72)
+      : 72,
+    birdieCount: holesOk ? countBirdies(holes, share.pars) : 0,
+  };
+}
+
+// 이 공유가 가리키는 '내' 일정 — 같은 날짜 중 구장명이 같은 것, 없으면 그날 일정이 하나뿐일 때 그것.
+//   ★공유 문서의 scheduleId는 '보낸 사람' 일정 id라 내 폰에선 아무것도 가리키지 않는다(2026-10-01 중복 원인).
+export function findMyScheduleForShare(share, schedules) {
+  const date = share?.date || '';
+  if (!date) return null;
+  const sameDay = (schedules || []).filter(s => s?.date === date && !s.overseas);
+  if (!sameDay.length) return null;
+  const key = normalizeCourseName(share?.course || '');
+  return sameDay.find(s => key && normalizeCourseName(s.course || '') === key) || (sameDay.length === 1 ? sameDay[0] : null);
+}
+
+// 이 공유와 같은 라운딩의 '내' 기록 — 내가 이미 적어둔 기록이 있으면 새로 만들지 않고 물어본다.
+//   같은 날짜 + (내 일정 id로 연결됐거나 구장명이 같음). 이 공유로 이미 만든 파생 기록(sourceShareId)은 제외.
+export function findMyRoundForShare(share, diaries, mySchedule) {
+  const date = share?.date || '';
+  if (!date) return null;
+  const key = normalizeCourseName(share?.course || '');
+  return roundsOnly(diaries || []).find(d =>
+    d.date === date && d.sourceShareId !== share.id
+    && ((mySchedule && d.scheduleId === mySchedule.id) || (key && normalizeCourseName(d.course || '') === key))) || null;
+}
+
+// 공유 + 선택한 행 → 내 rounds 파생 payload(프리필). 수신자가 검토·수정 가능(visibility=private 기본).
+//   scheduleId — 호출부가 findMyScheduleForShare로 찾은 '내' 일정 id. 공유 문서의 scheduleId(보낸 사람 것)는 절대 쓰지 않는다:
+//   그걸 달고 저장되면 내 일정은 '미기록'으로 남고 이 기록은 따로 세어져 코스 모아보기에 한 라운딩이 둘로 뜬다(사용자 2026-10-01).
+export function buildDerivedRound(share, selectedRow, { uid, nickname, scheduleId = null }) {
   // ★createRound(round.js)와 같은 필드 집합으로 맞춤 — 파생 라운드에 par·likes 등이 빠지면
   //   소비처(DiaryDetail의 score−par)가 NaN/undefined가 되고, 좋아요·표시가 일반 라운드와 비대칭이 된다([[firestore-rules-false-denial]]).
   return {
@@ -102,15 +143,8 @@ export function buildDerivedRound(share, selectedRow, { uid, nickname }) {
     subCourse: '',
     date: share.date || '',
     day: share.day || '',
-    score: total,
-    holeScores: holesOk ? holes : null,
+    ...scoreFieldsFromShare(share, selectedRow),
     holeScoresShared: false,
-    holePars: Array.isArray(share.pars) ? share.pars : null,
-    // par(총) — OCR 홀별 par 합이 있으면 그 값, 없으면 정규 72. createRound와 동일하게 항상 숫자 보장.
-    par: Array.isArray(share.pars) && share.pars.length
-      ? (share.pars.reduce((s, p) => s + (Number(p) || 0), 0) || 72)
-      : 72,
-    birdieCount: holesOk ? countBirdies(holes, share.pars) : 0,
     weather: '',
     memo: '',                       // 비워둠 — 수신자가 기록에서 보완(프리필+수락제)
     detailMemo: '',
@@ -135,7 +169,7 @@ export function buildDerivedRound(share, selectedRow, { uid, nickname }) {
     overseas: false,
     country: '',
     likes: [],                      // 친구 좋아요 — 일반 라운드와 동일하게 빈 배열로 초기화(친구 공개 전환 대비)
-    scheduleId: share.scheduleId || null, // 원본 일정 매칭(있으면)
+    scheduleId: scheduleId || null,  // '내' 일정 연결(호출부가 찾아 넘김) — 보낸 사람 일정 id 금지
     sourceShareId: share.id,        // 출처(멱등·추적)
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

@@ -242,6 +242,8 @@ export function CourseLogTab({ avgRating, navigation }) {
 
   // 다이어리 + 완료된 일정을 골프장별로 집계 (예정 라운딩은 제외 — 완료된 라운딩만)
   const myCourses = React.useMemo(() => {
+    // ★내 일정에 없는 scheduleId(친구 스코어 공유로 받은 기록 = 친구 쪽 일정 id)는 링크 없음으로 보고 날짜로 잇는다(2026-10-01).
+    const liveSchedIds = new Set((schedules || []).map(s => s.id));
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayMs = todayStart.getTime();
     const isPast = (date) => {
@@ -280,7 +282,7 @@ export function CourseLogTab({ avgRating, navigation }) {
         // 방문 = 라운딩 횟수 (1라운딩 1방문). 기록(다이어리) 전부 + 기록 없는 지난 일정. 같은 날 2라운딩(36홀)도 각각 셈.
         // (allDates 고유 날짜로 세면 같은 날 2개가 1로 합쳐져 코스코멘트·일정 횟수와 불일치 → 그 버그 수정)
         const unrecordedSched = e.scheduleEntries.filter(s =>
-          !recs.some(r => (s.id && r.scheduleId === s.id) || (!r.scheduleId && r.date === s.date)));
+          !recs.some(r => (s.id && r.scheduleId === s.id) || ((!r.scheduleId || !liveSchedIds.has(r.scheduleId)) && r.date === s.date)));
         const visitCount = recs.length + unrecordedSched.length;
         // 미기록 카드 기록 진입 시 자동채울 티오프 — 가장 최근 미기록 일정 기준. 단체(teams>1)는 조별로 달라 제외.
         const latestUnrec = [...unrecordedSched].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0] || null;
@@ -329,6 +331,7 @@ export function CourseLogTab({ avgRating, navigation }) {
 
   // 해외 라운딩 — 다이어리 기록 + 지난 해외 일정 통합 집계
   const overseasCourses = React.useMemo(() => {
+    const liveSchedIds = new Set((schedules || []).map(s => s.id));   // myCourses와 같은 이유
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayMs = todayStart.getTime();
     const isPast = (date) => {
@@ -366,7 +369,7 @@ export function CourseLogTab({ avgRating, navigation }) {
         const allDates = [...new Set([...recDates, ...schedDates])].sort((a, b) => (b || '').localeCompare(a || ''));
         // 방문 = 라운딩 횟수 (국내와 동일 정책). 기록 + 기록 없는 지난 일정, 같은 날도 각각 셈.
         const unrecordedSched = e.scheduleEntries.filter(s =>
-          !recs.some(r => (s.id && r.scheduleId === s.id) || (!r.scheduleId && r.date === s.date)));
+          !recs.some(r => (s.id && r.scheduleId === s.id) || ((!r.scheduleId || !liveSchedIds.has(r.scheduleId)) && r.date === s.date)));
         const visitCount = recs.length + unrecordedSched.length;
         const latestRatedRec = [...recs]
           .sort((a, b) => (b.date || '').localeCompare(a.date || ''))

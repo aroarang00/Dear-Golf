@@ -8,9 +8,12 @@ export function countCompletedRounds(diaries, schedules) {
   const todayMs = t.getTime();
   const isPast = (date) => !!date && new Date(String(date).replace(/\./g, '-')).getTime() < todayMs;
   const ds = roundsOnly(diaries); // 일상(모멘트) 제외 — 라운딩만 카운트
+  // ★scheduleId가 내 일정 어디에도 없는 기록(친구 스코어 공유로 받은 기록은 친구 쪽 일정 id를 달고 왔다, 2026-10-01)은
+  //   링크가 없는 것으로 보고 구장+날짜로 잇는다 — 안 그러면 그 일정이 미기록으로 또 세어져 2라운딩이 된다.
+  const liveIds = new Set((schedules || []).map(s => s.id));
   const unrecorded = (schedules || []).filter(s =>
     isPast(s.date) &&
-    !ds.some(d => (s.id && d.scheduleId === s.id) || (!d.scheduleId && d.course === s.course && d.date === s.date))
+    !ds.some(d => (s.id && d.scheduleId === s.id) || ((!d.scheduleId || !liveIds.has(d.scheduleId)) && d.course === s.course && d.date === s.date))
   ).length;
   return ds.length + unrecorded;
 }

@@ -7,13 +7,17 @@ import { Icon } from './common/Icon';   // 커스텀 SVG 아이콘(유니코드 
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import {
   subscribeIncomingScoreShares, buildDerivedRound, acceptScoreShare, declineScoreShare,
+  findMyScheduleForShare, findMyRoundForShare, scoreFieldsFromShare,
 } from '../utils/roundScoreShares';
+import { updateRound } from '../utils/round';   // 이미 있는 내 기록에 스코어만 넣기
 import { showAppAlert } from './AppAlert';   // 실패 안내(prod 무음 방지) — 모달 닫고 띄워 iOS에서 뒤로 안 깔리게
+import { showToast } from './AppToast';
 
 // 동반자 스코어 공유 수신 — 기록 화면 피드 상단 배너 + 본인 행 선택 모달 (Phase C ③④, [[companion-design]] §11).
 //  uid는 useCurrentUid(단일 소스)로 — 재설치·계정전환(uid 변경) 시 자동 재구독.
 //  파생은 본인 rounds에 멱등 setDoc(util) → onDerived로 DiariesContext 갱신.
-export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiveChange }) {
+// schedules·diaries — 수락할 때 '내' 일정에 연결하고, 같은 라운딩 기록이 이미 있으면 새로 만들지 않고 묻기 위해(2026-10-01).
+export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiveChange, schedules = [], diaries = [] }) {
   const onHome = variant === 'home';   // 홈(진한 네이비 배경)=반투명 흰 카드+금테, 기록화면(밝은 배경)=네이비 카드
   const uid = useCurrentUid();
   const insets = useSafeAreaInsets();   // 모달 하단 버튼이 안드 네비게이션바에 가리지 않게
@@ -97,20 +101,52 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
     if (rest.length) setActive(null); else close();
   };
 
-  const accept = async () => {
-    if (selIdx == null || !active || busy || !uid) return;
+  // 새 기록으로 받기 — 내 일정(mySched)에 연결해 저장. 보낸 사람 일정 id는 쓰지 않는다(코스 모아보기 중복 원인).
+  const acceptAsNew = async (share, row, mySched) => {
     setBusy(true);
     try {
-      const row = active.rows.find(r => r.idx === selIdx) || active.rows[selIdx];
-      const derived = buildDerivedRound(active, row, { uid, nickname });
-      await acceptScoreShare(active, uid, derived);
-      doneWith(active.id);        // 남은 게 있으면 목록으로, 없으면 시트 닫기
+      const derived = buildDerivedRound(share, row, { uid, nickname, scheduleId: mySched?.id || null });
+      await acceptScoreShare(share, uid, derived);
+      doneWith(share.id);         // 남은 게 있으면 목록으로, 없으면 시트 닫기
       onDerived && onDerived();   // 내 기록 새로고침(파생 round 반영)
     } catch (e) {
       if (__DEV__) console.warn('[scoreShare] accept fail', e?.message);
       closeThenAlert('스코어 추가 실패', '잠시 후 다시 시도해 주세요.');   // 시트 닫은 뒤 안내(모달 겹침 금지)
     }
     finally { setBusy(false); }
+  };
+
+  // 이미 있는 내 기록에 스코어만 넣기 — 기록은 하나로 유지하고 공유는 '응답함'으로 닫는다.
+  const mergeIntoExisting = async (share, row, existing) => {
+    setBusy(true);
+    try {
+      await updateRound(existing.id, scoreFieldsFromShare(share, row));
+      await declineScoreShare(share.id, uid);   // 파생 없이 respondedUids만 — 카드 재노출 방지
+      onDerived && onDerived();
+      showToast('내 기록에 스코어를 넣었어요');
+    } catch (e) {
+      if (__DEV__) console.warn('[scoreShare] merge fail', e?.message);
+      setTimeout(() => showAppAlert('스코어 넣기 실패', '잠시 후 다시 시도해 주세요.'), 350);
+    }
+    finally { setBusy(false); }
+  };
+
+  const accept = async () => {
+    if (selIdx == null || !active || busy || !uid) return;
+    const share = active;
+    const row = share.rows.find(r => r.idx === selIdx) || share.rows[selIdx];
+    const mySched = findMyScheduleForShare(share, schedules);
+    const existing = findMyRoundForShare(share, diaries, mySched);
+    if (!existing) { await acceptAsNew(share, row, mySched); return; }
+    // ★같은 라운딩 기록이 이미 있다 — 그냥 받으면 기록이 둘이 된다(사용자 2026-10-01 "같은 게 두 개").
+    //   시트를 완전히 닫은 뒤 묻는다(모달 위 모달 금지, [[project_deargolf_modal_unmount_freeze]]).
+    close();
+    setTimeout(() => showAppAlert('이 날 기록이 이미 있어요',
+      `${share.course || '라운딩'} · ${share.date}\n${share.authorName || '친구'}님이 보낸 스코어를 내 기록에 넣을까요?`, [
+        { text: '취소', style: 'cancel' },
+        { text: '따로 추가', onPress: () => acceptAsNew(share, row, mySched) },
+        { text: '내 기록에 넣기', onPress: () => mergeIntoExisting(share, row, existing) },
+      ]), 350);
   };
 
   const decline = async () => {

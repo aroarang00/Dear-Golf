@@ -1692,6 +1692,7 @@ export function HomeScreen({ navigation, route }) {
         <View style={topBanner === 'scoreShare' ? undefined : { height: 0, overflow: 'hidden' }}>
           <ScoreShareInbox variant="home"
             nickname={userProfile?.nickname || userProfile?.realName || ''}
+            schedules={schedules} diaries={diaries}
             onDerived={reloadDiaries}
             onActiveChange={setScoreShareActive} />
         </View>
