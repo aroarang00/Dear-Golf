@@ -404,6 +404,18 @@ function ListView({ list, loading, failed, onRetry, onOpen, onNew, onDelete, onU
                   </Text>
                 )}
               </View>
+              {/* 미납·확인대기 — 카드에서 바로 누가 안 냈는지(사용자 2026-10-01 "미납 표시도 넣어줘").
+                  ★안 낸 사람(pending)과 보냈다고 한 사람(claimed)은 반드시 갈라 적는다 — 섞으면 낸 사람에게 독촉이 간다. */}
+              {!done && sum.pending.length > 0 && (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: '#6B1E2A', marginTop: 8 }} numberOfLines={2}>
+                  미납 {sum.pending.length}명 · {sum.pending.map(m => m.name).join(', ')}
+                </Text>
+              )}
+              {!done && sum.claimed.length > 0 && (
+                <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: GOLD_DEEP, marginTop: sum.pending.length ? 3 : 8 }} numberOfLines={1}>
+                  확인대기 {sum.claimed.length}명 · {sum.claimed.map(m => m.name).join(', ')}
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         );
