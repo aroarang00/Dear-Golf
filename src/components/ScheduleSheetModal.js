@@ -24,12 +24,13 @@ const TILE = {
   team: { color: '#1A3D52', tint: 'rgba(26,61,82,0.10)',   short: '단체팀' },
   rd:   { color: '#1A3D52', tint: 'rgba(26,61,82,0.10)',   short: '모집' },
   ml:   { color: '#C4622D', tint: 'rgba(196,98,45,0.12)',  short: '식사' },
+  st:   { color: '#8A6A33', tint: 'rgba(201,168,76,0.16)', short: '걷기' },   // 정산(모임 탭 정산 카드와 같은 골드 톤) — 예정=선입금·지난=정산
   sh:   { color: '#1A3D52', tint: 'rgba(26,61,82,0.10)',   short: '공유' },   // 과거 일정 등 카드 미표시 시 격자에 남는 공유
   ed:   { color: '#4A4A48', tint: 'rgba(74,74,72,0.09)',   short: '수정' },
   dl:   { color: '#D32F2F', tint: 'rgba(211,47,47,0.10)',  short: '삭제' },   // danger — 탭 시 confirmDelete 확인 화면을 거침
 };
 
-export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onTeam, onOpenRoundup, onEdit, onDelete, onAlarm, onSaveMemo, onOpenComments, courseNavigable, friendMeta = {} }) {
+export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, onWeather, onTraffic, onShare, onInviteFriends, onMeal, onTeam, onOpenRoundup, onEdit, onDelete, onAlarm, onSaveMemo, onOpenComments, onSettle, courseNavigable, friendMeta = {} }) {
   const insets = useSafeAreaInsets(); // 안드로이드 내비바(edge-to-edge)에 시트 하단이 가리지 않도록
   const myUid = useCurrentUid();      // 동반자 표시에서 본인 제외용
   const [alarmCfg, setAlarmCfg] = useState(null); // 이 라운드에 설정된 알람 { types, opts } — 요약 표시
@@ -164,6 +165,10 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     { key: 'iv', icon: 'personAdd', emoji: '🗓️', label: '친구 일정에 초대', onPress: onInviteFriends },
     // 함께 식사 — 식당 정하기/길찾기(홈 카드와 동일 기능, 일정캘린더에서도 접근) ([[afterround-meal-decision]])
     { key: 'ml', icon: 'bowl', emoji: '🍲', label: '함께 식사', onPress: onMeal },
+    // 걷기 — 일정에서 바로 시작(2026-10-01). 예정이면 선입금, 지난 라운딩이면 정산으로 종류·일정·명단이 채워진 채 모임 탭 정산으로.
+    //   정산 위저드의 앞 두 질문(무엇을·어느 모임)이 자동으로 지나간다. 총무가 아닌 사람에게도 보이지만 눌러야 생기니 무해.
+    { key: 'st', icon: 'wallet', emoji: '💰', label: isPast ? '정산하기' : '선입금 걷기', onPress: onSettle,
+      subtitle: isPast ? '쓴 돈 나눠 걷기' : '캐디피·참가비 미리' },
     { key: 'ed', icon: 'pen', emoji: '✏️', label: '일정 수정', onPress: onEdit },
     { key: 'dl', icon: 'trash', emoji: '🗑️', label: '일정 삭제', onPress: () => setConfirmDelete(true), danger: true },
   ];
@@ -180,6 +185,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     if (it.key === 'iv' && (!onInviteFriends || isPast || schedule.roundupId)) return false;
     // 함께 식사 — 핸들러 있을 때만, 지난 일정엔 숨김(뒤풀이는 당일까지). 라운지연동도 허용(동호회 단체 식사).
     if (it.key === 'ml' && (!onMeal || isPast)) return false;
+    if (it.key === 'st' && !onSettle) return false;
     // 단체팀 — 라운지 단체 모집(roundupId + teams>1) 일정에만. 핸들러 있을 때만.
     if (it.key === 'team' && !(onTeam && schedule.roundupId && (schedule.teams || 1) > 1)) return false;
     // 모집 보기 — 모집 연동 예정 일정에만(일정수정이 숨겨진 자리 대체). 핸들러 있을 때만.
@@ -192,7 +198,7 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
 
   // ★도구 두 갈래(2026-08-24) — 자주 쓰는 것(이 라운딩 준비: 날씨·교통·식사·단체팀·모집) vs 관리(알람·수정·삭제).
   //   한 벽 격자가 복잡해 보여 구역을 나눔. 삭제는 danger 색 + 확인 화면(confirmDelete)으로 오탭 방지(종전 유지).
-  const FREQ_KEYS = ['wx', 'tr', 'ml', 'team', 'rd'];
+  const FREQ_KEYS = ['wx', 'tr', 'ml', 'st', 'team', 'rd'];
   const MANAGE_KEYS = ['al', 'ed', 'dl'];
   const freqItems = items.filter(it => FREQ_KEYS.includes(it.key));
   const manageItems = items.filter(it => MANAGE_KEYS.includes(it.key));

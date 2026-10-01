@@ -109,15 +109,20 @@ const monthDuesTitle = () => `${new Date().getMonth() + 1}월 회비`;
 
 // recent — 부모가 가진 걷기 목록(최신순). '지난번 그대로' 기본값(회비 명단·선입금 단가)에 쓴다.
 // backRef — 부모 헤더 ‹ / 안드 뒤로가기가 먼저 부른다. 한 단계 뒤로 갔으면 true, 첫 화면이면 false(부모가 닫는다).
-export function SettlementCompose({ onCreated, dirtyRef, backRef, recent }) {
+// preset — 다른 데서 열 때 시작값(2026-10-01). { kind, scheduleId?, course?, date?, day? } = 일정 시트에서('선입금 걷기'·'정산하기')
+//   / { kind:'dues', fromId } = 목록 '이번 달 회비'. 있으면 종류·모임 질문을 건너뛰고 '누구에게'부터 연다.
+export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset = null }) {
   const { schedules } = useContext(SchedulesContext);
   const { diaries } = useContext(DiariesContext);
   const { userProfile } = useContext(UserContext);
   const myUid = useCurrentUid();
   const myName = ((userProfile?.nickname || '').trim() || '나').slice(0, 20);
 
-  const [step, setStep] = useState('kind');
-  const [kind, setKind] = useState(null);
+  const [step, setStep] = useState(() => (preset?.kind ? 'who' : 'kind'));
+  const [kind, setKind] = useState(() => preset?.kind || null);
+  const [memo, setMemo] = useState('');            // 정산서에 덧붙일 한 줄("입금은 금요일까지")
+  const [showMemo, setShowMemo] = useState(false);
+  const namesTouched = useRef(false);              // 명단을 손댔으면 일정 명단 자동 갱신으로 덮지 않는다
   const [src, setSrc] = useState(null);          // 고른 일정/기록 { key, type, id, course, date, day, names }
   const [free, setFree] = useState(false);       // 골프 아닌 모임(회식) — 제목·날짜 직접
   const [freeTitle, setFreeTitle] = useState('');
@@ -159,9 +164,11 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent }) {
       setSavedAccounts(list);
       storage.save(STORAGE_KEYS.settlementAccounts, list);
       if (list[0]) setSavedSel(accKey(list[0].account));
+      // preset으로 열렸으면 종류 화면을 안 거치므로 여기서 계좌 단계 생략 여부를 정한다
+      if (preset?.kind) hasAccountAtStart.current = !!list[0];
       setAccountsLoaded(true);
     });
-  }, []);
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const savedPick = savedSel ? savedAccounts.find(a => accKey(a.account) === savedSel) : null;
   const effAccount = (savedPick ? savedPick.account : account).trim();
   const effAccountName = (savedPick ? savedPick.accountName : accountName).trim();
@@ -188,7 +195,8 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent }) {
   // 계좌 단계를 건너뛸 수 있나 — 기억해둔 계좌가 자동으로 들어갔을 때. 단계 목록은 종류를 고른 시점에 굳힌다
   //   (계좌 화면에서 고르는 도중 단계가 사라져 '이전'이 엉뚱한 데로 가지 않게).
   const hasAccountAtStart = useRef(false);
-  const steps = useMemo(() => stepsFor(kind, hasAccountAtStart.current), [kind]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const steps = useMemo(() => stepsFor(kind, hasAccountAtStart.current), [kind, accountsLoaded]);
 
   // ── 일정 후보 ─────────────────────────────────────────────
   // 일정 '공유'로 들어온 동반자는 companions에 없고 전파 그룹에 있다 → 공용 유틸로 보강
@@ -209,6 +217,34 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent }) {
 
   const scheduleNames = (s) => buildCompanionNames(s, { group: groupsById[s.groupId], friendMeta, myUid })
     .map(n => String(n).replace(/\(초대중\)$/, '').trim()).filter(Boolean);
+
+  // ── preset 적용 ───────────────────────────────────────────
+  // 일정에서 왔으면 그 일정을 src로, 명단을 채운다. 전파 그룹·친구 별명은 비동기로 오므로 그게 도착할 때마다
+  //   명단을 다시 채운다 — 단, 총무가 이미 명단을 손댔으면(namesTouched) 덮지 않는다.
+  useEffect(() => {
+    if (!preset?.kind) return;
+    if (preset.scheduleId) {
+      const s = (schedules || []).find(x => x.id === preset.scheduleId);
+      const names = s ? scheduleNames(s) : [];
+      const o = { key: 'sch_' + preset.scheduleId, type: 'schedule', id: preset.scheduleId,
+        course: s?.course || preset.course || '', date: s?.date || preset.date || '', day: s?.day || preset.day || '', names };
+      setSrc(o);
+      if (!namesTouched.current) setNamesText(names.join('\n'));
+      setIncludeSelf(preset.kind === 'meal');
+      return;
+    }
+    if (preset.fromId && preset.kind === 'dues') {
+      const prev = (recent || []).find(x => x?.id === preset.fromId) || (recent || []).find(x => x?.kind === 'dues');
+      if (namesTouched.current) return;
+      const prevNames = (prev?.members || []).map(m => m.name).filter(n => n && n !== myName);
+      setNamesText(prevNames.join('\n'));
+      setIncludeSelf((prev?.members || []).some(m => m.name === myName) || !prev);
+      const amounts = (prev?.members || []).map(m => m.amount).filter(a => a > 0);
+      if (amounts.length && amounts.every(a => a === amounts[0])) setPerHead(String(amounts[0]));
+      setDuesTitle(monthDuesTitle());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset?.nonce, schedules, groupsById, friendMeta]);
 
   // 선입금 = 예정 일정(가까운 순 6개). 정산 = 지난 2주의 일정·라운딩 기록(최근 순, 구장·날짜 같으면 하나로).
   //   전엔 7일이었는데 "다녀온 일정"을 고르는 단계가 따로 생겨 한 주 더 남긴다(주말 라운딩을 다다음 주에 정산하는 경우).
@@ -303,6 +339,7 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent }) {
   }, [others, candidates, myName]);
   const picked = useMemo(() => new Set(others.map(n => n.name)), [others]);
   const toggleName = (n) => {
+    namesTouched.current = true;
     const cur = namesText.split('\n').map(s => s.trim()).filter(Boolean);
     const next = cur.includes(n) ? cur.filter(x => x !== n) : [...cur, n];
     setNamesText(next.join('\n'));
@@ -311,6 +348,7 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent }) {
   const addTypedName = () => {
     const n = newName.trim();
     if (!n) return;
+    namesTouched.current = true;
     const cur = namesText.split('\n').map(s => s.trim()).filter(Boolean);
     if (!cur.includes(n)) setNamesText([...cur, n].join('\n'));
     setNewName('');
@@ -392,6 +430,7 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent }) {
   // 종류를 고르면 '지난번 그대로' 기본값을 채우고 바로 다음으로.
   const pickKind = (k) => {
     hasAccountAtStart.current = !!effAccount;
+    namesTouched.current = false;
     setKind(k);
     setSrc(null); setFree(false);
     setAiMembers(null); setAiItems([]); setAiNote(''); setAiError(''); setLocks({});
@@ -421,6 +460,7 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent }) {
 
   const pickSource = (o) => {
     setSrc(o); setFree(false);
+    namesTouched.current = false;
     setNamesText(o.names.join('\n'));
     setLocks({}); setAiMembers(null);
     goto('who');
@@ -479,9 +519,10 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent }) {
     members: selfAdded ? members.map(m => (m.name === myName ? { ...m, status: PAY_CONFIRMED } : m)) : members,
     total: sumAmount, account: effAccount, accountName: effAccountName,
     items: kind === 'meal' ? aiItems : [], note: kind === 'meal' ? aiNote : '',
+    memo: memo.trim(),
     shareToken: shareTokenRef.current,
     linkedScheduleId: src?.type === 'schedule' ? src.id : null,
-  }), [kind, duesTitle, free, freeTitle, freeDate, src, members, selfAdded, myName, sumAmount, effAccount, effAccountName, aiItems, aiNote]);
+  }), [kind, duesTitle, free, freeTitle, freeDate, src, members, selfAdded, myName, sumAmount, effAccount, effAccountName, aiItems, aiNote, memo]);
   const previewText = useMemo(() => buildSettlementText(draft, { detail: true }), [draft]);
 
   const finish = async (send) => {
@@ -849,6 +890,18 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent }) {
         <View style={{ height: 0.5, backgroundColor: C.hairline, marginVertical: 12 }} />
         <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal, lineHeight: fs(21) }}>{previewText}</Text>
       </View>
+
+      {/* 덧붙일 한 줄(사용자 제안 2026-10-01 "더 넣을 메모칸") — "입금은 금요일까지", "회비는 5일까지" 같은 당부.
+          정산서 머리 아래에 그대로 들어가고 웹 링크에도 보인다. 접힌 채 시작, 적으면 위 미리보기에 바로 반영. */}
+      {showMemo || memo ? (
+        <AppTextInput value={memo} onChangeText={t => setMemo(t.slice(0, 120))} autoFocus={!memo}
+          placeholder="예) 입금은 금요일까지 부탁드려요" placeholderTextColor={C.warmGray}
+          style={[input, { marginTop: 12 }]} />
+      ) : (
+        <TouchableOpacity onPress={() => setShowMemo(true)} activeOpacity={0.7} style={{ paddingTop: 14, paddingBottom: 2, paddingHorizontal: 4 }}>
+          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: BURGUNDY }}>+ 한 줄 덧붙이기 (입금 기한 등)</Text>
+        </TouchableOpacity>
+      )}
 
       {/* 계좌 한 줄 — 기억해둔 계좌가 자동으로 들어갔다. 다른 계좌면 여기서 바꾼다 */}
       <TouchableOpacity onPress={() => goto('account')} activeOpacity={0.7}

@@ -66,6 +66,8 @@ export function MeetScreen({ navigation, route }) {
   const currentUid = useCurrentUid();
   const [crewReturnId, setCrewReturnId] = useState(() => (p.reopenCrew ? (p.reopenCrewId || null) : null)); // 모집 닫고 크루로 복귀할 앨범 id
   const [crewDm, setCrewDm] = useState(null); // 크루 멤버 DM {uid,name,avatar} — 화면 위 Modal
+  // 일정 시트 '선입금 걷기/정산하기' → 정산 위저드를 그 일정으로 바로 연다 { kind, scheduleId, course, date, nonce }
+  const [settlePreset, setSettlePreset] = useState(() => p.settlePreset || null);
 
   // 메시지(DM) — 홈 우측 레일 폐지(2026-08 개편)로 목록 진입점이 사라졌던 것을 대문 카드로 정착(2026-08-27).
   //   단일 Modal서 목록↔대화방 전환(옛 홈 모달 이식, [[dm-design]]). 안읽음은 대문에 돌아올 때마다 재집계.
@@ -84,10 +86,11 @@ export function MeetScreen({ navigation, route }) {
     else if (p.view === 'settle') go('settle');
     else if (p.view === 'crew' || p.openCrew) go('crew');
     else if (p.view === 'roundup' || p.openPostId || p.openNoti || p.openView) go('roundup');
+    if (p.settlePreset) setSettlePreset(p.settlePreset);
     // view만 소비 — 모집/친구 화면이 각자 읽는 파라미터(openPostId·openFinder 등)는 그대로 둔다
-    if (p.view || p.openCrew) navigation.setParams({ view: undefined, openCrew: undefined });
+    if (p.view || p.openCrew || p.settlePreset) navigation.setParams({ view: undefined, openCrew: undefined, settlePreset: undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.view, p.openFinder, p.openPostId, p.openNoti, p.openView, p.openCrew]);
+  }, [p.view, p.openFinder, p.openPostId, p.openNoti, p.openView, p.openCrew, p.settlePreset]);
 
   // 크루서 연 모집을 닫고 돌아옴(RoundupTab이 reopenCrew 실어 navigate) — 크루 화면으로 복귀 + 그 앨범 재오픈
   useEffect(() => {
@@ -464,7 +467,7 @@ export function MeetScreen({ navigation, route }) {
       )}
       {mounted.settle && (
         <View style={{ flex: 1, display: seg === 'settle' ? 'flex' : 'none' }}>
-          <SettlementModal embedded visible onBack={() => go('hub')} />
+          <SettlementModal embedded visible onBack={() => go('hub')} preset={settlePreset} />
         </View>
       )}
       {/* ★크루는 display 토글이 아니라 활성일 때만 마운트 — CrewListScreen(useScreenBack)이 마운트 내내

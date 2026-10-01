@@ -2409,6 +2409,15 @@ export function HomeScreen({ navigation, route }) {
         onShare={(names) => handleShareSchedule(selectedSchedule, names)}
         onInviteFriends={() => handleInviteFriends(selectedSchedule)}
         onMeal={() => { setShowScheduleModal(false); setSheetMealSchedule(selectedSchedule); setSheetMealAutoOpen(true); }}
+        onSettle={() => {
+          // 일정 → 걷기 바로 시작: 예정=선입금, 지난=정산. 모임 탭 정산 위저드가 종류·일정·명단을 채운 채 '누구에게'부터 연다.
+          const s = selectedSchedule;
+          setShowScheduleModal(false);
+          if (!s) return;
+          navigation.navigate(ROUTES.MEET, { view: 'settle', settlePreset: {
+            kind: (s.dDay != null && s.dDay < 0) ? 'meal' : 'prepay', scheduleId: s.id,
+            course: s.course || '', date: s.date || '', day: s.day || '', nonce: Date.now() } });
+        }}
         onTeam={() => { setShowScheduleModal(false); setTeamScheduleRid(selectedSchedule?.roundupId || null); }}
         onOpenRoundup={() => {
           // 모집 연동 예정 일정 — 일정수정이 막혀 원본 모집글(라운지 상세)로 직행해 관리 ([[roundup-schedule-delete-policy]])

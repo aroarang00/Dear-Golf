@@ -47,8 +47,11 @@ const foot = { fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, te
 //   Modal 래퍼·자체 Provider 없이 일반 화면으로. 헤더 ✕ 없음(목록 레벨 헤더 자체 생략 —
 //   세그먼트 '정산'과 "모임 정산" 타이틀이 중복이라), 안내(book)는 걷기/회비장부 탭 줄 우측으로.
 // onBack(embedded 전용) — 목록 레벨 헤더의 '‹ 모임'(대문 복귀). 모임 스트립을 폐지하고 이 화면이 한 줄 헤더로 품음(2026-09-23).
-export function SettlementModal({ visible, onClose, embedded = false, onBack }) {
+// preset — 다른 화면이 걷기 만들기를 바로 열 때 { kind, scheduleId?, fromId?, nonce }. nonce가 바뀔 때마다 새로 연다.
+//   일정 시트 '선입금 걷기/정산하기'(홈·캘린더) → MeetScreen → 여기. 목록의 '이번 달 회비'도 같은 길.
+export function SettlementModal({ visible, onClose, embedded = false, onBack, preset = null }) {
   const insets = useSafeAreaInsets(); // 임베디드 하단 여백(플로팅 탭바 회피)용
+  const [composePreset, setComposePreset] = useState(null);   // 위저드에 넘길 시작값(없으면 종류부터)
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -75,8 +78,15 @@ export function SettlementModal({ visible, onClose, embedded = false, onBack }) 
 
   useEffect(() => {
     if (!visible) return;
-    setOpenId(null); setComposing(false);
+    setOpenId(null); setComposing(false); setComposePreset(null);
   }, [visible]);
+
+  // 밖에서 온 시작값 — 걷기 탭으로 바꾸고 작성 화면을 그 값으로 연다(이미 작성 중이면 새 값으로 다시 시작: key).
+  useEffect(() => {
+    if (!preset?.nonce) return;
+    setTab('settle'); setOpenId(null); setLedgerDetail(false);
+    setComposePreset(preset); setComposing(true);
+  }, [preset?.nonce]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const current = useMemo(() => list.find(s => s.id === openId) || null, [list, openId]);
 
@@ -153,7 +163,7 @@ export function SettlementModal({ visible, onClose, embedded = false, onBack }) 
     if (tab === 'ledger' && ledgerBack.current && ledgerBack.current()) return;
     if (composing) {
       if (composeBack.current && composeBack.current()) return;
-      const leave = () => { composeDirty.current = false; setComposing(false); };
+      const leave = () => { composeDirty.current = false; setComposing(false); setComposePreset(null); };
       if (composeDirty.current) {
         showAppAlert('작성 중인 내용이 사라져요', '적어둔 내용과 첨부한 영수증은 저장되지 않아요.', [
           { text: '계속 쓰기', style: 'cancel' },
@@ -247,18 +257,19 @@ export function SettlementModal({ visible, onClose, embedded = false, onBack }) 
             )}
 
             {(!composing && !openId && tab === 'ledger') ? (
-              <LedgerScreen currentUid={myUid} onDetailChange={setLedgerDetail}
+              <LedgerScreen currentUid={myUid} onDetailChange={setLedgerDetail} topInset={embedded ? insets.top : 0}
                 registerBack={(fn) => { ledgerBack.current = fn; }} />
             ) : composing ? (
-              <SettlementCompose dirtyRef={composeDirty} backRef={composeBack} recent={list}
-                onCreated={(s) => { setList(prev => [s, ...prev]); setComposing(false); setOpenId(s.id); }} />
+              <SettlementCompose key={composePreset?.nonce || 'new'} dirtyRef={composeDirty} backRef={composeBack} recent={list}
+                preset={composePreset}
+                onCreated={(s) => { setList(prev => [s, ...prev]); setComposing(false); setComposePreset(null); setOpenId(s.id); }} />
             ) : current ? (
               <DetailView s={current} onSave={(patch) => save(current.id, patch)}
                 onArchive={() => archive(current)}
                 onDeleted={() => { setList(prev => prev.filter(x => x.id !== current.id)); setOpenId(null); }} />
             ) : (
               <ListView list={list} loading={loading} failed={failed} onRetry={load}
-                onOpen={setOpenId} onNew={() => setComposing(true)}
+                onOpen={setOpenId} onNew={(pre) => { setComposePreset(pre || null); setComposing(true); }}
                 onDelete={remove} onUnarchive={unarchive} />
             )}
 
@@ -303,6 +314,12 @@ function ListView({ list, loading, failed, onRetry, onOpen, onNew, onDelete, onU
   const live = (list || []).filter(s => !s.archived);
   const archived = (list || []).filter(s => s.archived);
   const shown = showArchive ? archived : live;
+  // 가장 최근 회비 걷기(보관 포함) — '이번 달 회비' 바로가기의 원본. 금액이 전원 같을 때만 1인 금액을 보여준다.
+  const lastDues = (list || []).find(s => s?.kind === 'dues') || null;
+  const duesUniform = (() => {
+    const a = (lastDues?.members || []).map(m => m.amount).filter(x => x > 0);
+    return a.length && a.every(x => x === a[0]) ? a[0] : 0;
+  })();
   if (loading) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Spinner /></View>;
   if (failed) {
     return (
@@ -318,9 +335,22 @@ function ListView({ list, loading, failed, onRetry, onOpen, onNew, onDelete, onU
   return (
     <KeyboardAwareScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
       {!showArchive && (
-        <TouchableOpacity onPress={onNew} activeOpacity={0.85}
-          style={{ backgroundColor: C.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 16 }}>
+        <TouchableOpacity onPress={() => onNew(null)} activeOpacity={0.85}
+          style={{ backgroundColor: C.navy, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: lastDues ? 8 : 16 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.butter }}>+ 걷기 만들기</Text>
+        </TouchableOpacity>
+      )}
+      {/* 이번 달 회비 — 회비는 매달 같다. 지난번 회비의 명단·금액을 그대로 채운 채 '누구에게'부터 연다(2026-10-01). */}
+      {!showArchive && lastDues && (
+        <TouchableOpacity onPress={() => onNew({ kind: 'dues', fromId: lastDues.id, nonce: Date.now() })} activeOpacity={0.85}
+          style={[box, { paddingVertical: 13, paddingHorizontal: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center' }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14.5), color: C.charcoal }}>{new Date().getMonth() + 1}월 회비 걷기</Text>
+            <Text style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, marginTop: 3 }}>
+              지난번과 같게 · {(lastDues.members || []).length}명{duesUniform ? ` · 1인 ${won(duesUniform)}원` : ''}
+            </Text>
+          </View>
+          <Text style={{ fontSize: fs(20), color: C.warmGray }}>›</Text>
         </TouchableOpacity>
       )}
 
@@ -567,6 +597,10 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
           color: allDone ? '#6B8B5E' : '#6B1E2A' }}>
           {allDone ? '전원 입금 완료' : `${sum.confirmedCount}/${sum.count} 입금 · ${won(sum.remain)}원 남음`}
         </Text>
+        {/* 덧붙인 한 줄(memo) — 정산서 머리 아래에 그대로 나간 문구("입금은 금요일까지") */}
+        {!!s.memo && (
+          <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: C.textSecondary, marginTop: 8 }}>{s.memo}</Text>
+        )}
       </View>
 
       {/* ★카톡으로 보내기를 요약 바로 아래로(2026-09-22 "정산 과정이 너무 복잡") — 만든 직후 총무가 할 일은

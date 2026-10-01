@@ -49,7 +49,9 @@ const fmtWon = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(
 const label = { fontFamily: F.sysSb, fontSize: fs(13), color: C.textSecondary, marginBottom: 8 };
 const boxInput = { backgroundColor: C.bgSecondary, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontFamily: F.sys, fontSize: fs(15), color: C.charcoal };
 
-export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName = '', onClose = null, onDetailChange = null, registerBack = null, crewMemberNames = null }) {
+// topInset — 상세·만들기 헤더 위에 더할 여백. 정산 모달(임베디드)은 장부 상세에서 자기 헤더(상태바 자리 포함)를 숨기므로
+//   이 화면이 상태바 자리를 직접 채워야 한다. 안 채우면 ←·삭제가 상태바 밑에 깔려 안 눌린다(사용자 2026-10-01).
+export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName = '', onClose = null, onDetailChange = null, registerBack = null, crewMemberNames = null, topInset = 0 }) {
   const insets = useSafeAreaInsets();   // 하단 고정 버튼·시트가 네비바에 안 가리게
   const [ledgers, setLedgers] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -461,7 +463,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
   // ── 새 장부 만들기 폼 ───────────────────────────────────────
   if (showCreate) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.bgPrimary, padding: 18 }}>
+      <View style={{ flex: 1, backgroundColor: C.bgPrimary, padding: 18, paddingTop: 18 + topInset }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
           <TouchableOpacity onPress={() => { setShowCreate(false); if (initialCrewId) onClose && onClose(); }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 4, marginRight: 6 }}>
@@ -489,7 +491,7 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
     const setupOpen = showDuesSetup || onCycles.length === 0;   // 아직 아무것도 안 켰으면 설정부터 펼친다
     return (
       <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 12 + topInset, paddingBottom: 12 }}>
           <TouchableOpacity onPress={() => { setDuesView(false); setDuesPeriod(null); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 4 }}>
             <Text style={{ fontSize: fs(24), color: C.charcoal }}>←</Text>
           </TouchableOpacity>
@@ -777,8 +779,8 @@ export function LedgerScreen({ currentUid, initialCrewId = null, initialCrewName
   };
   return (
     <View style={{ flex: 1, backgroundColor: C.bgPrimary }}>
-      {/* 헤더 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 }}>
+      {/* 헤더 — 상태바 자리(topInset)는 여기서 채운다(정산 모달 임베디드가 자기 헤더를 숨기는 동안) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 12 + topInset, paddingBottom: 12 }}>
         <TouchableOpacity onPress={goList} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 4 }}>
           <Text style={{ fontSize: fs(24), color: C.charcoal }}>←</Text>
         </TouchableOpacity>
