@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Dimensions, ActivityIndicator, Image } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, useWindowDimensions, ActivityIndicator, Image } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -7,27 +7,30 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sentry from '@sentry/react-native';
 import { initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../../constants/colors';
+import { contentWidth } from '../../utils/contentWidth';
 
 // 사진 크롭 에디터 (B안, 파괴적) — 고정 프레임 안에서 핀치 줌 + 자유 드래그로 구도를 잡아
 //   실제로 잘라낸 새 이미지를 만든다([[cover-focal-point]]). expo-image-manipulator만 사용(네이티브 추가 없음).
 //   - aspect: 'cover'(4:3, 다이어리/구장 대표사진) | 'avatar'(1:1, 프로필)
 //   - 안드·iOS 동일 동작 (안드는 그동안 없던 크롭이 생김)
 //   - onSave(croppedUri): 잘린 JPEG 임시 uri. 영구저장/업로드는 호출부 책임(기존 압축 파이프라인 통과).
-const { width: SW, height: SH } = Dimensions.get('window');
 const MAX_SCALE = 5;
 // 하단 안전영역 — 이 모달은 전체화면이라 제스처 바·내비바 아래로 버튼·안내가 깔리면 가려지거나 눌리지 않는다.
 //   Modal 안에서는 useSafeAreaInsets가 0을 주는 경우가 있어 PhotoViewer와 같이 initialWindowMetrics를 쓴다.
 const BOTTOM_SAFE = initialWindowMetrics?.insets?.bottom || 0;
 
+// frameFrac — 콘텐츠 폭 대비 프레임 비율. 폭은 렌더 때 훅으로 잰다(모듈 최상단 상수는 폴드를 접은 채 켜고 펼치면 옛 폭이 남는다).
 const ASPECTS = {
-  cover:  { ratio: 3 / 4, frameW: SW * 0.92, maxOut: 1600 }, // h/w = 3/4 (4:3 가로)
-  avatar: { ratio: 1,     frameW: SW * 0.8,  maxOut: 600  }, // 1:1 원형 가이드(프로필)
-  square: { ratio: 1,     frameW: SW * 0.92, maxOut: 1600 }, // 1:1 정사각(크루 사진 등) — 원형 아님
+  cover:  { ratio: 3 / 4, frameFrac: 0.92, maxOut: 1600 }, // h/w = 3/4 (4:3 가로)
+  avatar: { ratio: 1,     frameFrac: 0.8,  maxOut: 600  }, // 1:1 원형 가이드(프로필)
+  square: { ratio: 1,     frameFrac: 0.92, maxOut: 1600 }, // 1:1 정사각(크루 사진 등) — 원형 아님
 };
 
 export function CropEditorModal({ visible, uri, aspect = 'cover', onSave, onClose, onUseWhole }) {
+  // 창 폭은 그대로(사진 영역은 꽉 채우는 게 자연스러움), 프레임만 콘텐츠 폭(폴드 펼침·태블릿 500) 기준 — frameLeft가 가운데 맞춘다
+  const { width: SW, height: SH } = useWindowDimensions();
   const cfg = ASPECTS[aspect] || ASPECTS.cover;
-  const frameW = cfg.frameW;
+  const frameW = contentWidth(SW) * cfg.frameFrac;
   const frameH = frameW * cfg.ratio;
   const isAvatar = aspect === 'avatar';
 

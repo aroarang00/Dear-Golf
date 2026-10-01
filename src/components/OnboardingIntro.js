@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Dimensions, Linking, AppState } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Linking, AppState } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { Icon } from './common/Icon'; // 기능 아이콘 — 유니코드 이모지 → 커스텀 SVG(2026-07-24). 데모 샘플 이모지는 유지.
 import { requestLocationPermission, hasLocationPermission } from '../utils/location';
 import { requestNotificationPermission, hasNotificationPermission } from '../utils/notifications';
-
-const { width: SW } = Dimensions.get('window');
+import { useContentWidth } from '../utils/contentWidth';
 
 // 카드 하단 기능 하이라이트 한 줄 (아이콘 + 제목 + 설명)
 function Feature({ icon, title, sub, color = C.burgundy }) {
@@ -31,6 +30,8 @@ function Feature({ icon, title, sub, color = C.burgundy }) {
 // 9장 스와이프 인트로 — 인트로·라운딩 준비·기록·명예의 전당·라운지(메인 키)·코스·위치 권한·알림 권한·시작. 완료(시작하기) 시 프로필 입력 온보딩으로 연결
 export function OnboardingIntro({ onDone }) {
   const insets = useSafeAreaInsets();
+  // 슬라이드 폭 — App.js WideFrame 그릇과 같은 콘텐츠 폭(폴드 펼침·태블릿 500). 모듈 최상단 상수는 접은 채 켜고 펼치면 옛 폭이 남았다.
+  const SW = useContentWidth();
   const [idx, setIdx] = useState(0);
   const [locStatus, setLocStatus] = useState('idle'); // idle | granted | denied
   const [notifStatus, setNotifStatus] = useState('idle'); // idle | granted | denied

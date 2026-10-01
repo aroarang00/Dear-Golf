@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Dimensions, Animated, Easing } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Animated, Easing } from 'react-native';
 import { SurfaceLight, PressScale } from './common/Surface';   // 카드 표면 빛 + 눌림 반응(2026-09-21)
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Polyline, Circle, Line, G, Text as SvgText } from 'react-native-svg';
 import { C, F, fs } from '../constants/colors';
+import { useContentWidth, WideFrame } from '../utils/contentWidth';   // 폴드 펼침·태블릿 — 차트 폭 500 클램프 + 모달 안 가운데 모음
 import { AttentionMotion } from './common/AttentionMotion';
 import { Icon } from './common/Icon';   // 유니코드 이모지 대신 커스텀 SVG 아이콘(프로젝트 규칙)
 import { roundsOnly, isRoundDiary } from '../utils/diaryKind';
@@ -92,7 +93,7 @@ export function ScoreBanner({ diaries, userProfile, onPress, style, collapsible 
     return null;
   }, [series, recentDelta]);
 
-  const SPARK_W = Dimensions.get('window').width - 16 * 2 - 16 * 2;   // margin16*2 + padding16*2
+  const SPARK_W = useContentWidth() - 16 * 2 - 16 * 2;   // margin16*2 + padding16*2 (콘텐츠 폭 기준 — 폴드 펼침 클램프·접힘↔펼침 반응)
 
   return (
     <PressScale style={[{ marginHorizontal: 16, marginVertical: 8 }, style]} shadow={{ radius: 12, bg: C.navy }} contentStyle={{ paddingHorizontal: 16, paddingVertical: 14 }}
@@ -198,6 +199,8 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
+        {/* RN Modal은 루트 WideFrame 바깥 — 폴드 펼침·태블릿에선 여기서 다시 500폭으로 모은다 */}
+        <WideFrame bg={C.bgPrimary}>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
           {/* 헤더 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 13,
@@ -326,6 +329,7 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
             <CourseScores scored={scored} />
           </ScrollView>
         </SafeAreaView>
+        </WideFrame>
       </SafeAreaProvider>
     </Modal>
   );
@@ -334,7 +338,7 @@ export function ScoreStatsScreen({ visible, onClose, diaries, schedules, userPro
 // 추세 라인차트 — 낮은 점수(좋음)가 위로 가게 y 반전. 베스트 점 골드, 평균 점선.
 function TrendChart({ series, avg, bestVal }) {
   const CARD_PAD = 12;
-  const W = Dimensions.get('window').width - 32 - CARD_PAD * 2;  // ScrollView 16*2 + 카드 패딩
+  const W = useContentWidth() - 32 - CARD_PAD * 2;  // ScrollView 16*2 + 카드 패딩 (콘텐츠 폭 기준)
   const H = 200;
   const padL = 30, padR = 14, padT = 16, padB = 24;
   const chartW = Math.max(1, W - padL - padR);

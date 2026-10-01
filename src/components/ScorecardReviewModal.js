@@ -5,6 +5,7 @@ import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-co
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
+import { contentWidth, WideFrame } from '../utils/contentWidth';
 import { sumHoles, reconcileScoreRow } from '../utils/scorecardOcr';
 
 // 스코어카드 인식 결과 검토 — (여러 명이면) 본인 행 선택 → 18홀 표 미리보기·수정 → 확정.
@@ -13,7 +14,8 @@ import { sumHoles, reconcileScoreRow } from '../utils/scorecardOcr';
 //
 // 자동 확정 X — 추출값을 사용자가 반드시 확인·수정 후 확정 ([[project_scorecard_ocr]]).
 export function ScorecardReviewModal({ visible, rows = [], holePars = null, photos = [], parSumTarget = 0, parNineTarget = [0, 0], failed = false, failedReason = '', lowConfidence = false, lowReasons = [], rotating = false, onRotate = null, onConfirm, onClose }) {
-  const { width: winW } = useWindowDimensions();
+  const { width: winFullW } = useWindowDimensions();
+  const winW = contentWidth(winFullW);   // 폴드 펼침·태블릿은 500으로 클램프(사진 띠 폭)
   const multi = rows.length > 1;
   const [rowIdx, setRowIdx] = useState(multi ? null : 0);
   const [holes, setHoles] = useState([]); // 편집용 문자열 배열
@@ -198,6 +200,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
         {/* ★edges — 키보드가 떠 있으면 아래 여백을 뺀다. KeyboardAvoidingView가 이미 키보드 높이만큼
             올려주는데 안전영역(홈 인디케이터·내비바) 여백이 그대로 남으면 시트와 키보드 사이가 벌어진다. */}
         <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} edges={kbUp ? [] : ['bottom']}>
+          <WideFrame bg="transparent" style={{ justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20,
             paddingTop: 10, paddingHorizontal: 20, paddingBottom: 20, maxHeight: '90%' }}>
             <View style={{ alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: C.hairline, marginBottom: 12 }} />
@@ -343,6 +346,7 @@ export function ScorecardReviewModal({ visible, rows = [], holePars = null, phot
               </View>
             )}
           </View>
+          </WideFrame>
         </SafeAreaView>
       </KeyboardAvoidingView>
       </KeyboardProvider>

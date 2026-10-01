@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 모달서 입력바를 키보드 높이만큼 들어올림(KAS 자동스크롤이 안 먹어 명령형으로)
 import { Image } from 'expo-image';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { F, fs } from '../constants/colors';
+import { useContentWidth } from '../utils/contentWidth';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
@@ -115,7 +116,7 @@ function SwipeCarousel({ media, width, onOpen }) {
 }
 
 export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM }) {
-  const { width: winW } = useWindowDimensions();
+  const winW = useContentWidth();   // 폴드 펼침·태블릿은 500으로 클램프
   const insets = useSafeAreaInsets();
   const currentUid = useCurrentUid();
   const crewId = crew?.id;

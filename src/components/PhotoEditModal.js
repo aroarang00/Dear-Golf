@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, Image, ActivityIndicator, Dimensions } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { C, F, fs } from '../constants/colors';
-
-const { width: SW } = Dimensions.get('window');
+import { useContentWidth } from '../utils/contentWidth';
 
 export function PhotoEditModal({ visible, uri, onSave, onClose }) {
+  // 미리보기 정사각 변 — 모듈 최상단 Dimensions.get은 접은 채 켜고 펼치면 옛 폭이 남아 훅으로(폴드 펼침·태블릿은 500 클램프)
+  const SW = useContentWidth();
   const [rotation, setRotation] = useState(0);
   const [saving, setSaving] = useState(false);
 

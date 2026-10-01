@@ -7,6 +7,7 @@ import Animated, { SlideInRight } from 'react-native-reanimated'; // 깊은 화�
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { DraggableRows } from './common/DraggableRows';
 import { F, fs } from '../constants/colors';
+import { WideFrame } from '../utils/contentWidth';   // 모임 탭 전체화면 Modal(앨범·만들기) — 폴드 펼침·태블릿 500폭
 import { Icon } from './common/Icon';
 import { useScreenBack, ModalBackContext } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
@@ -519,7 +520,7 @@ export function CrewListScreen({ onClose, onOpenDM, onOpenRoundup, reopenCrewId,
           statusBarTranslucent={Platform.OS === 'android'}
           onRequestClose={() => { if (embBack.current) embBack.current(); else if (albumCrew) closeAlbum(); else setCreateOpen(false); }}>
           <ModalBackContext.Provider value={embBack}>
-            <View style={{ flex: 1, backgroundColor: BG }}>{deepView}</View>
+            <WideFrame bg={BG}><View style={{ flex: 1, backgroundColor: BG }}>{deepView}</View></WideFrame>
             {overlay}
           </ModalBackContext.Provider>
         </Modal>

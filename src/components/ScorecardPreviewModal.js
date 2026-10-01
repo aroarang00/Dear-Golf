@@ -6,6 +6,7 @@ import {
 import { Image } from 'expo-image';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { C, F, fs } from '../constants/colors';
+import { contentWidth, WideFrame } from '../utils/contentWidth';
 
 // 스코어카드 '읽기 전' 방향 확인 + 담을 부분 선택 — 크게 보여주고, 이미 그려진 박스의 모서리만 끌어 조절(중장년 친화).
 //   ★AI 1회만 호출. 회전=원본 누적각 로컬 처리(열화 없음). 크롭=박스를 이미지 픽셀 좌표로 변환해 잘라냄
@@ -15,7 +16,8 @@ const MIN_SIZE = 56;
 const HANDLE = 32;
 
 export function ScorecardPreviewModal({ visible, uris = [], onConfirm, onCancel }) {
-  const { width: winW, height: winH } = useWindowDimensions();
+  const { width: winFullW, height: winH } = useWindowDimensions();
+  const winW = contentWidth(winFullW);   // 폴드 펼침·태블릿은 500으로 클램프(크롭 영역 폭)
   const [photos, setPhotos] = useState([]); // [{ orig, uri, angle, iw, ih }]
   const [idx, setIdx] = useState(0);
   const [container, setContainer] = useState(null); // { w, h }
@@ -150,7 +152,7 @@ export function ScorecardPreviewModal({ visible, uris = [], onConfirm, onCancel 
 
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
+      <WideFrame bg="rgba(0,0,0,0.92)" style={styles.backdrop}>
         <Text style={styles.title}>방향 확인 · 담을 부분 선택{photos.length > 1 ? `  (${idx + 1}/${photos.length})` : ''}</Text>
         <Text style={styles.sub}>누웠으면 <Text style={styles.em}>회전</Text>, 모서리를 끌어 <Text style={styles.em}>표만</Text> 감싸면 정확해요{'\n'}그대로 둬도 전체를 읽어요</Text>
 
@@ -195,7 +197,7 @@ export function ScorecardPreviewModal({ visible, uris = [], onConfirm, onCancel 
             {busy ? <ActivityIndicator color={C.butter} size="small" /> : <Text style={styles.btnConfirmText}>{last ? '이대로 읽기' : '다음 사진 →'}</Text>}
           </TouchableOpacity>
         </View>
-      </View>
+      </WideFrame>
     </Modal>
   );
 }

@@ -58,6 +58,7 @@ try {
 }
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WideFrame } from './src/utils/contentWidth';   // 폴더블 펼침·태블릿 — 콘텐츠 500폭 가운데 모음(2026-10-01)
 import * as Notifications from 'expo-notifications';
 // expo-system-ui는 정적 import 시 모듈 로드 시점에 requireNativeModule('ExpoSystemUI')를 호출 →
 //   구버전 iOS dev client(모듈 없음)에서 'Cannot find native module' 크래시. 안드 전용이라 아래 effect에서 lazy require.
@@ -762,7 +763,7 @@ function App() {
     //   여기선 토스트가 안 뜬다. 안내도 없이 뒤로가기만 먹히면 '먹통'으로 보여 오히려 나쁘다.
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>{screen}</SafeAreaProvider>
+        <SafeAreaProvider><WideFrame>{screen}</WideFrame></SafeAreaProvider>
         <SplashOverlay appReady={appReady} />
       </GestureHandlerRootView>
     );
@@ -781,6 +782,9 @@ function App() {
     <DiariesProvider>
     <FriendBadgeContext.Provider value={{ friendReqCount, setFriendReqCount, refreshFriendBadge, scheduleInvites, roundupInviteCount, roundupInvites, declineRoundupInvite, refreshRoundupHidden }}>
     <InsetGate>
+    {/* ★WideFrame — 폴드 펼침·아이패드처럼 폭 560 넘는 화면만 콘텐츠를 500폭 가운데로. 폰은 통과(트리 불변).
+        RN Modal은 이 바깥(루트 창)에 그려지므로 전체화면 모달은 각자 안에서 WideFrame을 한 번 더 감싼다. */}
+    <WideFrame>
     <NavigationContainer
       ref={navigationRef}
       onReady={() => sentryNavigationIntegration?.registerNavigationContainer?.(navigationRef)}
@@ -846,6 +850,7 @@ function App() {
         );
       })()}
     </NavigationContainer>
+    </WideFrame>
     </InsetGate>
     </FriendBadgeContext.Provider>
     </DiariesProvider>

@@ -9,6 +9,7 @@ import { Icon } from './common/Icon';
 import { showAppAlert } from './AppAlert';
 import { PassportStamp, EmptyStamp } from './PassportStamp';
 import { C, F, fs } from '../constants/colors';
+import { useContentWidth } from '../utils/contentWidth';
 import { normalizeCourseName, syncTop100ChecksFromFirestore, saveManualTop100Checks, getManualTop100Checks } from '../utils/top100';
 import { buildPassport, masterKeyOf, syncVisitedChecksFromFirestore, saveVisitedChecks, getVisitedChecks, REGION_INK } from '../utils/passport';
 
@@ -69,7 +70,8 @@ const StampRegions = React.memo(function StampRegions({ groups, size, onPressSta
 
 export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries = [], schedules = [], onPressCourse }) {
   const insets = useSafeAreaInsets();
-  const { width: W, height: H } = useWindowDimensions();
+  const { height: H } = useWindowDimensions();
+  const W = useContentWidth();   // 도장 격자는 콘텐츠 폭(폴드 펼침·태블릿 500 클램프) 기준
   const s4 = Math.floor((W - PAD * 2 - GAP4 * 3) / 4);   // 내 도장 4열
   const s5 = Math.floor((W - PAD * 2 - GAP5 * 4) / 5);   // 100대 구장 5열
   const cardRef = useRef(null);

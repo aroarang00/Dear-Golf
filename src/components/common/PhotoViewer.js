@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, useWindowDimensions, Platform } from 'react-native';
 import { initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Gesture, GestureDetector, ScrollView, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -10,7 +10,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { F, fs } from '../../constants/colors';
 import { resolvePhotoUri } from '../../utils/photoStorage';
 
-const { width: SW, height: SH } = Dimensions.get('window');
+// ※창 크기는 PhotoViewer 안에서 useWindowDimensions로 잰다 — 모듈 최상단 Dimensions.get은 폴드를 접은 채 켜고
+//   펼치면 옛(커버 화면) 폭이 남아 사진이 작게 그려진다. 뷰어는 꽉 채우는 게 자연스러워 콘텐츠 폭 클램프는 안 한다.
 // 안드 엣지투엣지 — 하단 시스템 내비바 높이(없으면 0). '게시글 보기' 버튼이 내비바에 가리지 않게 띄움.
 const NAV_BOTTOM = Platform.OS === 'android' ? (initialWindowMetrics?.insets?.bottom || 0) : 0;
 const _arCache = new Map(); // uri → 종횡비(w/h) 세션 캐시 — 사진 실제 비율로 뷰어 높이 결정(가로사진 검은 여백 해소)
@@ -42,12 +43,12 @@ function seedRatios(photos) {
 // ★미디어 한 장의 박스 높이 — '그 장의 비율'로만 계산한다(이웃 사진 값을 절대 쓰지 않는다).
 //   비율을 아직 모르면 사진=화면 전체(SH), 영상=VIDEO_H. 둘 다 contain이라 비율이 늦게 도착해도
 //   그려지는 그림 크기가 같아 튀지 않는다(사진 폴백이 SH인 이유).
-const VIDEO_FALLBACK_H = Math.min(SH, Math.max(Math.round(SW * 1.2), Math.round(SH * 0.8)));
-function mediaHeightOf(item, arMap) {
+function mediaHeightOf(item, arMap, SW, SH) {
   const k = ratioKey(item);
   const ar = k ? arMap[k] : null;
   if (ar) return Math.min(SH, Math.round(SW / ar));
-  return item?.type === 'video' ? VIDEO_FALLBACK_H : SH;
+  const videoFallbackH = Math.min(SH, Math.max(Math.round(SW * 1.2), Math.round(SH * 0.8)));
+  return item?.type === 'video' ? videoFallbackH : SH;
 }
 
 function VideoItem({ uri, poster, active, width, height, muted = true, onRatio, onZoomChange }) {
@@ -134,10 +135,10 @@ function VideoItem({ uri, poster, active, width, height, muted = true, onRatio, 
 
   return (
     <GestureDetector gesture={composed}>
-      <Animated.View style={[{ width: SW, height }, animStyle]}>
+      <Animated.View style={[{ width, height }, animStyle]}>
         <VideoView
           player={player}
-          style={{ width: SW, height }}
+          style={{ width, height }}
           contentFit="contain"
           nativeControls
           allowsFullscreen
@@ -145,7 +146,7 @@ function VideoItem({ uri, poster, active, width, height, muted = true, onRatio, 
         />
         {!started && poster ? (
           <Image source={{ uri: poster }} pointerEvents="none"
-            style={{ position: 'absolute', top: 0, left: 0, width: SW, height }}
+            style={{ position: 'absolute', top: 0, left: 0, width, height }}
             contentFit="contain" cachePolicy="memory-disk"
             onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h && onRatio) onRatio(poster, w / h); }} />
         ) : null}
@@ -157,11 +158,11 @@ function VideoItem({ uri, poster, active, width, height, muted = true, onRatio, 
 // 비활성(지금 보고 있지 않은) 영상 슬라이드 — 플레이어 없이 포스터+▶만.
 //   여러 영상이 동시에 useVideoPlayer로 플레이어를 만들면 무거워 렉이 생기므로, 현재 슬라이드(i===idx)만
 //   VideoItem으로 실제 재생하고 나머지는 이걸로 가볍게 표시. 스와이프로 도달하면 그때 VideoItem이 마운트됨.
-function VideoPoster({ poster, height, onRatio }) {
+function VideoPoster({ poster, width, height, onRatio }) {
   return (
-    <View style={{ width: SW, height, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
       {poster ? (
-        <Image source={{ uri: poster }} style={{ position: 'absolute', top: 0, left: 0, width: SW, height }}
+        <Image source={{ uri: poster }} style={{ position: 'absolute', top: 0, left: 0, width, height }}
           contentFit="contain" cachePolicy="memory-disk"
           onLoad={(e) => { const w = e?.source?.width, h = e?.source?.height; if (w && h && onRatio) onRatio(poster, w / h); }} />
       ) : null}
@@ -272,6 +273,7 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
 //   사진을 위로 올려붙이고 높이를 절반으로 잡느라, 실비율이 늦게 도착하면 사진이 위로 튀어 '들썩'였다.
 //   글은 카드의 '더보기/기록 보기'로 이미 볼 수 있어 뷰어에서는 걷어냄 (사용자 2026-08-02).
 export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, onGoToPost = null }) {
+  const { width: SW, height: SH } = useWindowDimensions();   // 살아있는 창 크기(폴드 접힘↔펼침 반응)
   const [idx, setIdx] = useState(startIndex);
   const [zoomed, setZoomed] = useState(false); // 현재 사진 확대 여부 — 확대 중 가로 페이저 잠금
   const [savedToast, setSavedToast] = useState('');     // 저장 피드백(잠깐 표시)
@@ -375,14 +377,14 @@ export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, on
           contentOffset={{ x: idx * SW, y: 0 }}
           onMomentumScrollEnd={e => { setIdx(Math.round(e.nativeEvent.contentOffset.x / SW)); setZoomed(false); }}>
           {photos.map((item, i) => {
-            const itemH = mediaHeightOf(item, arMap); // ★그 사진 제 비율로. 이웃 사진 값을 쓰지 않는다.
+            const itemH = mediaHeightOf(item, arMap, SW, SH); // ★그 사진 제 비율로. 이웃 사진 값을 쓰지 않는다.
             return (
             <View key={i} style={{ width: SW, height: SH, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
               {item.type === 'video' ? (
                 i === idx ? (
                   <VideoItem uri={resolvePhotoUri(item.uri)} poster={item.poster ? resolvePhotoUri(item.poster) : null} active width={SW} height={itemH} muted={muted} onRatio={handleRatio} onZoomChange={setZoomed} />
                 ) : (
-                  <VideoPoster poster={item.poster ? resolvePhotoUri(item.poster) : null} height={itemH} onRatio={handleRatio} />
+                  <VideoPoster poster={item.poster ? resolvePhotoUri(item.poster) : null} width={SW} height={itemH} onRatio={handleRatio} />
                 )
               ) : (
                 // 윈도잉 — 현재±1만 제스처/reanimated PinchableImage, 나머지는 정적 Image(앨범 마운트 비용↓ 버벅임 완화)

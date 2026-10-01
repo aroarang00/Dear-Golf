@@ -8,6 +8,7 @@ import { C, F, fs } from '../constants/colors';
 import { Icon } from './common/Icon'; // 📷 → 커스텀 카메라
 import { COURSE_TAGS, COURSE_TAG_COLORS, getCountryFlag } from '../constants/data';
 import { dS } from '../styles/dS';
+import { useContentWidth } from '../utils/contentWidth';
 import { formatNameList } from '../utils/nameList';
 import { TripleStripe } from './common/TripleStripe';
 import { PhotoViewer, primePhotoRatio } from './common/PhotoViewer'; // 썸네일에서 잰 실비율을 뷰어에 미리 심음(열 때 크기 안 튀게)
@@ -19,6 +20,7 @@ import { ownerVisibilityLabel, friendDisplayName } from '../utils/friendGroups';
 
 export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirstSingle, friendGroups, friendMeta = {} }) {
   const insets = useSafeAreaInsets();
+  const photoCell = (useContentWidth() - 38) / 2;   // 사진 2열 격자 한 칸(폴드 펼침·태블릿은 500 기준) — 옛 dS.photoGridItem 고정 폭 대체
   // 안드로이드 뒤로가기 — 상세 화면이 RN Modal이 아니라 직접 닫기 처리
   useAndroidBack(true, onClose);
   const [photoViewer, setPhotoViewer] = useState(false);
@@ -369,7 +371,7 @@ export function DiaryDetail({ item, onClose, onUpdate, onDelete, onShare, isFirs
               return (
                 <TouchableOpacity key={i}
                   onPress={() => { setViewerStart(i); setPhotoViewer(true); }}
-                  style={dS.photoGridItem}>
+                  style={[dS.photoGridItem, { width: photoCell, height: photoCell }]}>
                   <GridThumb item={uri} src={src} />
                   {i === 0 && (
                     <View style={{ position: 'absolute', top: 6, left: 6, backgroundColor: C.burgundy, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>

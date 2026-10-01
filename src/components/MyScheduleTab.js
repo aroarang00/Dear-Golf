@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, View, Text, TouchableOpacity, Share, Platform, Animated, Easing, useWindowDimensions } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Share, Platform, Animated, Easing } from 'react-native';
 
 const _and = Platform.OS === 'android';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';   // 코스 탭 헤더와 동일한 그린 그라데이션(색 통일)
 import { C, F, fs } from '../constants/colors';
+import { useContentWidth } from '../utils/contentWidth';
 import { formatNameList } from '../utils/nameList';
 import { WEEKDAYS } from '../constants/data';
 import { ScheduleModal } from './ScheduleModal';
@@ -86,7 +87,7 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
   const currentUid = useCurrentUid();   // 일정 전파 초대 발신자 uid (홈과 동일, [[uid-stabilization-plan]])
   // 캘린더 날짜 동그라미 — 확대(디스플레이 줌) 시 셀 폭(winW/7)이 좁아지면 32 고정이 셀을 넘쳐 캘린더 우측이
   //   잘림 → winW 기반으로 유연하게. 정상 줌(winW 큼)엔 32 유지, 확대 시만 축소(2026-06-24). 24=그리드 좌우 패딩(12*2).
-  const { width: winW } = useWindowDimensions();
+  const winW = useContentWidth();   // 폴드 펼침·태블릿은 500으로 클램프
   const dateCircleSize = Math.min(32, Math.floor((winW - 24) / 7) - 4);
   const insets = useSafeAreaInsets(); // 바텀시트가 안드로이드 내비바에 안 가리도록
   const [currentDate, setCurrentDate] = useState(new Date());

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, FlatList, StatusBar, RefreshControl, useWindowDimensions, ActivityIndicator, Platform, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, FlatList, StatusBar, RefreshControl, ActivityIndicator, Platform, Modal } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import Animated, { SlideInRight } from 'react-native-reanimated';
 import { F, fs } from '../constants/colors';
+import { useContentWidth } from '../utils/contentWidth';
 import { Icon } from './common/Icon';
 import { CrewAvatar } from './common/CrewAvatar';
 import { LinkText } from './common/LinkText';
@@ -185,7 +186,7 @@ const PostGridCard = React.memo(function PostGridCard({ p, cell, onOpen, onToggl
 });
 
 export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt = 0 }) {
-  const { width: winW } = useWindowDimensions();
+  const winW = useContentWidth();   // 폴드 펼침·태블릿은 500으로 클램프
   const insets = useSafeAreaInsets();
   const currentUid = useCurrentUid();
   const crewId = crew?.id;

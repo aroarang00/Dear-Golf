@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   StatusBar, View, Text, TouchableOpacity, ScrollView,
-  Share, Modal, LayoutAnimation, Platform, UIManager, AppState, Animated, Easing, useWindowDimensions,
+  Share, Modal, LayoutAnimation, Platform, UIManager, AppState, Animated, Easing,
   Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';   // 한줄 메모 '젖빛 유리' — 뒤 사진을 실제로 흐림(2026-09-22). 일정 탭이 이미 쓰는 모듈(OTA 가능) // 최근 기록 히어로 카드 하단 그라데이션(2026-08-26) ※Animated.View 안에 넣지 말 것(런타임 에러, 853줄 참고)
 import { loadStoreAds } from '../utils/storeConfig'; // 홈 캐러셀 광고 원격 로드(config/storeAds)
 import { C, F, fs } from '../constants/colors';
+import { useContentWidth } from '../utils/contentWidth';   // 폴드 펼침·태블릿 — 창 폭 대신 콘텐츠 폭(500 클램프)
 import { ROUTES } from '../constants/routes';
 import { COURSE_LOG, WEEKDAYS } from '../constants/data';
 import { getUserCourses, syncUserCoursesFromFirestore } from '../utils/userCourses';
@@ -890,7 +891,7 @@ export function HomeScreen({ navigation, route }) {
   const checkinActive = !!next && isD0 && !roundEnded
     && now >= teeoffMs(next) - 2 * 3600000
     && now < teeoffMs(next) + 30 * 60000;
-  const { width: winW } = useWindowDimensions();
+  const winW = useContentWidth();   // 폴드 펼침·태블릿은 500으로 클램프(폰은 창 폭 그대로)
   // 확대(디스플레이 줌) 대응 배율 — winW가 360 이상이면 정확히 1(정상, 무변화), 좁아질수록(확대 ON) 비례 축소.
   //   헤더 타이틀·날씨이모지가 함께 줄어 DM과 안 겹치게. 정상/확대를 깔끔히 구분(정상은 절대 안 건드림).
   const zoomScale = Math.min(1, winW / 360);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Switch, Platform, ActivityIndicator, useWindowDimensions, Keyboard } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, TextInput, Switch, Platform, ActivityIndicator, Keyboard } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller'; // 안드 모달 입력 가림 방지
 import { Image } from 'expo-image';
@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { F, fs } from '../constants/colors';
+import { useContentWidth } from '../utils/contentWidth';
 import { Icon } from './common/Icon';
 import { useScreenBack } from '../hooks/useScreenBack';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
@@ -121,7 +122,7 @@ export function CrewComposeScreen({ crew, post, noticeText = null, noticeMedia =
   const [myName, setMyName] = useState('');             // 미리보기 작성자 표시(내 닉네임)
   const [myAvatar, setMyAvatar] = useState(null);
   const [draftRestored, setDraftRestored] = useState(false); // 임시저장 글 복원됨(배너 표시)
-  const { width: winW } = useWindowDimensions();
+  const winW = useContentWidth();   // 폴드 펼침·태블릿은 500으로 클램프
   const isNewPost = !editing && !editingNotice;        // 새 글 작성(임시저장 대상 — 수정·공지 제외)
   const draftTouchedRef = useRef(false);               // 사용자가 입력 시작했는지 — 복원이 방금 친 글 덮어쓰는 레이스 방지
 

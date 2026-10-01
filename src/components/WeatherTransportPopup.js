@@ -5,6 +5,7 @@ import { Spinner } from './common/Spinner'; // 로딩=스피너(안드 애니끄
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State, GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { C, F, fs } from '../constants/colors';
+import { contentWidth, WideFrame } from '../utils/contentWidth';
 import { wxS } from '../styles/wxS';
 import { trS } from '../styles/trS';
 import { getCombinedForecast, pickHourSlots, pickRollingHourSlots, pickRoundHourSlots, getUVIndex, pcpAmount } from '../utils/kma';
@@ -270,7 +271,8 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
   const [resolvedLoc, setResolvedLoc] = useState('');
   const [wxFailed, setWxFailed] = useState(false); // 날씨 데이터 로드 실패 (좌표 미해석 등)
   const [retryTick, setRetryTick] = useState(0);   // 다시 시도 트리거
-  const { width: SW, height: winH } = useWindowDimensions();
+  const { width: winFullW, height: winH } = useWindowDimensions();
+  const SW = contentWidth(winFullW);   // 날씨↔교통 가로 슬라이더 페이지 폭 — 폴드 펼침·태블릿은 500으로 클램프(WideFrame 그릇과 일치)
   const insets = useSafeAreaInsets(); // 하단 시스템바 — 스크롤 끝 버튼이 안 잘리도록
 
   const { userProfile } = React.useContext(UserContext);
@@ -915,6 +917,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
         <View style={wxS.glowTopRight} pointerEvents="none" />
         <View style={wxS.glowBotLeft} pointerEvents="none" />
 
+        <WideFrame bg="transparent">
         <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }}>
           {/* 헤더 */}
           <View style={wxS.shellRow}>
@@ -1438,6 +1441,7 @@ export function WeatherTransportPopup({ visible, initialTab, onClose, schedule, 
             </GestureDetector>
           </View>
         </SafeAreaView>
+        </WideFrame>
       </View>
       </SafeAreaProvider>
       </GestureHandlerRootView>
