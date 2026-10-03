@@ -106,7 +106,7 @@ export function ShareMomentModal({ moment, visible, onClose, onShareLink }) {
     setSaving(true);
     try {
       // 사진첩 권한 요청 — iOS는 NSPhotoLibraryAddUsageDescription 필요(app.json)
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(true); // writeOnly — 저장만(안드13+ 읽기권한 불요·Play 정책, iOS는 addOnly)
       if (status !== 'granted') {
         setAlert({
           title: '사진첩 권한이 필요해요',

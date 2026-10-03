@@ -304,7 +304,7 @@ export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, on
     if (savingPhoto || !srcUri) return;
     setSavingPhoto(true);
     try {
-      const perm = await MediaLibrary.requestPermissionsAsync();
+      const perm = await MediaLibrary.requestPermissionsAsync(true); // writeOnly — 저장만(안드13+ 읽기권한 불요·Play 정책, iOS는 addOnly)
       if (!perm.granted) { setSavedToast('갤러리 접근 권한이 필요해요'); setTimeout(() => setSavedToast(''), 1800); return; }
       let localUri = srcUri;
       if (/^https?:\/\//.test(localUri)) {

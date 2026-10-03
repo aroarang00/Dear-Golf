@@ -472,7 +472,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
   const saveScorecardShots = async (uris) => {
     if (!Array.isArray(uris) || !uris.length) return;
     try {
-      const perm = await MediaLibrary.requestPermissionsAsync();
+      const perm = await MediaLibrary.requestPermissionsAsync(true); // writeOnly — 저장만(안드13+ 읽기권한 불요·Play 정책, iOS는 addOnly)
       if (!perm.granted) return;
       for (const u of uris) { try { await MediaLibrary.saveToLibraryAsync(u); } catch {} }
     } catch (e) { if (__DEV__) console.warn('[scorecard] gallery save', e?.message); }

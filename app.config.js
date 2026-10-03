@@ -96,6 +96,13 @@ module.exports = {
       // Phase 2 Firebase 연동 시 사용자 데이터는 Firestore + 카카오 sub 매핑으로 복원이 정석
       // ([[data-migration]]·[[account-deletion]] 정책과 일관).
       allowBackup: false,
+      // Play '사진/동영상 권한 정책'(2026-10-03 거부) — 라이브러리 매니페스트가 몰래 넣어도 최종 매니페스트에서 제거(tools:node=remove).
+      //   사진 고르기=시스템 사진선택도구, 갤러리는 저장만 → 광범위 미디어 읽기 권한이 필요 없다. expo-media-library 쪽은 granularPermissions: [].
+      blockedPermissions: [
+        'android.permission.READ_MEDIA_IMAGES',
+        'android.permission.READ_MEDIA_VIDEO',
+        'android.permission.READ_MEDIA_AUDIO',
+      ],
       // 딥링크 — Android App Links(autoVerify). deargolf.app/r/* → 앱으로. 활성화엔 /.well-known/assetlinks.json 호스팅 필요(Phase 2). ([[invite-deeplink-system]])
       intentFilters: [
         {
@@ -132,10 +139,13 @@ module.exports = {
         'expo-location',
         {
           // '사용 중에만(WhenInUse)' 권한만 사용 — 백그라운드/Always 위치는 안 씀(foreground 1회 조회만).
-          //   locationAlwaysAndWhenInUsePermission을 두면 iOS에 NSLocationAlwaysAndWhenInUseUsageDescription이
-          //   들어가 '상시 위치'를 쓰는 것처럼 보여 심사 지적 소지 → WhenInUse 설명만 둔다.
+          //   ★Always 두 키는 명시적으로 false — 옵션을 '생략'하면 빠지는 게 아니라 플러그인이
+          //   'Allow $(PRODUCT_NAME) to access your location' 플레이스홀더를 넣는다(introspect로 확인 2026-10-03).
+          //   플레이스홀더 purpose string은 App Review 자동검사 리젝 사유(1.2.0 리마인더·마이크 건과 동일 유형).
           locationWhenInUsePermission:
             '출발지 자동 설정 및 현재 위치 날씨를 위해 위치 권한이 필요해요',
+          locationAlwaysAndWhenInUsePermission: false,
+          locationAlwaysPermission: false,
         },
       ],
       'expo-video',
@@ -150,6 +160,10 @@ module.exports = {
         {
           calendarPermission:
             '라운딩 일정을 기기 캘린더에 자동으로 추가하기 위해 캘린더 접근 권한이 필요해요',
+          // 미리알림(Reminders)은 안 씀 — false면 NSReminders(FullAccess)UsageDescription이 plist에서 빠진다.
+          //   기본값을 두면 플러그인이 'Allow $(PRODUCT_NAME) to access your reminders' 플레이스홀더를 넣어
+          //   App Review 자동검사에 걸림(1.2.0 iOS 리젝 2026-10-03, [[appstore-reject-120-purpose-strings]]).
+          remindersPermission: false,
         },
       ],
       'expo-web-browser',
@@ -162,6 +176,11 @@ module.exports = {
           savePhotosPermission:
             '특별한 순간 카드를 갤러리에 저장하기 위해 사진첩 권한이 필요해요',
           isAccessMediaLocationEnabled: false,
+          // 안드 READ_MEDIA_IMAGES/VIDEO/AUDIO를 매니페스트에 넣지 않음(빈 배열). 이 앱은 갤러리를 "읽지" 않고
+          //   저장(saveToLibraryAsync)만 하며, 사진 고르기는 expo-image-picker의 시스템 사진선택도구(Photo Picker)라
+          //   읽기 권한이 필요 없다. 기본값(photo·video·audio)을 두면 Play "사진/동영상 권한 정책" 거부
+          //   (vc107·112, 2026-10-03). 저장 호출부는 requestPermissionsAsync(true)(writeOnly)로 통일.
+          granularPermissions: [],
         },
       ],
       [
@@ -171,6 +190,11 @@ module.exports = {
             '라운딩 사진과 프로필 사진을 다이어리에 첨부하기 위해 사진첩 접근 권한이 필요해요',
           cameraPermission:
             '라운딩 순간을 즉시 촬영해 기록하기 위해 카메라 접근 권한이 필요해요',
+          // 마이크는 안 씀 — 카메라는 사진 촬영만(launchCameraAsync mediaTypes:['images']), 영상은 사진첩에서만 고른다.
+          //   false면 iOS NSMicrophoneUsageDescription 삭제 + 안드 RECORD_AUDIO 차단. 기본값을 두면
+          //   'Allow $(PRODUCT_NAME) to access your microphone' 플레이스홀더가 들어가 App Review 자동검사에 걸림
+          //   (1.2.0 iOS 리젝 2026-10-03). ★카메라 영상 촬영을 추가하면 실제 문구로 되살려야 한다.
+          microphonePermission: false,
         },
       ],
       [
