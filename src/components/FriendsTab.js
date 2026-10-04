@@ -26,6 +26,7 @@ import { STORAGE_KEYS, storage } from '../utils/storage';
 import { loadFriendRounds, recomputeMyGroupAudiences, loadVisibleGroupPostTimes } from '../utils/round';
 import { db, getUid, auth } from '../utils/firebase';
 import { connectKakaoAccount } from '../utils/kakaoAuth';
+import { nicknameKey } from '../utils/nickname';
 import { anonHasAppleTrace, connectAppleAccount } from '../utils/appleAuth';
 import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { doc, getDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
@@ -273,6 +274,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
           if (!anonWithSocialTrace) await setDoc(meRef, {
             uid,
             nickname: userProfile?.nickname || '',
+            nicknameKey: nicknameKey(userProfile?.nickname),
             blockedUids: [],
             favoriteUids: [],
             createdAt: serverTimestamp(),
@@ -280,7 +282,7 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
           });
         } else if (userProfile?.nickname && meSnap.data().nickname !== userProfile.nickname && !anonWithSocialTrace) {
           // 닉네임 변경 시 동기화 (간단 케이스만, 30일 제한은 F4 MyPage에서)
-          await setDoc(meRef, { nickname: userProfile.nickname, updatedAt: serverTimestamp() }, { merge: true });
+          await setDoc(meRef, { nickname: userProfile.nickname, nicknameKey: nicknameKey(userProfile.nickname), updatedAt: serverTimestamp() }, { merge: true });
         }
         // 즐겨찾기·숨긴친구 로드 — users.favoriteUids / hiddenFriendUids → 맵 (둘 다 Firestore 영속)
         if (!cancelled) {
@@ -992,7 +994,8 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
         onSend={sendRequest}
         onCancelSend={cancelRequest}
         onAccept={acceptRequest}
-        onIgnore={ignoreRequest} />
+        onIgnore={ignoreRequest}
+        myNickname={userProfile?.nickname || ''} />
 
       {/* 친구 관리 — ⚙에서 진입. 그룹 관리 + 숨긴 친구 해제를 한 시트에서(메인 노출 0, [[project_fullscroll_profile]]).
           닫을 때 그룹·메타 재로드해 칩 반영 ([[friend_groups]]) */}

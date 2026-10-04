@@ -80,6 +80,7 @@ import { prefetchTabData } from './src/utils/prefetch'; // 콜드 탭(친구·�
 import { loadPrivateProfile } from './src/utils/privateProfile'; // 출발지 등 비공개 프로필 — 기기 간 유지
 import { setupPushNotifications } from './src/utils/pushTokens';
 import { db, getUid, auth } from './src/utils/firebase';
+import { nicknameKey } from './src/utils/nickname';
 import { onAuthStateChanged } from 'firebase/auth';
 import { fetchKakaoProfileImage } from './src/utils/kakaoAuth';
 import { uploadAvatar } from './src/utils/avatarStorage';
@@ -500,7 +501,7 @@ function App() {
           },
           updatedAt: serverTimestamp(),
         };
-        if (userProfile.nickname) payload.nickname = userProfile.nickname;
+        if (userProfile.nickname) { payload.nickname = userProfile.nickname; payload.nicknameKey = nicknameKey(userProfile.nickname); } // 검색 키 동반 저장 — 시작 시 1회 돌아 기존 사용자도 자연 백필 ([[nicknameKey]])
         if (userProfile.lastNicknameChange) payload.lastNicknameChange = userProfile.lastNicknameChange;
         if (typeof userProfile.kakaoLinked === 'boolean') payload.kakaoLinked = userProfile.kakaoLinked;
         if (userProfile.kakaoId) payload.kakaoId = userProfile.kakaoId;

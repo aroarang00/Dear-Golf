@@ -22,6 +22,21 @@ const INVITE_BODY =
 
 export const INVITE_MESSAGE = INVITE_BODY + INVITE_LINK;
 
+// 내 닉네임 보내기 — "너 디어골프 닉네임 뭐야?"를 카톡으로 묻는 현실 동선을 앱이 대신([[nicknameKey]] 2026-10-05).
+//   받은 사람은 친구 찾기 → 닉네임 검색에 그대로 입력하면 끝. 미설치자도 받을 수 있어 랜딩 링크 동봉(마지막 줄 단독).
+//   시스템 공유시트(Share.share) — 카카오 피드 카드는 링크가 안 열리는 문제로 폐기한 전례(shareInvite와 동일).
+export async function shareMyNickname(nickname) {
+  const nick = String(nickname || '').trim();
+  if (!nick) return;
+  const message =
+    '⛳ 디어골프에서 저와 친구 맺어요\n\n' +
+    `친구 찾기 → 닉네임 검색에\n「${nick}」을 입력하고 친구 신청해 주세요.\n\n` +
+    '아직 설치 전이라면 👇\n' + INVITE_LINK;
+  try {
+    await Share.share({ message });
+  } catch (e) { /* 사용자 취소 — 무시 */ }
+}
+
 export async function shareInvite() {
   // 추천인 코드 동봉 — 잠복 배포([[referral-reward-implementation-plan]]): 신규 가입 온보딩의
   //   '추천인 코드' 입력과 짝. 링크는 카톡 자동 링크화·미리보기를 위해 항상 마지막 줄 단독 유지.

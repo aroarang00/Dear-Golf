@@ -1,6 +1,15 @@
 // 닉네임 변경 제한 — 일반 30일/1회, 카카오 연동 15일/1회.
 // Firestore의 lastNicknameChange로 동일 규칙을 백엔드에서 재검증할 것.
 
+// 닉네임 검색 키 — 대소문자·공백 차이로 못 찾는 일을 없앤다(2026-10-05 "임블리" 건: 정확 일치만 돼
+//   "Aims"를 "aims"로 치면 실패). users.nicknameKey에 저장하고 검색도 이 키로. 한글은 NFC 정규화(iOS 자소분리 대비).
+//   정확 일치 원칙(앞글자 일부 검색 X — 모르는 사람 둘러보기 방지)은 그대로.
+export function nicknameKey(nick) {
+  let s = String(nick || '');
+  if (typeof s.normalize === 'function') s = s.normalize('NFC');
+  return s.toLowerCase().replace(/\s+/g, '');
+}
+
 export const NICKNAME_COOLDOWN_DAYS_DEFAULT = 30;
 export const NICKNAME_COOLDOWN_DAYS_KAKAO = 15;
 

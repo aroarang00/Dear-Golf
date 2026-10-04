@@ -8,6 +8,7 @@ import { Icon } from './common/Icon'; // 🔍 검색 커스텀 아이콘(이모�
 import { searchUsersByNickname, findKakaoFriendUsers } from '../utils/friends';
 import { maskKoreanName } from '../utils/maskName';
 import { requestKakaoFriendsConsent } from '../utils/kakaoAuth';
+import { shareMyNickname } from '../utils/invite';
 
 // 아바타 색상 — 이름 글자 기준 순환
 const AVATARS = [
@@ -61,6 +62,18 @@ function RequestButton({ sent, onPress, onCancel }) {
   );
 }
 
+// 내 닉네임 카톡으로 보내기 — 상대가 내 닉을 몰라 검색 못 하는 현실 동선. 검색 탭 빈 상태·결과 없음 둘 다에 노출.
+function ShareNickButton({ nickname }) {
+  if (!nickname) return null;
+  return (
+    <TouchableOpacity onPress={() => shareMyNickname(nickname)} activeOpacity={0.85}
+      style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14,
+        borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: C.burgundy }}>
+      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>내 닉네임 「{nickname}」 보내기</Text>
+    </TouchableOpacity>
+  );
+}
+
 // 빈 상태 한 줄
 function EmptyHint({ text }) {
   return (
@@ -76,6 +89,7 @@ export function FriendFinder({
   sentIds = [], sent = [], onSend, onCancelSend,
   friendIds = [], blockedIds = [], received = [], onAccept, onIgnore,
   hideKakao = false,   // Apple 로그인 유저 — 카카오 세션이 없어 카카오 친구 탭이 무의미(팝업만 뜸) → 탭 자체를 숨김
+  myNickname = '',     // '내 닉네임 보내기' 문구용 — 상대가 내 닉을 몰라 못 찾는 동선 해소 ([[nicknameKey]])
 }) {
   const [tab, setTab] = useState(initialTab);
   const [query, setQuery] = useState('');
@@ -283,6 +297,15 @@ export function FriendFinder({
                     <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', marginTop: 8, lineHeight: 17 }}>
                       친구가 방금 가입했다면{'\n'}아래로 당겨 새로고침해보세요 ↓
                     </Text>
+                    {/* 가입했는데 안 보이는 가장 흔한 이유 = 상대의 카카오 친구목록 동의 누락(2026-10-05 임블리 건) — 우회로를 바로 안내 */}
+                    <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 16 }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
+                        💡 가입한 친구가 안 보이면 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>상대도 '카카오 친구 목록' 동의</Text>가 필요해요
+                      </Text>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
+                        기다리지 말고 '닉네임 검색' 탭에서 친구의 Dear Golf 닉네임으로 찾아 신청하세요.
+                      </Text>
+                    </View>
                   </View>
                 )}
 
@@ -305,7 +328,7 @@ export function FriendFinder({
                         💡 카카오톡 친구 중 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>Dear Golf에 가입한 사람만</Text> 보여요
                       </Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
-                        새로 가입한 친구는 아래로 당겨 새로고침하면 보여요.
+                        새로 가입한 친구는 아래로 당겨 새로고침하면 보여요.{'\n'}안 보이면 상대의 '카카오 친구 목록' 동의가 빠진 것 — 닉네임 검색으로 찾아보세요.
                       </Text>
                     </View>
                   </>
@@ -326,9 +349,10 @@ export function FriendFinder({
                             💡 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>Dear Golf에 설정한 닉네임</Text>으로만 검색돼요
                           </Text>
                           <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
-                            카카오톡 이름과 다를 수 있어요. 친구에게 Dear Golf 닉네임을 물어보세요.
+                            카카오톡 이름과 다를 수 있어요. 대소문자·띄어쓰기는 달라도 찾아요.{'\n'}친구에게 닉네임을 묻거나, 내 닉네임을 보내 친구가 나를 찾게 하세요.
                           </Text>
                         </View>
+                        <ShareNickButton nickname={myNickname} />
                       </>
                     )
                     : searchResults.map(p => (
@@ -338,8 +362,9 @@ export function FriendFinder({
                   <>
                     <EmptyHint text="닉네임을 입력해 친구를 찾아보세요" />
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginTop: 6, lineHeight: 16 }}>
-                      Dear Golf에 설정한 닉네임으로 검색돼요
+                      Dear Golf에 설정한 닉네임으로 검색돼요{'\n'}상대 닉네임을 모르면 내 닉네임을 보내 나를 찾게 하세요
                     </Text>
+                    <ShareNickButton nickname={myNickname} />
                   </>
                 )
             )}

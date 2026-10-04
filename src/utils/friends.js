@@ -6,6 +6,7 @@ import { db, getUid, getDocsOnline } from './firebase';
 import { createNotification } from './roundupNotifications';
 import { getKakaoFriends } from './kakaoAuth';
 import { loadFriendData } from './friendGroups';
+import { nicknameKey } from './nickname';
 
 // =============================================================
 // friendships/{pairId} — 친구 관계
@@ -296,17 +297,17 @@ export async function blockUid(targetUid) {
   }
 }
 
-// 닉네임 정확일치 검색 — users.nickname == q. 자기 자신 제외, 최대 20개.
+// 닉네임 검색 — users.nicknameKey == key(q) (대소문자·공백 무시, [[nicknameKey]]). 자기 자신 제외, 최대 20개.
 // prefix 아님(앞부분 검색 X): 닉을 정확히 아는 지인만 매칭(낯선사람 브라우징↓, 카카오가 주 경로 [[roundup-public-disabled]]). 동명이인은 여럿 반환될 수 있어 마스킹 본명·아바타로 구분.
+// 키가 없는 옛 문서(아직 앱을 안 켜 백필 전·오프라인 가입)는 nickname 정확일치로 한 번 더 — 결과 0건일 때만.
 export async function searchUsersByNickname(qstr, maxResults = 20) {
-  if (!qstr) return [];
+  const key = nicknameKey(qstr);
+  if (!key) return [];
   const me = await getUid();
-  const q = query(
-    collection(db, USERS),
-    where('nickname', '==', qstr),
-    fsLimit(maxResults),
-  );
-  const snap = await getDocs(q);
+  let snap = await getDocs(query(collection(db, USERS), where('nicknameKey', '==', key), fsLimit(maxResults)));
+  if (snap.empty && qstr.trim()) {
+    snap = await getDocs(query(collection(db, USERS), where('nickname', '==', qstr.trim()), fsLimit(maxResults)));
+  }
   return snap.docs
     // realName도 반환 — 검색 결과에서 동명이인 구분용(마스킹 표시). 본명 미입력자는 빈 값 ([[realname-policy]])
     .map(d => ({ uid: d.data().uid || d.id, nickname: d.data().nickname || '', realName: d.data().realName || '' }))
