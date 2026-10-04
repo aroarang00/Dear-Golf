@@ -1,5 +1,5 @@
 import { initializeKakaoSDK } from '@react-native-kakao/core';
-import { login, me } from '@react-native-kakao/user';
+import { login, me, scopes } from '@react-native-kakao/user';
 import { getFriends } from '@react-native-kakao/social';
 import { OAuthProvider, linkWithCredential, signInWithCredential } from 'firebase/auth';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -155,9 +155,23 @@ export async function connectKakaoAccount() {
 // 카카오 친구 목록 — '앱 사용 친구(=Dear Golf 가입자)'만 반환.
 //   @react-native-kakao/social getFriends() 사용(네이티브가 토큰 처리 — getAccessToken은 토큰 문자열을 안 줘 REST 불가).
 //   KakaoTalkFriend.id(회원번호)는 앱과 연결된 친구에게만 존재 → id 있는 친구 = 가입자.
-//   friends scope 미동의면 getFriends가 throw → no-consent로 매핑해 '동의하고 친구 찾기' 유도.
-//   반환: { ok:true, friends:[{kakaoId, nickname, profileImageUrl, favorite}], total } | { ok:false, error }
+//   동의 여부는 scopes(['friends'])로 먼저 확인한다 — 예전엔 getFriends가 어떤 이유로 실패해도 전부 '미동의'로
+//   매핑해, 이미 동의한 사람에게도 '동의하고 친구 찾기'가 계속 떠서 눌러도 제자리였다(2026-10-05 제보).
+//   반환: { ok:true, friends:[{kakaoId, nickname, profileImageUrl, favorite}], total }
+//       | { ok:false, error:'no-consent' }                       — friends 미동의(또는 InsufficientScope)
+//       | { ok:false, error:'no-session', code, message }        — 카카오 토큰 없음/만료(scopes 조회 자체 실패)
+//       | { ok:false, error:'error', code, message }             — 동의는 됐는데 API 실패(PermissionDenied=콘솔 권한 미승인 등)
 export async function getKakaoFriends() {
+  // ① 동의 여부 — 네이티브 에러 코드에 의존하지 않고 카카오에 직접 묻는다
+  try {
+    const list = await scopes(['friends']);
+    const friends = (list || []).find(s => s?.id === 'friends');
+    if (friends && friends.agreed === false) return { ok: false, error: 'no-consent' };
+  } catch (e) {
+    if (__DEV__) console.warn('[kakao] scopes 조회 실패(세션 없음?)', e?.code, e?.message);
+    return { ok: false, error: 'no-session', code: e?.code || '', message: e?.message || '' };
+  }
+  // ② 친구 목록
   try {
     const res = await getFriends({});
     const friends = (res?.friends || [])
@@ -170,10 +184,11 @@ export async function getKakaoFriends() {
       }));
     return { ok: true, friends, total: res?.totalCount ?? friends.length };
   } catch (e) {
-    // friends 미동의면 getFriends가 throw. 네이티브 에러 코드가 플랫폼마다 달라
-    // 첫 사용 시 가장 흔한 '미동의'로 우선 처리 → '동의하고 친구 찾기'(loginWithNewScopes) 유도.
-    if (__DEV__) console.warn('[kakao] getFriends 실패', e?.code, e?.message);
-    return { ok: false, error: 'no-consent' };
+    const code = String(e?.code || '');
+    if (__DEV__) console.warn('[kakao] getFriends 실패', code, e?.message);
+    // 네이티브 reject code = 카카오 SDK reason 이름(안드 ApiErrorCause.name / iOS 유사). 스코프 부족만 미동의로.
+    if (/insufficient.?scope/i.test(code) || /insufficient.?scope/i.test(String(e?.message || ''))) return { ok: false, error: 'no-consent' };
+    return { ok: false, error: 'error', code, message: e?.message || '' };
   }
 }
 

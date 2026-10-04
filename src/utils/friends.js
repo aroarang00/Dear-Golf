@@ -332,11 +332,11 @@ export async function findUsersByKakaoIds(kakaoIds) {
 }
 
 // 카카오 친구 중 Dear Golf 가입자 — friends scope 동의 시 매칭. 본인 제외.
-//   반환: { status: 'ok'|'no-consent'|'error', users:[{uid, nickname}] }
+//   반환: { status: 'ok'|'no-consent'|'no-session'|'error', users:[{uid, nickname}], code?, message? }
 export async function findKakaoFriendUsers() {
   const res = await getKakaoFriends();
   if (!res.ok) {
-    return { status: res.error === 'no-consent' ? 'no-consent' : 'error', users: [] };
+    return { status: ['no-consent', 'no-session'].includes(res.error) ? res.error : 'error', users: [], code: res.code || '', message: res.message || '' };
   }
   const me = await getUid();
   const matched = await findUsersByKakaoIds(res.friends.map(f => f.kakaoId));

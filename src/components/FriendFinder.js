@@ -7,7 +7,8 @@ import { OverlayAlert } from './common/OverlayAlert';
 import { Icon } from './common/Icon'; // 🔍 검색 커스텀 아이콘(이모지 통일)
 import { searchUsersByNickname, findKakaoFriendUsers } from '../utils/friends';
 import { maskKoreanName } from '../utils/maskName';
-import { requestKakaoFriendsConsent } from '../utils/kakaoAuth';
+import { requestKakaoFriendsConsent, connectKakaoAccount } from '../utils/kakaoAuth';
+import { showToast } from './AppToast';
 import { shareMyNickname } from '../utils/invite';
 
 // 아바타 색상 — 이름 글자 기준 순환
@@ -94,8 +95,9 @@ export function FriendFinder({
   const [tab, setTab] = useState(initialTab);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  // 카카오 친구 — 'idle'|'loading'|'ok'|'empty'|'no-consent'|'error'
+  // 카카오 친구 — 'idle'|'loading'|'ok'|'empty'|'no-consent'|'no-session'|'error'
   const [kakaoState, setKakaoState] = useState('idle');
+  const [kakaoErr, setKakaoErr] = useState('');   // 'error' 상태의 SDK 사유 코드 — 콘솔 권한 미승인(PermissionDenied) 등 진단용
   const [kakaoUsers, setKakaoUsers] = useState([]);  // [{ id: uid, name: nickname }]
   const [refreshing, setRefreshing] = useState(false); // 카카오 탭 당겨서 새로고침 스피너
   const [alert, setAlert] = useState(null);   // Modal 내부 OverlayAlert — 글로벌 showAppAlert가 Modal 뒤로 가려지는 이슈 회피
@@ -125,7 +127,8 @@ export function FriendFinder({
         setKakaoUsers(visible.map(u => ({ id: u.uid, name: u.nickname || '디어골프 친구' })));
         setKakaoState(visible.length ? 'ok' : 'empty');
       } else {
-        setKakaoState(res.status); // 'no-consent' | 'error'
+        setKakaoErr(res.code || res.message || '');
+        setKakaoState(res.status); // 'no-consent' | 'no-session' | 'error'
       }
     } catch (e) {
       if (__DEV__) console.warn('[FriendFinder] loadKakao 실패', e?.message);
@@ -274,16 +277,39 @@ export function FriendFinder({
                     <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 19, marginBottom: 16 }}>
                       카카오 친구 중 Dear Golf 가입자를 찾으려면{'\n'}'카카오 친구 목록' 제공 동의가 필요해요.
                     </Text>
-                    <TouchableOpacity onPress={async () => { try { await requestKakaoFriendsConsent(); } catch (e) {} setKakaoState('idle'); }}
+                    <TouchableOpacity onPress={async () => {
+                        // 동의 성공 시 피드백 — 전엔 말없이 재조회만 해 '눌렀는데 그대로'로 보였다
+                        let r = null;
+                        try { r = await requestKakaoFriendsConsent(); } catch (e) {}
+                        if (r?.ok) showToast('카카오 친구 목록 동의 완료');
+                        setKakaoState('idle');
+                      }}
                       activeOpacity={0.85} style={{ borderRadius: 12, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: C.burgundy }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>동의하고 친구 찾기</Text>
                     </TouchableOpacity>
                   </View>
                 )}
 
+                {/* 카카오 세션 없음(토큰 만료·재설치) — 동의 문제가 아니라 로그인 문제. 동의 버튼을 보이면 또 제자리 */}
+                {kakaoState === 'no-session' && (
+                  <View style={{ paddingTop: 24, alignItems: 'center' }}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, textAlign: 'center', lineHeight: 19, marginBottom: 16 }}>
+                      카카오 로그인이 만료됐어요.{'\n'}다시 로그인하면 친구 목록을 불러올 수 있어요.
+                    </Text>
+                    <TouchableOpacity onPress={async () => { try { await connectKakaoAccount(); } catch (e) {} setKakaoState('idle'); }}
+                      activeOpacity={0.85} style={{ borderRadius: 12, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: C.burgundy }}>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>카카오 다시 로그인</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
                 {kakaoState === 'error' && (
                   <View style={{ paddingTop: 24, alignItems: 'center' }}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginBottom: 16 }}>카카오 친구를 불러오지 못했어요</Text>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.warmGray, marginBottom: 6 }}>카카오 친구를 불러오지 못했어요</Text>
+                    {/* 동의는 돼 있다는 걸 분명히 — 사용자가 동의 버튼을 찾아 헤매지 않게. 사유 코드는 운영 진단용(PermissionDenied=카카오 콘솔 친구목록 권한 미승인) */}
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', lineHeight: 16, marginBottom: 16 }}>
+                      ✓ 카카오 친구 목록 동의는 되어 있어요{kakaoErr ? `\n오류: ${kakaoErr}` : ''}
+                    </Text>
                     <TouchableOpacity onPress={() => setKakaoState('idle')}
                       activeOpacity={0.85} style={{ borderRadius: 12, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: C.bgSecondary }}>
                       <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>다시 시도</Text>
@@ -295,7 +321,7 @@ export function FriendFinder({
                   <View style={{ paddingTop: 8 }}>
                     <EmptyHint text="카카오톡 친구 중 Dear Golf에 가입한 사람이 아직 없어요" />
                     <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, textAlign: 'center', marginTop: 8, lineHeight: 17 }}>
-                      친구가 방금 가입했다면{'\n'}아래로 당겨 새로고침해보세요 ↓
+                      ✓ 내 친구 목록 동의는 완료됐어요{'\n'}친구가 방금 가입했다면 아래로 당겨 새로고침해보세요 ↓
                     </Text>
                     {/* 가입했는데 안 보이는 가장 흔한 이유 = 상대의 카카오 친구목록 동의 누락(2026-10-05 임블리 건) — 우회로를 바로 안내 */}
                     <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 16 }}>
@@ -325,7 +351,7 @@ export function FriendFinder({
                     <View style={{ backgroundColor: C.bgSecondary, borderRadius: 10,
                       paddingHorizontal: 12, paddingVertical: 10, marginTop: 8 }}>
                       <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.charcoal, lineHeight: 18 }}>
-                        💡 카카오톡 친구 중 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>Dear Golf에 가입한 사람만</Text> 보여요
+                        ✓ 친구 목록 동의 완료 · 카카오톡 친구 중 <Text style={{ fontFamily: F.sysB, color: C.burgundy }}>Dear Golf에 가입한 사람만</Text> 보여요
                       </Text>
                       <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4, lineHeight: 15 }}>
                         새로 가입한 친구는 아래로 당겨 새로고침하면 보여요.{'\n'}안 보이면 상대의 '카카오 친구 목록' 동의가 빠진 것 — 닉네임 검색으로 찾아보세요.
