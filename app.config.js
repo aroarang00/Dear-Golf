@@ -4,13 +4,31 @@
 // ⚠️ eas CLI는 app.config 평가 시 .env를 자동 로드하지 않아 plugin 키(kakao nativeAppKey)가 비어 throw됨 →
 //    여기서 명시 로드. 클라우드 빌드엔 .env가 없으므로 EAS env vars(EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY)도 등록돼 있어야 함.
 try { require('dotenv').config(); } catch (e) {}
+const { withStringsXml, AndroidConfig } = require('expo/config-plugins');
+
+// 홈 화면에 보이는 앱 이름(한글). ★expo.name에 직접 넣지 않는다 — 아래 APP_DISPLAY_NAME 주석 참고.
+const APP_DISPLAY_NAME = '디어골프';
+
+// 안드 런처 라벨(strings.xml app_name)을 한글로 — expo.name이 영문이라 Expo 기본 플러그인이 영문을 넣는 것을 덮어쓴다.
+const withKoreanAndroidLabel = (config) => withStringsXml(config, (c) => {
+  c.modResults = AndroidConfig.Strings.setStringItem(
+    [{ $: { name: 'app_name' }, _: APP_DISPLAY_NAME }],
+    c.modResults,
+  );
+  return c;
+});
 
 module.exports = {
   expo: {
-    name: '디어골프',   // 홈화면 아이콘 라벨 한글화(2026-09-23) — ★네이티브: 아이콘(icon·adaptive-icon 페일스카이+남색 워드마크)과 함께 다음 스토어 빌드에 실림. version은 빌드 직전에 올릴 것(미리 올리면 OTA가 새 런타임을 겨냥해 아무에게도 안 감)
+    // ★name은 반드시 영문 — Expo가 이 값으로 iOS Xcode 프로젝트·타깃·스킴 이름을 만드는데(sanitizedName), 한글만 있으면
+    //   빈 문자열이 돼 기본값 'app'으로 떨어진다(1.2.0·1.2.1 빌드가 그랬음: 실행파일 'app', CFBundleName 'app').
+    //   1.2.1(빌드 80)이 iPhone·iPad에서 실행 즉시 죽어 App Review 2.1a 리젝(2026-10-04) — 7월 승인 1.1.1(프로젝트명
+    //   DearGolf)과 네이티브·JS 라이브러리가 동일한데 이 이름 변경만 끼어 있어 1순위 용의자. Expo 공식 안내도
+    //   "이름은 영문, 표시 이름은 현지화". 홈 화면 라벨은 iOS=infoPlist.CFBundleDisplayName, 안드=withKoreanAndroidLabel로 한글 유지.
+    name: 'Dear Golf',
     slug: 'dear-golf',
     scheme: 'deargolf',
-    version: '1.2.1',
+    version: '1.2.2',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -55,6 +73,7 @@ module.exports = {
         'com.apple.developer.usernotifications.time-sensitive': true,
       },
       infoPlist: {
+        CFBundleDisplayName: APP_DISPLAY_NAME,   // 홈 화면 라벨 '디어골프' — name(영문)과 분리([[appstore-reject-120-purpose-strings]])
         CFBundleDevelopmentRegion: 'ko',
         ITSAppUsesNonExemptEncryption: false,
         // 카카오 SDK가 카카오톡 앱을 열려면(공유 shareFeedTemplate·로그인) 이 스킴들을 조회 허용해야 함.
@@ -117,6 +136,7 @@ module.exports = {
       favicon: './assets/favicon.png',
     },
     plugins: [
+      withKoreanAndroidLabel,   // 안드 런처 라벨 한글(app_name) — name이 영문이라 따로 넣는다
       // 폰트를 네이티브 빌드에 직접 포함 — JS 런타임 로드(useFonts)만 쓰면
       // 안드로이드 <Modal> 내부에서 커스텀 폰트가 시스템 글꼴로 폴백되는 버그가 있어
       // (MY 통계박스·라운지 정원 숫자 등), expo-font 플러그인으로 빌드에 박아 해결.
