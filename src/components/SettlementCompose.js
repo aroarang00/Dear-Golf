@@ -89,9 +89,9 @@ function parseNames(text) {
 }
 
 // 종류별 단계 — 질문이 필요 없는 단계는 애초에 목록에 없다.
-function stepsFor(kind, hasAccount) {
+function stepsFor(kind, hasAccount, fromSchedule) {
   const s = ['kind'];
-  if (kind && kind !== 'dues') s.push('source');
+  if (kind && kind !== 'dues' && !fromSchedule) s.push('source');   // 일정에서 왔으면 '어느 모임' 질문은 없다
   s.push('who', 'amount');
   if (kind === 'meal') s.push('split');
   if (!hasAccount) s.push('account');
@@ -112,6 +112,8 @@ const monthDuesTitle = () => `${new Date().getMonth() + 1}월 회비`;
 // backRef — 부모 헤더 ‹ / 안드 뒤로가기가 먼저 부른다. 한 단계 뒤로 갔으면 true, 첫 화면이면 false(부모가 닫는다).
 // preset — 다른 데서 열 때 시작값(2026-10-01). { kind, scheduleId?, course?, date?, day? } = 일정 시트에서('선입금 걷기'·'정산하기')
 //   / { kind:'dues', fromId } = 목록 '이번 달 회비'. 있으면 종류·모임 질문을 건너뛰고 '누구에게'부터 연다.
+//   ★kind 없이 { scheduleId, course, date, day }만 오면(일정 시트 '걷기', 2026-10-05) '무엇을 걷나요?'(선입금/정산)를 먼저 묻고,
+//     고르면 그 일정이 채워진 채 '누구에게'로 — 예정 일정도 선입금 없이 정산만 할 수 있어야 한다(사용자).
 export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset = null }) {
   const { schedules } = useContext(SchedulesContext);
   const { diaries } = useContext(DiariesContext);
@@ -121,6 +123,7 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
 
   const [step, setStep] = useState(() => (preset?.kind ? 'who' : 'kind'));
   const [kind, setKind] = useState(() => preset?.kind || null);
+  const fromSchedule = !!preset?.scheduleId;   // 일정에서 열림 — '어느 모임' 질문 생략, 회비는 고를 수 없음
   const [memo, setMemo] = useState('');            // 정산서에 덧붙일 한 줄("입금은 금요일까지")
   const [showMemo, setShowMemo] = useState(false);
   const namesTouched = useRef(false);              // 명단을 손댔으면 일정 명단 자동 갱신으로 덮지 않는다
@@ -215,7 +218,7 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
   //   (계좌 화면에서 고르는 도중 단계가 사라져 '이전'이 엉뚱한 데로 가지 않게).
   const hasAccountAtStart = useRef(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const steps = useMemo(() => stepsFor(kind, hasAccountAtStart.current), [kind, accountsLoaded]);
+  const steps = useMemo(() => stepsFor(kind, hasAccountAtStart.current, fromSchedule), [kind, accountsLoaded, fromSchedule]);
 
   // ── 일정 후보 ─────────────────────────────────────────────
   // 일정 '공유'로 들어온 동반자는 companions에 없고 전파 그룹에 있다 → 공용 유틸로 보강
@@ -240,16 +243,21 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
   // ── preset 적용 ───────────────────────────────────────────
   // 일정에서 왔으면 그 일정을 src로, 명단을 채운다. 전파 그룹·친구 별명은 비동기로 오므로 그게 도착할 때마다
   //   명단을 다시 채운다 — 단, 총무가 이미 명단을 손댔으면(namesTouched) 덮지 않는다.
+  // preset의 일정 → src 객체(명단 포함). 효과와 pickKind가 같은 걸 쓴다(종류를 고를 때 src를 비우므로 다시 채워야 함).
+  const presetScheduleSrc = () => {
+    if (!preset?.scheduleId) return null;
+    const s = (schedules || []).find(x => x.id === preset.scheduleId);
+    const names = s ? scheduleNames(s) : [];
+    return { key: 'sch_' + preset.scheduleId, type: 'schedule', id: preset.scheduleId,
+      course: s?.course || preset.course || '', date: s?.date || preset.date || '', day: s?.day || preset.day || '', names };
+  };
   useEffect(() => {
-    if (!preset?.kind) return;
+    if (!preset?.kind && !preset?.scheduleId) return;
     if (preset.scheduleId) {
-      const s = (schedules || []).find(x => x.id === preset.scheduleId);
-      const names = s ? scheduleNames(s) : [];
-      const o = { key: 'sch_' + preset.scheduleId, type: 'schedule', id: preset.scheduleId,
-        course: s?.course || preset.course || '', date: s?.date || preset.date || '', day: s?.day || preset.day || '', names };
+      const o = presetScheduleSrc();
       setSrc(o);
-      if (!namesTouched.current) setNamesText(names.join('\n'));
-      setIncludeSelf(preset.kind === 'meal');
+      if (!namesTouched.current) setNamesText(o.names.join('\n'));
+      setIncludeSelf((preset.kind || kind) === 'meal');
       return;
     }
     if (preset.fromId && preset.kind === 'dues') {
@@ -476,6 +484,13 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
       const amounts = prev.members.map(m => m.amount).filter(a => a > 0);
       if (amounts.length && amounts.every(a => a === amounts[0])) setPerHead(String(amounts[0]));
     }
+    // 일정에서 왔으면 그 일정이 곧 모임 — '어느 모임' 질문 없이 명단을 채워 '누구에게'로
+    if (fromSchedule) {
+      const o = presetScheduleSrc();
+      if (o) { setSrc(o); setNamesText(o.names.join('\n')); }
+      goto('who');
+      return;
+    }
     goto('source');
   };
 
@@ -578,8 +593,13 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
   const renderKind = () => (
     <>
       <Text style={question}>무엇을 걷나요?</Text>
-      <View style={{ height: 22 }} />
-      {KIND_CARDS.map(k => (
+      {/* 일정에서 왔으면 어느 라운딩인지 보여준다(모임 질문을 건너뛰므로) */}
+      {fromSchedule ? (
+        <Text style={sub}>{[preset.course, preset.date && (preset.date + (preset.day ? ` (${preset.day})` : ''))].filter(Boolean).join(' · ') || '이 일정'}</Text>
+      ) : null}
+      <View style={{ height: fromSchedule ? 16 : 22 }} />
+      {/* 회비는 일정에 묶인 돈이 아니라 일정에서 열렸을 땐 선입금·정산만 */}
+      {KIND_CARDS.filter(k => !fromSchedule || k.key !== 'dues').map(k => (
         <TouchableOpacity key={k.key} onPress={() => pickKind(k.key)} activeOpacity={0.8}
           style={[box, { paddingHorizontal: 18, paddingVertical: 18, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }]}>
           <View style={{ flex: 1 }}>

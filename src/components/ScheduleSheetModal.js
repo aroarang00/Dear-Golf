@@ -165,10 +165,10 @@ export function ScheduleSheetModal({ visible, schedule, onClose, onCourseTap, on
     { key: 'iv', icon: 'personAdd', emoji: '🗓️', label: '친구 일정에 초대', onPress: onInviteFriends },
     // 함께 식사 — 식당 정하기/길찾기(홈 카드와 동일 기능, 일정캘린더에서도 접근) ([[afterround-meal-decision]])
     { key: 'ml', icon: 'bowl', emoji: '🍲', label: '함께 식사', onPress: onMeal },
-    // 걷기 — 일정에서 바로 시작(2026-10-01). 예정이면 선입금, 지난 라운딩이면 정산으로 종류·일정·명단이 채워진 채 모임 탭 정산으로.
-    //   정산 위저드의 앞 두 질문(무엇을·어느 모임)이 자동으로 지나간다. 총무가 아닌 사람에게도 보이지만 눌러야 생기니 무해.
-    { key: 'st', icon: 'wallet', emoji: '💰', label: isPast ? '정산하기' : '선입금 걷기', onPress: onSettle,
-      subtitle: isPast ? '쓴 돈 나눠 걷기' : '캐디피·참가비 미리' },
+    // 걷기 — 일정에서 바로 시작(2026-10-01). 일정·명단이 채워진 채 모임 탭 정산 위저드로 가되, 종류(선입금/정산)는
+    //   위저드 첫 화면 '무엇을 걷나요?'에서 고른다(2026-10-05 — 예정 일정이라고 선입금부터 열면 "선입금 없이 정산만"이 안 됐다).
+    //   총무가 아닌 사람에게도 보이지만 눌러야 생기니 무해.
+    { key: 'st', icon: 'wallet', emoji: '💰', label: '걷기', onPress: onSettle, subtitle: '선입금 · 정산' },
     { key: 'ed', icon: 'pen', emoji: '✏️', label: '일정 수정', onPress: onEdit },
     { key: 'dl', icon: 'trash', emoji: '🗑️', label: '일정 삭제', onPress: () => setConfirmDelete(true), danger: true },
   ];

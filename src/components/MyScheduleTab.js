@@ -1122,12 +1122,12 @@ export function MyScheduleTab({ onRequestAddDiary, onRequestOpenDiary, diaries =
         onInviteFriends={() => handleInviteFriends(sheet.schedule)}
         onMeal={() => openMealForSchedule(sheet.schedule)}
         onSettle={navigation ? () => {
-          // 일정 → 걷기 바로 시작(홈 시트와 동일): 예정=선입금, 지난=정산. 모임 탭 정산 위저드로.
+          // 일정 → 걷기(홈 시트와 동일): 일정·명단은 채워 넘기고 종류(선입금/정산)는 위저드가 묻는다(2026-10-05, kind 없음).
           const s = sheet.schedule;
           setSheet(prev => ({ ...prev, visible: false }));
           if (!s) return;
           navigation.navigate(ROUTES.MEET, { view: 'settle', settlePreset: {
-            kind: computeDDay(s) < 0 ? 'meal' : 'prepay', scheduleId: s.id,
+            kind: null, scheduleId: s.id,
             course: s.course || '', date: s.date || '', day: s.day || '', nonce: Date.now() } });
         } : undefined}
         onTeam={() => { const rid = sheet.schedule?.roundupId || null; setSheet(prev => ({ ...prev, visible: false })); setTeamRid(rid); }}
