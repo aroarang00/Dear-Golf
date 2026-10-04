@@ -28,7 +28,7 @@ module.exports = {
     name: 'Dear Golf',
     slug: 'dear-golf',
     scheme: 'deargolf',
-    version: '1.2.2',
+    version: '1.2.3',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -180,10 +180,14 @@ module.exports = {
         {
           calendarPermission:
             '라운딩 일정을 기기 캘린더에 자동으로 추가하기 위해 캘린더 접근 권한이 필요해요',
-          // 미리알림(Reminders)은 안 씀 — false면 NSReminders(FullAccess)UsageDescription이 plist에서 빠진다.
-          //   기본값을 두면 플러그인이 'Allow $(PRODUCT_NAME) to access your reminders' 플레이스홀더를 넣어
-          //   App Review 자동검사에 걸림(1.2.0 iOS 리젝 2026-10-03, [[appstore-reject-120-purpose-strings]]).
-          remindersPermission: false,
+          // ★미리알림 문구는 절대 빼면 안 된다 — expo-calendar가 앱 시작 시 RemindersPermissionRequester.getPermissions()를
+          //   호출하고, iOS 17+에서 NSRemindersFullAccessUsageDescription이 없으면 EXFatal → 앱이 실행 즉시 죽는다
+          //   (1.2.1·1.2.2 iPhone·iPad 런치 크래시 = App Review 2.1a 리젝, dev 빌드 빨간 화면
+          //   'ExpoCalendar.MissingCalendarPListValueException'으로 확정 2026-10-05, [[ios-121-ipad-launch-crash]]).
+          //   플러그인 기본 문구('Allow … to access your reminders')는 애플 자동검사가 플레이스홀더로 거부하므로
+          //   실제 설명을 넣는다. 앱은 미리알림을 만들거나 읽지 않는다(EventKit이 캘린더·미리알림을 함께 다루는 구조).
+          remindersPermission:
+            '라운딩 일정을 기기 캘린더에 넣는 기능이 캘린더와 미리알림을 함께 다루는 iOS 일정 저장소(EventKit)를 사용해요. 디어골프는 미리알림을 만들거나 읽지 않아요.',
         },
       ],
       'expo-web-browser',
