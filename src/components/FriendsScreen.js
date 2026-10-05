@@ -63,10 +63,15 @@ export function FriendsScreen({ navigation, route, embedded = false, onBack }) {
     if (!wantFinder) return;
     // 소비(setParams)는 반드시 타이머 콜백 안에서 — 즉시 호출하면 wantFinder가 undefined로 바뀌며
     //   cleanup이 자기 타이머를 clearTimeout으로 죽여 finder가 안 열림. open 직후 1회 소비.
+    // ★0 → 450ms(2026-10-05): 온보딩 완료 직후 모임 탭으로 넘어오며 이 화면이 뜨는 '그 프레임'에 친구찾기 Modal을
+    //   열면, iOS 새 아키텍처에서 화면 전환 중 Modal이 열리고 닫힐 때 보이지 않는 레이어가 남는 알려진 버그
+    //   (facebook/react-native#50152)와 같은 모양이 됐다 — 친구찾기를 닫은 뒤 친구 화면의 버튼(🔍·안내 카드·친구 찾기·초대)이
+    //   전부 안 눌리고 ‹ 모임·탭바만 눌리다가, 다른 화면 갔다 오면 살아남(아이폰 TestFlight 1.2.3, 사용자 제보).
+    //   화면 전환이 끝난 뒤 열도록 한 박자 늦춘다. 홈 '친구 찾기' 진입도 같은 경로라 함께 늦춰지지만 체감 미미.
     const t = setTimeout(() => {
       openFinderRef.current?.(wantFinder === true ? 'kakao' : wantFinder);
       navigation.setParams({ openFinder: undefined });
-    }, 0);
+    }, 450);
     return () => clearTimeout(t);
   }, [wantFinder]);
 
