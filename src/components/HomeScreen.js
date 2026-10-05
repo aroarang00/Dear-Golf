@@ -24,7 +24,9 @@ import { SchedulesContext } from '../contexts/SchedulesContext';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { HomeBgSlider, getCurrentWx } from './common/HomeBgSlider';
 import { TripleStripe } from './common/TripleStripe';
-import { Icon, WeatherGlyph, GreenFlag } from './common/Icon'; // 커스텀 라인 아이콘 — 이모지 대체(날짜 탭 캘린더 · 날씨 해 · 교통 자동차 · 당일 골프 깃발)
+import { Icon, WeatherGlyph, GreenFlag } from './common/Icon';
+import { PassportStamp } from './PassportStamp';            // 최근 기록 사진 없을 때 — 그 구장 여권 도장(2026-10-05)
+import { regionOf, REGION_INK } from '../utils/passport';  // 도장 잉크색 = 지역 // 커스텀 라인 아이콘 — 이모지 대체(날짜 탭 캘린더 · 날씨 해 · 교통 자동차 · 당일 골프 깃발)
 import { ScheduleSheetModal } from './ScheduleSheetModal';
 import { ScheduleCommentsModal } from './ScheduleCommentsModal';
 import { RoundCommentsModal } from './RoundCommentsModal';   // 내 글 댓글 알림 탭 → 그 글의 댓글 시트(2026-09-23)
@@ -2212,6 +2214,59 @@ export function HomeScreen({ navigation, route }) {
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(big ? 17 : 14), color: C.butter }}>{score}타</Text>
               </View>
             ) : null);
+            // ★사진 없는 기록(2026-10-05, 사용자 "넘 허전") — 깃발 네모 대신 그 구장 '여권 도장'(지역 잉크색·방문 N회·베스트)으로.
+            //   새 데이터 없이 기록에 이미 있는 것만(지역=courseLoc, 횟수·베스트=myCourseStats). 저장 때 찍히는 도장 연출과 이어짐.
+            const stampFor = (d, size) => {
+              const st = myCourseStats.get(resolveCourseKey(d.course));
+              return <PassportStamp size={size} ink={REGION_INK[regionOf(d.courseLoc)] || C.burgundy} name={d.course} date={d.date}
+                count={st?.count || 0} best={size >= 72 ? (st?.best ?? null) : null} />;
+            };
+            // ★홀별 색띠 — 스코어카드 OCR 홀 점수+파가 있는 기록만. 버디↓=그린 / 파=딥웜그레이 / 보기=옅은 코랄 / 더블+=진한 코랄.
+            //   "앞 9홀은 좋았는데 뒤에서 무너졌네"가 사진보다 많은 걸 말해 준다. 파 없으면 띠 대신 요약 칩만.
+            const holeInfo = (d) => {
+              const hs = Array.isArray(d.holeScores) ? d.holeScores : null;
+              const hp = Array.isArray(d.holePars) ? d.holePars : null;
+              if (!hs || hs.length < 9 || !hp || hp.length !== hs.length) return null;
+              const diffs = hs.map((v, i) => (Number(v) > 0 && Number(hp[i]) > 0) ? Number(v) - Number(hp[i]) : null);
+              if (diffs.every(x => x == null)) return null;
+              const cnt = { birdie: 0, par: 0, bogey: 0, dbl: 0 };
+              diffs.forEach(x => { if (x == null) return; if (x <= -1) cnt.birdie++; else if (x === 0) cnt.par++; else if (x === 1) cnt.bogey++; else cnt.dbl++; });
+              return { diffs, cnt };
+            };
+            // 칸 색 = 그린 한 색의 '농도'(2026-10-05, 사용자 "잘 칠수록 진하게가 맞지 않나") — 이글↓ 가장 진함 → 버디 → 파 → 보기 → 더블+는 바탕색 가까이.
+            //   못 친 홀이 빨갛게 튀던 1판은 눈이 실수로 갔다. 잘 친 홀이 돋보여야 기록 보는 맛이 난다. 글자: 진한 칸=흰색, 연한 칸=차콜.
+            const holeColor = (x) => (x == null ? 'rgba(61,57,53,0.05)' : x <= -2 ? '#2F6B4F' : x === -1 ? '#5E8A46' : x === 0 ? '#A9C29A' : x === 1 ? '#DCE5D2' : 'rgba(61,57,53,0.07)');
+            const holeText = (x) => (x == null ? C.warmGrayLight : x <= -1 ? '#fff' : x === 0 ? '#1F3A1A' : x === 1 ? '#4A5A42' : C.warmGray);
+            // ★미니 스코어카드(2026-10-05 v2) — 8px 띠는 "빨간 점선"으로 읽혔다(사용자). 전반·후반 두 줄 × 9칸, 칸마다 타수 숫자.
+            //   골퍼가 늘 보는 스코어카드 모양이라 설명 없이 읽힌다. 9홀 기록은 한 줄.
+            const holeStrip = (info, d) => {
+              if (!info) return null;
+              const hs = d.holeScores;
+              const rows = info.diffs.length > 9 ? [[0, 9, '전반'], [9, info.diffs.length, '후반']] : [[0, info.diffs.length, '']];
+              return (
+                <View style={{ marginTop: 14, gap: 4 }}>
+                  {rows.map(([from, to, label]) => (
+                    <View key={label || 'all'} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      {label ? <Text style={{ width: 26, fontFamily: F.sysSb, fontSize: fs(10), color: C.warmGray }}>{label}</Text> : null}
+                      {info.diffs.slice(from, to).map((x, i) => (
+                        <View key={from + i} style={{ flex: 1, height: 24, borderRadius: 5, backgroundColor: holeColor(x), alignItems: 'center', justifyContent: 'center' }}>
+                          <Text allowFontScaling={false} style={{ fontFamily: F.sysB, fontSize: 11.5, color: holeText(x), includeFontPadding: false }}>
+                            {Number(hs[from + i]) > 0 ? Number(hs[from + i]) : '·'}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, marginLeft: rows[0][2] ? 29 : 0 }}>
+                    {[['버디', info.cnt.birdie, '#2F6B4F'], ['파', info.cnt.par, '#5E8A46'], ['보기', info.cnt.bogey, '#8A9A80'], ['더블+', info.cnt.dbl, C.warmGray]]
+                      .filter(([, n]) => n > 0)
+                      .map(([label, n, color]) => (
+                        <Text key={label} style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color }}>{label} {n}</Text>
+                      ))}
+                  </View>
+                </View>
+              );
+            };
             return (
             <View style={{ marginTop: 60, paddingHorizontal: SIDE_PAD }}>
               {/* ★섹션 타이틀(2026-08-26) — fs15로는 사진 배경에 묻혀 약함(사용자) → fs21+옅은 그림자로 통일(18도 작다 피드백).
@@ -2246,21 +2301,39 @@ export function HomeScreen({ navigation, route }) {
                     </View>
                   </View>
                 ) : (
-                  /* 사진 없는 최신 기록 — 크림 카드 폴백(큰 깃발 + 타수 뱃지) */
-                  <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 }}>
-                    <View style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: 'rgba(61,57,53,0.06)', alignItems: 'center', justifyContent: 'center' }}>
-                      <GreenFlag size={fs(28)} />
-                    </View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal }}>{hero.course}</Text>
-                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginTop: 3 }}>{hero.date}</Text>
-                      {hero.memo ? <Text numberOfLines={1} style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGrayLight, marginTop: 3 }}>"{hero.memo}"</Text> : null}
-                      {heroCmp ? (
-                        <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(12.5), marginTop: 4, color: heroCmp.good === null ? C.warmGray : heroCmp.good ? '#5E8A46' : '#B5573F' }}>{heroCmp.text}</Text>
-                      ) : null}
-                    </View>
-                    {scoreBadge(hero.score, true)}
-                  </View>
+                  /* 사진 없는 최신 기록 — 크림 카드 폴백: 여권 도장 + 구장·날짜·방문 N회·비교 한 줄 + 홀별 색띠(있을 때) */
+                  (() => {
+                    const st = myCourseStats.get(resolveCourseKey(hero.course));
+                    const visitN = st?.count || 0;
+                    return (
+                      <View style={{ padding: 16 }}>
+                        {/* 윗줄 — 도장 | 구장·날짜·방문 | 타수. 메모·비교 멘트는 가운데 칸이 좁아 잘려서(사용자 2026-10-05) 아래 전체 폭으로 */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                          {stampFor(hero, 84)}
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text numberOfLines={2} style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, lineHeight: 21 }}>{hero.course}</Text>
+                            {/* 날짜 / 방문 횟수 — 두 줄로(한 줄에 붙이면 좁은 칸에서 "2번째…"로 잘림, 사용자 2026-10-05) */}
+                            <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray, marginTop: 3 }}>{hero.date}</Text>
+                            {visitN > 0 ? (
+                              <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.warmGray, marginTop: 2 }}>
+                                {visitN > 1 ? `이 구장 ${visitN}번째 방문` : '이 구장 첫 방문'}
+                              </Text>
+                            ) : null}
+                          </View>
+                          {scoreBadge(hero.score, true)}
+                        </View>
+                        {(hero.memo || heroCmp) ? (
+                          <View style={{ marginTop: 12 }}>
+                            {hero.memo ? <Text numberOfLines={2} style={{ fontFamily: F.sys, fontSize: fs(12.5), color: C.textSecondary, lineHeight: 18 }}>"{hero.memo}"</Text> : null}
+                            {heroCmp ? (
+                              <Text numberOfLines={1} style={{ fontFamily: F.sysSb, fontSize: fs(12.5), marginTop: hero.memo ? 4 : 0, color: heroCmp.good === null ? C.warmGray : heroCmp.good ? '#5E8A46' : '#B5573F' }}>{heroCmp.text}</Text>
+                            ) : null}
+                          </View>
+                        ) : null}
+                        {holeStrip(holeInfo(hero), hero)}
+                      </View>
+                    );
+                  })()
                 )}
               </PressScale>
 
@@ -2277,8 +2350,9 @@ export function HomeScreen({ navigation, route }) {
                       {uri ? (
                         <ExpoImage source={{ uri }} contentFit="cover" transition={0} style={{ width: 56, height: 56, borderRadius: 10 }} />
                       ) : (
-                        <View style={{ width: 56, height: 56, borderRadius: 10, backgroundColor: 'rgba(61,57,53,0.06)', alignItems: 'center', justifyContent: 'center' }}>
-                          <GreenFlag size={fs(22)} />
+                        /* 사진 없음 — 히어로와 같은 여권 도장(작게). 깃발 네모는 허전(사용자 2026-10-05) */
+                        <View style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}>
+                          {stampFor(d, 56)}
                         </View>
                       )}
                       <View style={{ flex: 1, justifyContent: 'center', minWidth: 0 }}>
