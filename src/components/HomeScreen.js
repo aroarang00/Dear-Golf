@@ -935,17 +935,13 @@ export function HomeScreen({ navigation, route }) {
     opacity: homeScrollY.interpolate({ inputRange: [HDR_COLLAPSE_AT - 24, HDR_COLLAPSE_AT + 24], outputRange: [0, 1], extrapolate: 'clamp' }),
     transform: [{ translateY: homeScrollY.interpolate({ inputRange: [HDR_COLLAPSE_AT - 24, HDR_COLLAPSE_AT + 24], outputRange: [-8, 0], extrapolate: 'clamp' }) }],
   };
-  // ★등장(2026-09-21) — 홈에 올 때(마운트·탭 복귀) 히어로 캐러셀이 아래에서 살짝 떠오르며 나타난다.
-  //   카드가 한 장뿐이면 깊이 효과가 안 보여서, 그 경우에도 '떠오름'이 있게. 380ms 한 번, 이후 정지.
+  // ★등장(2026-09-21) — 홈 첫 마운트 때 히어로 캐러셀이 아래에서 살짝 떠오르며 나타난다. 380ms 한 번, 이후 정지.
+  //   ★탭 복귀(focus) 재생은 뺐다(2026-10-05): 복귀 순간 이미 보이던 카드를 opacity 0으로 숨겼다 다시 띄우는데,
+  //     안드는 focus에 몰린 로드(친구 피드·코스·고아 정리·공유 일정 확인…) 뒤로 애니메이션 시작이 밀려
+  //     "안 보이다가 튀어나옴 / 깜빡하며 사라졌다 나타남"(사용자). 홈은 정보가 바로 보여야 해 양 플랫폼 통일.
   const heroEnter = useRef(new Animated.Value(0)).current;
-  const playHeroEnter = () => {
-    heroEnter.setValue(0);
-    Animated.timing(heroEnter, { toValue: 1, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  };
   useEffect(() => {
-    playHeroEnter();
-    if (!navigation?.addListener) return undefined;
-    return navigation.addListener('focus', playHeroEnter);
+    Animated.timing(heroEnter, { toValue: 1, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const heroEnterStyle = { opacity: heroEnter, transform: [{ translateY: heroEnter.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] };
