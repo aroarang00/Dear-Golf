@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 import { OverlayAlert } from './common/OverlayAlert';
 import { LoadingState } from './common/LoadingState';
+import { Icon } from './common/Icon'; // 그룹 이름 옆 ✎ — '탭하면 바뀐다'를 보이게(2026-10-05)
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import {
   loadFriendData, saveFriendGroups, groupColor, groupMemberCount,
@@ -134,8 +135,11 @@ export function FriendGroupManageModal({ visible, onClose, hiddenFriends = [], o
                         borderBottomWidth: 1, borderBottomColor: C.burgundy, paddingVertical: 3 }} />
                   ) : (
                     <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.7} onPress={() => startRename(g)}>
-                      <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{g.name}</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>친구 {members}명</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.charcoal }}>{g.name}</Text>
+                        <Icon name="pen" size={fs(12)} color={C.warmGray} strokeWidth={1.8} />
+                      </View>
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>친구 {members}명 · 이름 탭해서 바꾸기</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity onPress={() => move(i, -1)} disabled={i === 0} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>

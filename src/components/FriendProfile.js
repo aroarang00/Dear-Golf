@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, View, Text, FlatList, TouchableOpacity, Platform, Keyboard } from 'react-native';
-import AppTextInput from './common/AppTextInput';
+import { Modal, View, Text, FlatList, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -21,14 +20,12 @@ import { getUid } from '../utils/firebase';
 import { createContentReport } from '../utils/contentReports';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { DMChatScreen } from './DMChatScreen';
-import { FriendGroupManageModal } from './FriendGroupManageModal';
-import { loadFriendData } from '../utils/friendGroups';
 import { DiagContext } from '../utils/diag';   // ★임시 진단(2026-09-17) — 첫 카드 흐림 추적 오버레이 스위치. 원인 잡으면 제거
 
 // 친구 풀 프로필 — 프로필 / 라운딩 피드. 헤더 옵션에서 알림/숨기기/삭제 처리.
 // 옵션 액션시트는 자체 오버레이로 표시 (Modal 위 Modal 충돌 회피)
 // 피드 카드는 MY와 동일한 DiaryCard(variant='friend') 재사용 — 정보만 선별 ([[friend-feed-design]])
-export function FriendProfile({ friend, visible, feedLoading, feedFailed = false, onRetryFeed, friendGroups = [], onSaveMeta, onClose, muted, onToggleMute, onHide, onDelete, onBlock }) {
+export function FriendProfile({ friend, visible, feedLoading, feedFailed = false, onRetryFeed, onClose, muted, onToggleMute, onHide, onDelete, onBlock }) {
   const [gradeOpen, setGradeOpen] = useState(false);
   const [mannerOpen, setMannerOpen] = useState(false);
   const [handicapInfoOpen, setHandicapInfoOpen] = useState(false);
@@ -71,25 +68,19 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
   }, [friend?.feed]);
   const toggleCompact = (next) => { setCompact(next); storage.save(STORAGE_KEYS.diaryCompactView, next); };
   const [reportMsg, setReportMsg] = useState(null);        // 신고 결과 안내 텍스트
-  const [metaOpen, setMetaOpen] = useState(false);         // 그룹·별명 설정 시트 ([[friend_groups]])
-  const [editName, setEditName] = useState('');            // 편집 중 별명
-  const [editGroups, setEditGroups] = useState([]);        // 편집 중 소속 그룹 id 배열
-  const [groupManageOpen, setGroupManageOpen] = useState(false); // 그룹 관리 모달 — 시트에서 진입(B안) ([[friend_groups]])
-  const [localGroups, setLocalGroups] = useState(null);    // 그룹 관리 후 갱신본 — prop보다 우선(부모 재로드 없이 칩 반영)
+  // (2026-10-05) 그룹·별명 시트는 친구 목록 ⋯/길게누르기 시트로 통일 — 여기선 제거([[friend_groups]])
   useAndroidBack(optionsOpen, () => setOptionsOpen(false)); // 옵션 시트 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(dmOpen, () => setDmOpen(false)); // 메시지 대화방 뒤로가기 → 닫기
   useAndroidBack(!!viewer, () => setViewer(null));         // 뷰어 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(!!reportItem, () => setReportItem(null)); // 신고 시트 뒤로가기 → 닫기
   useAndroidBack(!!reportMsg, () => setReportMsg(null));   // 신고 결과 뒤로가기 → 닫기
-  useAndroidBack(metaOpen, () => setMetaOpen(false));      // 그룹·별명 시트 뒤로가기 → 닫기
-  useAndroidBack(groupManageOpen, () => setGroupManageOpen(false)); // 그룹 관리 모달 뒤로가기 → 닫기
   useEffect(() => { getUid().then(setMyUid).catch(() => {}); }, []);
   // 프로필이 닫히면 내부 오버레이 상태를 리셋 — FriendProfile은 언마운트되지 않고 visible만 토글되므로
   //   dmOpen 등이 남아 같은 친구를 다시 열 때 닫았던 DM이 그대로 뜨던 버그 방지([[modal-navigation-pattern]]).
   useEffect(() => {
     if (!visible) {
       setDmOpen(false); setOptionsOpen(false); setViewer(null);
-      setReportItem(null); setReportMsg(null); setMetaOpen(false); setGroupManageOpen(false);
+      setReportItem(null); setReportMsg(null);
       setCollapseSignal(n => n + 1);   // 펼쳐둔 카드도 접기 — 같은 친구를 다시 열면 접힌 상태로(사용자 2026-07-22)
       setRowOpenId(null);              // 요약보기에서 펼쳐둔 행도 원위치
     }
@@ -103,30 +94,14 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
     if (viewer) { setViewer(null); return; }
     if (reportMsg) { setReportMsg(null); return; }
     if (reportItem) { setReportItem(null); return; }
-    if (groupManageOpen) { setGroupManageOpen(false); return; }
-    if (metaOpen) { setMetaOpen(false); return; }
     if (optionsOpen) { setOptionsOpen(false); return; }
     if (dmOpen) { setDmOpen(false); return; }
     onClose && onClose();
   };
 
   const handleOption = (fn) => () => { setOptionsOpen(false); fn && fn(); };
-  // 그룹·별명 설정 ([[friend_groups]]) — 내 private 메타. 친구에겐 안 보임.
-  const openMetaEditor = () => {
-    setEditName(friend.customName || '');
-    const gids = Array.isArray(friend.groupIds) ? friend.groupIds : [];
-    setEditGroups(gids.length ? [gids[0]] : []);   // 단일 소속 — 첫 그룹만(옛 다중 데이터 정규화)
-    setMetaOpen(true);
-  };
-  // 단일 소속 — 한 친구는 한 그룹만(또는 없음). 같은 칩 다시 누르면 해제 ([[friend_groups]]).
-  const toggleEditGroup = (gid) =>
-    setEditGroups(prev => (prev.includes(gid) ? [] : [gid]));
-  const saveMeta = () => {
-    onSaveMeta && onSaveMeta(friend.id, { customName: editName, groupIds: editGroups });
-    setMetaOpen(false);
-  };
+  // 별명·그룹 설정은 친구 목록 카드 ⋯(길게누르기) 시트로 통일(2026-10-05) — 옵션에서 제거
   const options = [
-    { text: '✏️  그룹·별명 설정', subtitle: '나만 보는 별명·그룹 (친구에겐 안 보여요)', onPress: handleOption(openMetaEditor) },
     {
       text: muted ? '🔔  알림 켜기' : '🔕  알림 끄기',
       subtitle: muted
@@ -449,73 +424,6 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
-          )}
-
-          {/* 그룹·별명 설정 — 내 private 메타. 친구에겐 안 보임 ([[friend_groups]]) */}
-          {metaOpen && (
-            <TouchableOpacity activeOpacity={1} onPress={() => setMetaOpen(false)}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 30 /* 떠 있는 헤더(zIndex 10) 위 */,
-                backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 28 }}>
-              <TouchableOpacity activeOpacity={1} onPress={() => {}}
-                style={{ backgroundColor: C.bgPrimary, borderRadius: 16, padding: 20 }}>
-                <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal, textAlign: 'center', marginBottom: 4 }}>그룹 · 별명 설정</Text>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, textAlign: 'center', marginBottom: 16 }}>나만 보는 설정이에요 · 친구에겐 안 보여요</Text>
-
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal, marginBottom: 6 }}>별명 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(최대 6자)</Text></Text>
-                {/* ⚠️ maxLength 금지 — 한글 조합(IME) 충돌로 마지막 글자가 자모서 막힘(iOS서 발현). onChangeText에서 6자 컷 ([[friend_groups]]) */}
-                <AppTextInput value={editName} onChangeText={(t) => setEditName(t.slice(0, 6))} returnKeyType="done"
-                  placeholder={friend.nickname || friend.name || '별명'} placeholderTextColor={C.warmGrayLight}
-                  style={{ fontFamily: F.sys, fontSize: fs(14), color: C.charcoal, backgroundColor: C.bgSecondary,
-                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11 }} />
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 5, lineHeight: 16 }}>
-                  💡 별명을 적으면 친구 목록·피드에서 그 이름으로 보여요
-                </Text>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.charcoal }}>그룹</Text>
-                  {/* 그룹 추가·이름변경은 여기서 (B안 — 마이페이지 안 거치고 친구화면서 바로) ([[friend_groups]]) */}
-                  <TouchableOpacity onPress={() => setGroupManageOpen(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: C.burgundy }}>그룹 관리 ›</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {(localGroups || friendGroups).map(g => {
-                    const on = editGroups.includes(g.id);
-                    return (
-                      <TouchableOpacity key={g.id} activeOpacity={0.8} onPress={() => toggleEditGroup(g.id)}
-                        style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18,
-                          backgroundColor: on ? C.charcoal : C.bgSecondary }}>
-                        <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: on ? C.butter : C.charcoal }}>{g.name}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
-                  한 친구는 한 그룹만 — 다시 누르면 해제돼요
-                </Text>
-
-                {/* Keyboard.dismiss 선행 — 안드는 엔터로 키보드가 내려가도 입력칸이 포커스를 쥐고 있어,
-                    다음 탭(저장)이 키보드 부활에 먹혀 저장이 씹히던 문제(사용자 2026-07-06). 포커스를 끊고 실행 */}
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
-                  <TouchableOpacity activeOpacity={0.7} onPress={() => { Keyboard.dismiss(); setMetaOpen(false); }}
-                    style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: C.bgSecondary, alignItems: 'center' }}>
-                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.charcoal }}>취소</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity activeOpacity={0.85} onPress={() => { Keyboard.dismiss(); saveMeta(); }}
-                    style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: C.burgundy, alignItems: 'center' }}>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.butter }}>저장</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          )}
-
-          {/* 친구 그룹 관리 — 그룹·별명 시트에서 진입(B안). 닫을 때 그룹 목록만 다시 읽어 칩 반영 ([[friend_groups]]) */}
-          {groupManageOpen && (
-            <FriendGroupManageModal visible onClose={() => {
-              loadFriendData().then(fd => setLocalGroups(fd.friendGroups)).catch(() => {});
-              setGroupManageOpen(false);
-            }} />
           )}
 
           {/* 사진·영상 전체화면 뷰어 — 카드 캐러셀에서 탭 시 */}
