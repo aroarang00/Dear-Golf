@@ -113,6 +113,11 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
     ? Math.min(src.w / src.h, width / height) / Math.max(src.w / src.h, width / height)
     : 1;
   const fitWhole = !explicit && coverVisible < 0.8;
+  // ★틀 크기 키(2026-10-05) — 틀(width×height)이 바뀌면 <Image>를 다시 마운트해 새 크기로 디코드한다.
+  //   expo-image는 뷰 크기가 커져도 이미 디코드한(다운스케일된) 비트맵을 그대로 늘려 보여줘, 카드 틀이
+  //   4:3→4:5로 확정되거나 첫 레이아웃 높이가 작게 왔던 사진이 '뿌옇게' 남았다(안드 두드러짐, iOS도 가능).
+  //   디스크 캐시에서 다시 읽으므로 비용은 디코드 한 번. 비율 힌트(ar)로 틀이 처음부터 맞는 사진은 안 바뀐다.
+  const sizeKey = `${Math.round(width || 0)}x${Math.round(height || 0)}`;
   // 진단 — 어느 렌더 경로인지(whole=블러배경+통짜 / cover / focal=평행이동)
   const path = fitWhole ? 'whole' : (!eff || !src || !width || !height) ? 'cover' : 'focal';
   useEffect(() => {
@@ -144,7 +149,7 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
             안 덮이고 흐린 배경만 남아 '첫 사진 흐림'이 재마운트 전까지 지속되던 것 수정. 앞 레이어는 전환 없이 즉시. */}
         <Image source={uri} style={{ position: 'absolute', left: 0, top: 0, width, height }} contentFit="cover"
           blurRadius={18} cachePolicy="memory-disk" allowDownscaling={!sharp} recyclingKey={`${uri}#bg`} />
-        <Image source={uri} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk" allowDownscaling={!sharp}
+        <Image key={sizeKey} source={uri} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk" allowDownscaling={!sharp}
           transition={0}
           onLoad={onLoad} onDisplay={onDisplay} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
         {overlay}
@@ -157,7 +162,7 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
   if (!eff || !src || !width || !height) {
     return (
       <View style={[{ width, height, backgroundColor: '#15171A' }, style]}>
-        <Image source={uri} style={{ width, height }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={!sharp} transition={Platform.OS === 'android' ? 0 : 150}
+        <Image key={sizeKey} source={uri} style={{ width, height }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={!sharp} transition={Platform.OS === 'android' ? 0 : 150}
           onLoad={onLoad} onDisplay={onDisplay} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
         {overlay}
         {diagNode}
@@ -174,7 +179,7 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
 
   return (
     <View style={[{ width, height, overflow: 'hidden', backgroundColor: '#15171A' }, style]}>
-      <Image source={uri} style={{ position: 'absolute', left, top, width: dispW, height: dispH }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={!sharp}
+      <Image key={sizeKey} source={uri} style={{ position: 'absolute', left, top, width: dispW, height: dispH }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={!sharp}
         onLoad={onLoad} onDisplay={onDisplay} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
       {overlay}
       {diagNode}

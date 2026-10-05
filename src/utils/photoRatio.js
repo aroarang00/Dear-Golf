@@ -65,6 +65,24 @@ export function feedFrameAspect(ratio) {
   return 4 / 5;                      // 세로
 }
 
+// 저장 데이터에 실린 비율 힌트(2026-10-05) — 사진 객체의 ar(가로/세로). 있으면 로드 전에 틀을 확정할 수 있다.
+//   첫 장 기준(틀 규칙과 동일). 영상은 포스터 비율을 저장하지 않아 null.
+export function firstPhotoRatioHint(photos) {
+  const p = Array.isArray(photos) ? photos[0] : null;
+  if (!p || typeof p !== 'object' || p.type === 'video') return null;
+  return Number.isFinite(p.ar) && p.ar > 0 ? p.ar : null;
+}
+
+// 카드 틀 결정용 비율 — ①이 기기에서 잰 캐시 ②저장 데이터의 ar 힌트(캐시에 심어둠) ③없음(null→기본 4:3)
+export function cardPhotoRatio(photos) {
+  const uri = firstPhotoUri(photos);
+  const cached = getPhotoRatio(uri);
+  if (cached) return cached;
+  const hint = firstPhotoRatioHint(photos);
+  if (hint) { setPhotoRatio(uri, hint); return hint; }
+  return null;
+}
+
 // 카드의 첫 사진(영상이면 포스터) URI — 여러 장이면 첫 장 기준으로 틀을 정한다(인스타와 같은 규칙).
 export function firstPhotoUri(photos) {
   const p = Array.isArray(photos) ? photos[0] : null;

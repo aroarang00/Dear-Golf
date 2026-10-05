@@ -16,7 +16,7 @@ import { loadLatestRoundComments, setLatestCache } from '../utils/roundComments'
 import { queueLike, getMyLike, setMyLike, subscribeMyLikes } from '../utils/pendingLikes'; // 좋아요 유실 방지 대기 큐 + 화면 간 공유 메모장
 import { showAppAlert } from './AppAlert'; // 좋아요 실패 안내 — 조용한 롤백이 '안 눌림'으로 보이던 것(2026-08-26)
 import { ownerVisibilityLabel } from '../utils/friendGroups';
-import { getPhotoRatio, feedFrameAspect, firstPhotoUri, ratiosReady } from '../utils/photoRatio';   // 사진에 맞는 카드 틀(4:3·1:1·4:5)
+import { getPhotoRatio, feedFrameAspect, firstPhotoUri, ratiosReady, cardPhotoRatio } from '../utils/photoRatio';   // 사진에 맞는 카드 틀(4:3·1:1·4:5)
 
 // 라운딩 기록 카드.
 //  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
@@ -63,7 +63,9 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   //   3:4 세로 사진이 56%만 보이던 문제(사람이 아래 있으면 하늘만 남음) → 94%까지 살아난다.
   //   첫 장 기준(인스타와 같은 규칙). 잰 적 있는 사진이면 캐시에서 바로 나와 높이가 처음부터 정확하고,
   //   처음 보는 사진만 로드 후 한 번 확정된다(그 뒤로는 캐시).
-  const [photoAr, setPhotoAr] = useState(() => getPhotoRatio(firstPhotoUri(item.photos)));
+  //   ★2026-10-05: 저장 데이터에 실린 비율(photos[0].ar)도 초기값으로 — 친구의 새 사진·방금 저장한 내 사진처럼
+  //   '이 기기에서 처음 보는' 사진도 로드 전에 틀이 맞아 접혔다 펼쳐지는 점프·안드 작은틀 디코드 흐림이 사라진다.
+  const [photoAr, setPhotoAr] = useState(() => cardPhotoRatio(item.photos));
   const frameAspect = feedFrameAspect(photoAr);
   // ★임시 진단(2026-09-17) — 친구 피드 첫 카드 흐림 추적. 카드 틀(4:3·1:1·4:5)이 언제 정해지는지. 원인 잡으면 제거.
   useEffect(() => {

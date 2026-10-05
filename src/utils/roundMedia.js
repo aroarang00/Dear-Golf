@@ -2,7 +2,8 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { storage } from './firebase';
 import { resolvePhotoUri } from './photoStorage';
-import { compressImage } from './imageCompress';
+import { compressImage, compressImageWithSize, ratioOf } from './imageCompress';
+import { setPhotoRatio } from './photoRatio';   // 업로드한 사진 비율을 이 기기 캐시에도 — MY 탭이 https로 바뀐 뒤에도 틀이 처음부터 맞게
 import { uploadLocalFileStreaming, withUploadTimeout, UPLOAD_TIMEOUT_PHOTO_MS, UPLOAD_TIMEOUT_VIDEO_MS } from './storageUpload';
 
 // 친구공개 다이어리의 사진/영상을 Firebase Storage에 올려 친구가 볼 수 있는 https URL로 바꾼다 ([[friend-feed-design]]).
@@ -84,12 +85,15 @@ async function uploadOne(uid, item, i, compressOpts = {}) {
     const name = `m_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
     const storagePath = `rounds/${uid}/${name}`;
     const storageRef = ref(storage, storagePath);
+    let photoAr = null;   // 사진 비율(가로/세로) — 압축 결과 치수에서. 데이터에 실어 보낸다(아래)
     if (isVideo) {
       // 영상은 디스크→스트리밍 업로드 — 파일 전체를 힙 Blob으로 올리면 대용량에서 OOM 크래시([[video-upload-oom]]).
       await uploadLocalFileStreaming(storagePath, localUri, contentType);
     } else {
       // 사진은 압축(수백KB) 후 Blob 업로드 — 작아서 힙 부담 없음.
-      const uploadUri = await compressImage(localUri, compressOpts);
+      const c = await compressImageWithSize(localUri, compressOpts);
+      const uploadUri = c.uri;
+      photoAr = ratioOf(c.width, c.height) || (isObj && Number.isFinite(item.ar) ? item.ar : null);
       const res = await fetch(uploadUri);
       const blob = await res.blob();
       await uploadBytes(storageRef, blob, { contentType }); // contentType 명시 — Storage 규칙 image/* 매칭 보장
@@ -98,8 +102,12 @@ async function uploadOne(uid, item, i, compressOpts = {}) {
     // 사진 객체({uri, focus})는 메타 보존, 단순 문자열 사진은 그대로 https 문자열 ([[cover-focal-point]])
     //   단 orig(로컬 재편집용 원본 dgphoto:)는 친구가 못 읽는 로컬 식별자라 업로드 데이터에선 제거.
     if (!isVideo) {
-      if (!isObj) return url;
+      // ★비율(ar)을 데이터에 실어 보낸다(2026-10-05) — 친구 기기가 사진 로드 전에 카드 틀을 맞출 수 있게.
+      //   문자열 사진도 ar이 있으면 객체 {uri, ar}로. 이 기기 캐시에도 심어 MY 탭 재그리기가 처음부터 정확하게.
+      if (photoAr) setPhotoRatio(url, photoAr);
+      if (!isObj) return photoAr ? { uri: url, ar: photoAr } : url;
       const { orig, ...rest } = item;
+      if (photoAr) rest.ar = photoAr;
       // compressOpts.thumb(px)를 준 호출(크루 피드)만 작은 썸네일도 함께 업로드 → 리스트는 thumb, 뷰어는 uri(원본 800px).
       //   best-effort: 실패하면 thumb 없이 진행(렌더가 m.thumb||m.uri로 폴백). 다른 화면은 thumb 옵션을 안 줘서 영향 0.
       let thumb = null;
