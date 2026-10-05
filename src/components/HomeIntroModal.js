@@ -17,19 +17,24 @@ const HEADER_IMG = require('../../assets/home-bg/intro-header.jpg');
 
 // 시각 위주 + 카테고리 컬러로 모던하게. 카드별 다른 액센트 컬러로 시각 리듬감.
 // icon = 커스텀 SVG 이름, ic = 아이콘 선 색(tint 톤의 진한 버전). tint = 좌측 박스 배경(옅은 카테고리색).
+// ★2026-10-05 재편(8→9장): 8월 탭 4개 재편(모임 탭=친구·크루·라운딩 모집·정산·메시지)·정산(걷기)·골프 여권·크루가
+//   전혀 반영돼 있지 않았음(사용자 지적). 개별 화면 안내(라운지·정산·크루 모달)는 각자 최신이라 여기선 한 줄씩만.
 const FEATURES = [
-  { icon: 'calendar',  ic: '#2E5A7A', title: '예정 라운딩 한 번에',        body: '예약 문자·캡처를 AI가 자동입력 · 날씨·교통·캘린더까지', tint: '#D6E4EF' }, // paleSky 톤
+  { icon: 'calendar',  ic: '#2E5A7A', title: '예정 라운딩 한 번에',        body: '예약 문자·캡처를 AI가 자동입력 · 날씨·교통 · 폰 일정과 겹쳐 보여 더블부킹 방지', tint: '#D6E4EF' }, // paleSky 톤
   // 기상·출발 알림 — 플랫폼별 동작 차이는 그 기기에 해당하는 안내만(iOS=무음스위치, 안드=시계앱 알람 24시간)
   { icon: 'bell',      ic: '#C2703D', title: '기상·출발 알림',              body: '티오프에 맞춰 일어날 시간·나설 시간을 계산해 알려드려요', tint: '#F4DCC8', // 옅은 코랄
     note: Platform.OS === 'ios'
       ? 'iPhone은 무음 스위치가 켜져 있으면 소리가 안 나요 — 전날 밤 꺼두세요'
       : '기상 알림은 시계 앱 알람으로도 함께 울려요 (라운딩 24시간 안쪽부터)' },
-  { icon: 'clubhouse', ic: '#8A6A33', title: '다녀온 골프장 자동 정리',    body: '일정만 등록해도 다녀온 코스가 차곡차곡',   tint: '#FAEDB8' }, // butter 톤
-  { icon: 'trophy',    ic: '#6B1E2A', title: '걸어본 코스 한눈에',          body: '100대·해외 라운딩이 자동으로 정리',        tint: '#F0D6D6' }, // 옅은 burgundy
-  { icon: 'book',      ic: '#5E7E52', title: '친구 골퍼끼리 기록·사진 공유', body: '스코어카드 사진을 AI가 홀별 자동입력 · 친구와 공유', tint: '#D6E3C8' }, // 옅은 그린
+  // 골프 여권 — 옛 '다녀온 골프장 자동 정리'+'걸어본 코스 한눈에' 두 장을 도장 모델로 통합(2026-09 여권 신설)
+  { icon: 'trophy',    ic: '#6B1E2A', title: '골프 여권',                   body: '일정만 등록해도 다녀온 구장이 도장으로 · 100대·해외·지역별 한눈에', tint: '#F0D6D6' }, // 옅은 burgundy
+  { icon: 'book',      ic: '#5E7E52', title: '스코어·기록 공유',            body: '스코어카드 사진을 AI가 홀별 자동입력 · 친구와 기록·사진 공유', tint: '#D6E3C8' }, // 옅은 그린
   { icon: 'wallet',    ic: '#8A6A33', title: '골프 가계부',                 body: '영수증·카드문자를 AI가 자동입력 · 비용 한눈에', tint: '#E8D8B0' }, // 옅은 골드
-  { icon: 'pin',       ic: '#3A5A78', title: '골프장·맛집 저장',            body: '메모·골퍼 코멘트 한 곳에',                 tint: '#C8D2DE' }, // 옅은 네이비
-  { icon: 'people',    ic: '#4A4038', title: '동반자 모집',                 body: '전화·카톡 없이 라운지에서', tint: '#E0D8C8', cta: '자세한 건 라운지에서' }, // 옅은 차콜·베이지
+  { icon: 'pin',       ic: '#3A5A78', title: '코스·맛집',                   body: '전국 지도에서 골프장을 찾고 메모·골퍼 코멘트·맛집을 한 곳에', tint: '#C8D2DE' }, // 옅은 네이비
+  // 모임 탭 3장 — 정산(걷기)은 총무 페인포인트 직격이라 별도 카드. 자세한 설명은 각 화면 안내 모달에.
+  { icon: 'clipboard', ic: '#8B6914', title: '모임 정산',                   body: '선입금·정산·회비 걷기 · 카톡으로 정산서 링크 · 입금 체크와 독촉은 앱이 대신', tint: '#F3E8C0', cta: '모임 탭 → 정산' }, // 옅은 버터(정산 안내와 동일 톤)
+  { icon: 'people',    ic: '#4A4038', title: '라운딩 모집 · 크루',          body: '친구끼리 전화·카톡 없이 모집 · 크루 공유 앨범에 사진·이야기', tint: '#E0D8C8', cta: '모임 탭 → 라운딩 모집 · 크루' }, // 옅은 차콜·베이지
+  { icon: 'chat',      ic: '#3E6E8E', title: '메시지',                      body: '친구와 1:1 대화 · 사진·링크도 바로', tint: '#C8D9E6', cta: '모임 탭 → 메시지' }, // 옅은 스카이
 ];
 
 export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
@@ -89,7 +94,7 @@ export function HomeIntroModal({ visible, onClose, onAddSchedulePress }) {
                   골프 라이프 전부를{'\n'}한 앱에서
                 </Text>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: 'rgba(255,255,255,0.85)', lineHeight: 20, textAlign: 'center', marginTop: 12 }}>
-                  일정·날씨·기록·가계부·모집까지,{'\n'}예약·스코어·영수증은 AI가 대신 입력해요.
+                  일정·날씨·기록·가계부·모집·정산까지,{'\n'}예약·스코어·영수증은 AI가 대신 입력해요.
                 </Text>
               </View>
               {/* 시그니처 삼색 띠 — 헤더와 본문 경계 (butter·paleSky·burgundy). 사진 어두운 톤·본문 베이지 톤과 섞이지 않게 두껍게 */}
