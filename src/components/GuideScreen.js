@@ -26,6 +26,7 @@ import { getTop100Courses, top100RankOf } from '../utils/top100';
 import { getUserCourses } from '../utils/userCourses';
 import { getSavedCourses, toggleSavedCourse } from '../utils/savedCourses'; // 내 저장 골프장(위시리스트) — 기록 무관
 import { gS } from '../styles/gS';
+import { useScrollHide } from '../utils/tabBarHide';   // 코스 상세 스크롤 방향으로 하단 탭바 숨김(홈·여권과 같은 훅, 2026-10-07 사용자 요청)
 import { CourseExploreTab } from './CourseExploreTab';
 import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { fetchCoursePlaceInfo, searchNearbyRestaurants, searchNearbyCafes, searchNearbyGolfCourses, searchRestaurantsByKeyword, coord2region } from '../utils/kakao';
@@ -52,6 +53,9 @@ export function GuideScreen({ route, navigation }) {
   const insets = useSafeAreaInsets(); // 루트 inset은 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=콘텐츠 점프 방지, 2026-06-15)
   const { userProfile } = React.useContext(UserContext);
   const { diaries } = React.useContext(DiariesContext);   // '내 기록' 줄용(단일 소스, 별도 로드 X)
+  // 코스 상세 스크롤 → 하단 탭바 숨김/복귀. ★코스 탭은 언마운트되지 않으므로 상세를 닫을 때(closeDetail)·탭을 떠날 때(resetView)·
+  //   내부 탭을 바꿀 때 반드시 showTabBar()로 되돌린다(안 그러면 탭바 없는 채로 남는다 — 홈과 같은 규칙).
+  const { onScroll: onDetailScroll, show: showTabBar } = useScrollHide();
   const [selected, setSelected] = useState(null);
   // 코스 둘러보기 지역탭 선택 — CourseExploreTab에 두면 상세 열 때(if selected early return) 언마운트돼
   //   지역 리스트가 사라지므로 여기(상시 마운트)로 끌어올려 상세 닫고 뒤로 와도 유지되게 함.
@@ -138,6 +142,7 @@ export function GuideScreen({ route, navigation }) {
       setPreviewCourse(null);
       setOpeningCourse(false);
       setInnerTab('course');
+      showTabBar();
       setShowCommentInput(false);
       setCommentInput('');
       setExploreRegion('전체');   // 코스 둘러보기 지역탭도 리셋 — 탭 떠났다 오면 '전체'로(상세 갔다 back은 blur 안 떠 유지)
@@ -157,7 +162,7 @@ export function GuideScreen({ route, navigation }) {
     const unsubPress = navigation.addListener('tabPress', resetView);
     const unsubBlur = navigation.addListener('blur', resetView);
     return () => { unsubPress(); unsubBlur(); };
-  }, [navigation]);
+  }, [navigation, showTabBar]);
 
   useEffect(() => {
     (async () => {
@@ -242,6 +247,7 @@ export function GuideScreen({ route, navigation }) {
     setPreviewCourse(null);
     setOpeningCourse(false);
     setInnerTab('course');
+    showTabBar();   // 상세에서 숨긴 탭바 복귀
     setShowCommentInput(false);
     setShowRatingInput(false);
     const sid = returnScheduleIdRef.current;
@@ -253,7 +259,7 @@ export function GuideScreen({ route, navigation }) {
     if (cal) navigation.navigate(ROUTES.HOME, { openSchedule: true });           // 캘린더에서 옴 → 캘린더 재오픈
     else if (sid) navigation.navigate(ROUTES.HOME, { openScheduleSheetId: sid }); // 홈 시트에서 옴 → 그 시트 재오픈
     else if (home) navigation.navigate(ROUTES.HOME);                              // 홈 카드 직접 탭 → 홈으로
-  }, [navigation]);
+  }, [navigation, showTabBar]);
 
   // Android 시스템 뒤로가기 — 코스 상세가 열려 있으면 홈으로 가지 않고 상세만 닫는다(일정에서 왔으면 일정으로 복귀)
   // (코스 탭에 머물러 검색·최근검색 상태 유지)
@@ -858,7 +864,7 @@ export function GuideScreen({ route, navigation }) {
             ].map(([k, l, ic]) => {
               const on = innerTab === k;
               return (
-                <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => setInnerTab(k)}
+                <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => { setInnerTab(k); showTabBar(); }}
                   style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5,
                     paddingVertical: 10, borderRadius: 9, backgroundColor: on ? C.charcoal : 'transparent' }}>
                   <Icon name={ic} size={fs(15)} color={on ? C.butter : C.charcoal} />
@@ -871,7 +877,8 @@ export function GuideScreen({ route, navigation }) {
           </View>
         </View>
 
-        <ScrollView ref={r => { scrollRefs.current.detail = r; }} style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={r => { scrollRefs.current.detail = r; }} style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+          onScroll={onDetailScroll} scrollEventThrottle={16}>
           {innerTab === 'course' && (
             <>
             <View style={{ padding: 16 }}>
