@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, useWindowDimensions, Platform, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScrollHide } from '../utils/tabBarHide';   // 내려 읽으면 헤더·탭바 숨김, 되돌리면 복귀(사용자 2026-09-29)
+import { useAndroidBack } from '../hooks/useAndroidBack';   // 안드 하드웨어 뒤로가기 = 여권 닫기(2026-10-07)
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import AppTextInput from './common/AppTextInput';
@@ -85,6 +86,10 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
   const [sharing, setSharing] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addQuery, setAddQuery] = useState('');
+  // ★안드 하드웨어/제스처 뒤로가기 — 여권은 Modal이 아닌 절대배치 덮개라 직접 잡아야 한다(2026-10-07, 사용자 "지도에서 여권
+  //   들어간 뒤 뒤로가기가 안 된다"). 안 잡으면 GuideScreen 핸들러(false)를 지나 탭 history 뒤로가기로 흘러 여권이 열린 채
+  //   다른 탭으로 튀고, 돌아오면 여권이 그대로 떠 있었다. '예전에 간 구장 추가'가 펼쳐져 있으면 그것부터 접는다.
+  useAndroidBack(true, () => { if (addOpen) { setAddOpen(false); setAddQuery(''); } else onClose(); });
   // ★'예전에 간 구장 추가'를 열면 그 칸을 화면 맨 위로 올린다(2026-09-30, 사용자 "자동검색이 안 된다").
   //   검색은 글자마다 돌고 있었는데, 입력칸이 화면 아래쪽(내 도장 구역)에 있어 결과 목록이 키보드 뒤에 깔려 안 보였다.
   //   구역 위치(onLayout)로 스크롤 + 열려 있는 동안 아래 여백을 늘려 끝까지 올릴 수 있게 한다.
@@ -194,7 +199,10 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
       <Animated.View onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h && Math.abs(h - headerH) > 1) setHeaderH(h); }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, elevation: 2, transform: [{ translateY: headerY }],
           backgroundColor: C.butter, paddingHorizontal: 8, paddingTop: insets.top + 6, paddingBottom: 6, flexDirection: 'row', alignItems: 'center' }}>
-        <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 6, paddingRight: 10 }}>
+        {/* ★뒤로 ‹ 터치 영역 — 글자가 좁아(≈8px) 정확히 눌러야 먹혔다(사용자 2026-10-07 "탭 폭이 작다"). 보이는 건 그대로,
+            판정 상자만 44×44 + hitSlop으로 넓힌다(안드 가이드 최소 48dp 이상). */}
+        <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 12, right: 16 }}
+          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginVertical: -6 }}>
           <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, includeFontPadding: false }}>‹</Text>
         </TouchableOpacity>
         <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, flex: 1 }}>골프 여권</Text>
