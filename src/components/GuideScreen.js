@@ -10,6 +10,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ROUTES } from '../constants/routes';
 import { UserContext } from '../contexts/UserContext';
+import { DiariesContext } from '../contexts/DiariesContext';   // 코스 상세 '내 기록' 줄(2026-10-07) — 이 구장 횟수·베스트·마지막
+import { isRoundDiary } from '../utils/diaryKind';
+import { courseKey, findCourseByName } from '../utils/courseNameKey';   // 구장 키 — 여권·지도 '다녀온 구장'과 같은 기준
 
 // 헤더·버튼을 라운지(navy) 헤더 규격에 맞춰 안드 컴팩트 보정 (RoundupTab과 동일 패턴)
 // (_and 안드 보정은 옛 큰 헤더 폐기(2026-08-26)로 더 안 씀 — 필요 시 Platform.OS로)
@@ -48,6 +51,7 @@ import { getUid } from '../utils/firebase';
 export function GuideScreen({ route, navigation }) {
   const insets = useSafeAreaInsets(); // 루트 inset은 View+paddingTop으로(탭 포커스 시 SafeAreaView 늦은 적용=콘텐츠 점프 방지, 2026-06-15)
   const { userProfile } = React.useContext(UserContext);
+  const { diaries } = React.useContext(DiariesContext);   // '내 기록' 줄용(단일 소스, 별도 로드 X)
   const [selected, setSelected] = useState(null);
   // 코스 둘러보기 지역탭 선택 — CourseExploreTab에 두면 상세 열 때(if selected early return) 언마운트돼
   //   지역 리스트가 사라지므로 여기(상시 마운트)로 끌어올려 상세 닫고 뒤로 와도 유지되게 함.
@@ -757,64 +761,83 @@ export function GuideScreen({ route, navigation }) {
       );
     } else detailOverlay = (
       <View style={{ flex: 1, backgroundColor: C.bgPrimary, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
-        <View style={[gS.detailHdr, { paddingTop: 14, paddingBottom: 16 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <TouchableOpacity onPress={closeDetail}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <View style={[gS.detailHdr, { paddingTop: 10, paddingBottom: 12 }]}>
+          {/* ★헤더 슬림화(2026-10-07, 사용자 "상단 3단이라 내용이 늦게 시작") — ←·구장명·저장을 한 줄로, 주소·100대·평점을 둘째 줄로.
+              전엔 ←/저장 줄 + 구장명 줄 + 큰 평점 블록(별 23·숫자 25)이었다. 평점은 둘째 줄 우측에 작게. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity onPress={closeDetail} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginLeft: -8 }}>
               <Text style={{ fontSize: fs(22), color: C.warmGray }}>←</Text>
             </TouchableOpacity>
+            {/* 긴 구장명은 잘리지 않게 한 줄에 맞춰 자동 축소(짧은 이름은 fs(20) 유지). 소노펠리체 비발디파크 EAST 같은 최장명 대응 */}
+            <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal }}
+              numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{c.name}</Text>
             {/* 저장 — 위시리스트 토글(기록 무관). 저장됨=진한 버건디 채움 / 미저장=흐린 아웃라인. 별 제거(골퍼평점과 겹침) */}
             {(() => {
               const fav = savedFav.some(s => (c.kakaoId && s.kakaoId === c.kakaoId) || s.name === c.name);
               return (
                 <TouchableOpacity onPress={toggleSaveCourse} activeOpacity={0.8} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={{ paddingHorizontal: 13, paddingVertical: 6, borderRadius: 16,
+                  style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16,
                     backgroundColor: fav ? C.burgundy : 'transparent',
                     borderWidth: 1, borderColor: C.burgundy }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12.5), color: fav ? C.butter : C.burgundy }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(12), color: fav ? C.butter : C.burgundy }}>
                     {fav ? '저장됨' : '+ 저장'}
                   </Text>
                 </TouchableOpacity>
               );
             })()}
           </View>
-          <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              {/* 긴 구장명은 잘리지 않게 한 줄에 맞춰 자동 축소(짧은 이름은 fs(22) 유지). 소노펠리체 비발디파크 EAST 같은 최장명 대응 */}
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(22), color: C.charcoal }}
-                numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{c.name}</Text>
-              <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 4 }} numberOfLines={1}>
-                {courseAddress || c.loc}
-              </Text>
-              {(() => {
-                // 100대 코스 배지 — 큐레이션(다중코스 리조트) 반영 매칭. 정규화 완전일치만 쓰면 '소노펠리체 비발디파크 EAST'처럼
-                //   코스단위명이 top100 구장명과 안 맞아 배지가 누락됐음([[course-matching-unification]]).
-                const rank = top100RankOf(top100, c.name);
-                if (!rank) return null;
-                return (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4,
-                    backgroundColor: '#FBF3D3', borderRadius: 6,
-                    paddingHorizontal: 8, paddingVertical: 3, marginTop: 8 }}>
-                    <Text style={{ fontSize: fs(11) }}>🏆</Text>
-                    <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: '#8B6914' }}>
-                      100대 코스 {rank}위
-                    </Text>
-                  </View>
-                );
-              })()}
-            </View>
-            {/* 골퍼평점 — 구장명 우측(종합 평균). 화면 끝에서 띄우고(marginRight) 크게. 상세·입력은 아래 패널 ([[project_course_rating]]) */}
-            {rating.count > 0 ? (
-              <View style={{ alignItems: 'flex-end', paddingTop: 2, marginRight: 8 }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(11), color: C.warmGray, marginBottom: 3 }}>골퍼평점</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Icon name="star" size={fs(23)} color="#F2B441" />
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(25), color: C.charcoal }}>{rating.overall.toFixed(1)}</Text>
+          <View style={{ marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ flex: 1, fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }} numberOfLines={1}>
+              {courseAddress || c.loc}
+            </Text>
+            {(() => {
+              // 100대 코스 배지 — 큐레이션(다중코스 리조트) 반영 매칭. 정규화 완전일치만 쓰면 '소노펠리체 비발디파크 EAST'처럼
+              //   코스단위명이 top100 구장명과 안 맞아 배지가 누락됐음([[course-matching-unification]]).
+              const rank = top100RankOf(top100, c.name);
+              if (!rank) return null;
+              return (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FBF3D3', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+                  <Text style={{ fontSize: fs(10) }}>🏆</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(10.5), color: '#8B6914' }}>100대 {rank}위</Text>
                 </View>
-                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray, marginTop: 2 }}>골퍼 {rating.count}명</Text>
+              );
+            })()}
+            {/* 골퍼평점 — 종합 평균을 작게(상세·입력은 코스 탭 평점 카드, [[project_course_rating]]) */}
+            {rating.count > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Icon name="star" size={fs(13)} color="#F2B441" />
+                <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>{rating.overall.toFixed(1)}</Text>
+                <Text style={{ fontFamily: F.sys, fontSize: fs(10), color: C.warmGray }}>({rating.count})</Text>
               </View>
             ) : null}
           </View>
+          {/* ★내 기록 줄(2026-10-07) — 이 구장에 남긴 내 라운딩 기록 요약. 여권·지도 '다녀온 구장'과 같은 키(kakaoId 우선, 없으면 이름 정규화).
+              기록이 없으면 줄 자체를 숨긴다(빈 줄로 공간만 차지하지 않게). */}
+          {(() => {
+            const myKey = c.kakaoId ? `id:${c.kakaoId}` : courseKey(c.name);
+            let count = 0, best = null, last = '';
+            (diaries || []).filter(isRoundDiary).forEach(d => {
+              if (!d?.course) return;
+              const m = exploreMaster.length ? findCourseByName(exploreMaster, d.course) : null;
+              const k = m?.kakaoId ? `id:${m.kakaoId}` : courseKey(d.course);
+              if (k !== myKey) return;
+              count += 1;
+              if (typeof d.score === 'number' && d.score > 0 && (best == null || d.score < best)) best = d.score;
+              if (d.date && String(d.date) > last) last = String(d.date);
+            });
+            if (!count) return null;
+            const lastTxt = last ? last.slice(2) : '';   // 2026.09.21 → 26.09.21
+            return (
+              <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+                backgroundColor: C.navy, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Icon name="check" size={fs(12)} color={C.butter} strokeWidth={2.4} />
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11.5), color: C.butter, includeFontPadding: false }}>
+                  {`내 기록 ${count}번${best != null ? ` · 베스트 ${best}타` : ''}${lastTxt ? ` · 마지막 ${lastTxt}` : ''}`}
+                </Text>
+              </View>
+            );
+          })()}
         </View>
 
         {/* 코스명 아래 구분선 — 삼색바 */}
@@ -829,8 +852,9 @@ export function GuideScreen({ route, navigation }) {
         <View style={{ backgroundColor: C.bgPrimary, paddingHorizontal: 16, paddingVertical: 12 }}>
           <View style={{ flexDirection: 'row', backgroundColor: C.bgSecondary, borderRadius: 12, padding: 4 }}>
             {[
-              ['course', '코스 · 코멘트', 'flag'],
-              ['food',   '맛집 · 주변', 'bowl'],
+              ['course',   '코스',   'flag'],
+              ['comments', '코멘트', 'chat'],
+              ['food',     '맛집',   'bowl'],
             ].map(([k, l, ic]) => {
               const on = innerTab === k;
               return (
@@ -838,7 +862,9 @@ export function GuideScreen({ route, navigation }) {
                   style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5,
                     paddingVertical: 10, borderRadius: 9, backgroundColor: on ? C.charcoal : 'transparent' }}>
                   <Icon name={ic} size={fs(15)} color={on ? C.butter : C.charcoal} />
-                  <Text numberOfLines={1} style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13), color: on ? C.butter : C.charcoal }}>{l}</Text>
+                  <Text numberOfLines={1} style={{ fontFamily: on ? F.sysB : F.sysM, fontSize: fs(13), color: on ? C.butter : C.charcoal }}>
+                    {k === 'comments' && comments.length > 0 ? `${l} ${comments.length}` : l}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -869,6 +895,28 @@ export function GuideScreen({ route, navigation }) {
                   </View>
                 );
               })()}
+              {/* 날씨 · 교통 · 예약 — 라운드 준비 유틸리티. ★2026-10-07 코멘트 아래 → 코스 탭 맨 위로(사용자 "스크롤해야 보인다").
+                  코멘트는 별도 탭으로 분리돼 이 탭은 '코스 정보·준비'만 담는다. 예약 시트·웹뷰(Modal)는 탭 밖에 둔다. */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4, marginBottom: 8 }}>
+                <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.burgundy }} />
+                <Text style={[gS.secLabel, { marginBottom: 0 }]}>날씨 · 교통 · 예약</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
+                <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: C.charcoal }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>날씨</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openCourseInfo(c, 'tr')} activeOpacity={0.8}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: C.burgundy }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>교통</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowBooking(true)} activeOpacity={0.8}
+                  style={{ flex: 1, flexDirection: 'row', gap: 5, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D4853A' }}>
+                  <Icon name="ticket" size={fs(15)} color="#fff" />
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>예약</Text>
+                </TouchableOpacity>
+              </View>
+
               {/* 연락처 제거 (2026-06-01) — 네이버정보 버튼으로 대체, 코스페이지 정리(골퍼코멘트 메인화) */}
 
               {/* 코스 평점 — 흰 카드 박스로 띄움(골퍼코멘트 풀폭 따뜻한 패널과 구분, 눈에 확). 사용자 2026-06-14 ([[project_course_rating]])
@@ -934,7 +982,50 @@ export function GuideScreen({ route, navigation }) {
                 )}
               </View>
 
-              {/* 골퍼 코멘트 — 위 코스 평점 패널과 배경 연속(marginTop 0). 버터 바가 섹션 구분 */}
+              {/* 주변 골프장 — 카카오 로컬 반경 10km */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 8 }}>
+                <Text style={gS.secLabel}>주변 골프장 · 반경 10km</Text>
+                {nearbyGolf.length > 3 && (
+                  <TouchableOpacity onPress={() => setShowAllGolf(v => !v)}>
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.burgundy }}>
+                      {showAllGolf ? '접기' : `더보기 (${nearbyGolf.length - 3})`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {nearbyFoodLoading ? (
+                <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                  <ActivityIndicator color={C.burgundy} />
+                </View>
+              ) : nearbyGolf.length === 0 ? (
+                <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 14 }}>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
+                    반경 10km 내 다른 골프장을 찾지 못했어요.
+                  </Text>
+                </View>
+              ) : (
+                (showAllGolf ? nearbyGolf : nearbyGolf.slice(0, 3)).map((g, i) => (
+                  <TouchableOpacity key={g.kakaoId || i}
+                    onPress={() => handleOpenPreview(g)}
+                    activeOpacity={0.85}
+                    style={gS.nearbyCard}>
+                    <View style={gS.nearbyIconWrap}><Text style={{ fontSize: fs(16) }}>⛳</Text></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={gS.nearbyName} numberOfLines={1}>{g.name}</Text>
+                      <Text style={gS.nearbyLoc} numberOfLines={1}>{g.loc}</Text>
+                    </View>
+                    <Text style={gS.nearbyDist}>
+                      {g.distance >= 1000 ? `${(g.distance / 1000).toFixed(1)}km` : `${g.distance}m`}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+            </>
+          )}
+          {/* 골퍼 코멘트 — 2026-10-07 별도 탭으로 분리(사용자 "한 탭이 너무 길다"). 패널은 그대로(marginHorizontal -16이 padding16에 기댐). */}
+          {innerTab === 'comments' && (
+            <View style={{ padding: 16 }}>
               <View style={[gS.commentPanel, { marginTop: 0 }]}>
               {/* 게시판 시작 — 버터색 단색 바(전폭). 패널 패딩 상쇄해 화면 끝까지 ([[project_golfer_comments_board]]) */}
               <View style={{ height: 3, backgroundColor: C.butter, marginHorizontal: -16, marginTop: -16, marginBottom: 14 }} />
@@ -1081,9 +1172,11 @@ export function GuideScreen({ route, navigation }) {
                 );
               })()}
               </View>
-
+            </View>
+          )}
+          {/* 예약 시트·구장 홈페이지 웹뷰 — Modal이라 탭과 무관하게 항상 마운트(코스 탭의 '예약' 버튼이 연다) */}
               {/* 예약 선택 시트 — 홈피(큐레이션 URL 있으면 바로/없으면 네이버검색)·전화(번호 있을 때만)·카카오VX·티스캐너.
-                  트리거는 아래 '날씨·교통·예약' 줄의 예약 버튼(네이버정보 자리 대체, 사용자 2026-07-23) */}
+                  트리거는 코스 탭 상단 '날씨·교통·예약' 줄의 예약 버튼(네이버정보 자리 대체, 사용자 2026-07-23) */}
               <Modal visible={showBooking} transparent animationType="slide" onRequestClose={() => setShowBooking(false)}>
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
                   <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowBooking(false)} />
@@ -1126,68 +1219,6 @@ export function GuideScreen({ route, navigation }) {
               {/* 구장 홈페이지 앱내 웹뷰 — 예약 시트에서 '구장 홈페이지' 선택 시. 안 열리면 '외부로 열기'로 폴백 */}
               <WebSheet visible={!!webSheet} url={webSheet?.url} title={webSheet?.title} onClose={() => setWebSheet(null)} />
 
-              {/* 날씨 · 교통 · 예약 — 유틸리티(라운드 준비). 네이버정보는 예약 시트의 '구장 홈페이지'가 대체(사용자 2026-07-23). */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 18, marginBottom: 8 }}>
-                <View style={{ width: 3, height: 13, borderRadius: 2, backgroundColor: C.burgundy }} />
-                <Text style={[gS.secLabel, { marginBottom: 0 }]}>날씨 · 교통 · 예약</Text>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
-                <TouchableOpacity onPress={() => openCourseInfo(c, 'wx')} activeOpacity={0.8}
-                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: C.charcoal }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>날씨</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => openCourseInfo(c, 'tr')} activeOpacity={0.8}
-                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: C.burgundy }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: C.butter }}>교통</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowBooking(true)} activeOpacity={0.8}
-                  style={{ flex: 1, flexDirection: 'row', gap: 5, paddingVertical: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D4853A' }}>
-                  <Icon name="ticket" size={fs(15)} color="#fff" />
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: '#fff' }}>예약</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* 주변 골프장 — 카카오 로컬 반경 10km */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 8 }}>
-                <Text style={gS.secLabel}>주변 골프장 · 반경 10km</Text>
-                {nearbyGolf.length > 3 && (
-                  <TouchableOpacity onPress={() => setShowAllGolf(v => !v)}>
-                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.burgundy }}>
-                      {showAllGolf ? '접기' : `더보기 (${nearbyGolf.length - 3})`}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              {nearbyFoodLoading ? (
-                <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                  <ActivityIndicator color={C.burgundy} />
-                </View>
-              ) : nearbyGolf.length === 0 ? (
-                <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 14 }}>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>
-                    반경 10km 내 다른 골프장을 찾지 못했어요.
-                  </Text>
-                </View>
-              ) : (
-                (showAllGolf ? nearbyGolf : nearbyGolf.slice(0, 3)).map((g, i) => (
-                  <TouchableOpacity key={g.kakaoId || i}
-                    onPress={() => handleOpenPreview(g)}
-                    activeOpacity={0.85}
-                    style={gS.nearbyCard}>
-                    <View style={gS.nearbyIconWrap}><Text style={{ fontSize: fs(16) }}>⛳</Text></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={gS.nearbyName} numberOfLines={1}>{g.name}</Text>
-                      <Text style={gS.nearbyLoc} numberOfLines={1}>{g.loc}</Text>
-                    </View>
-                    <Text style={gS.nearbyDist}>
-                      {g.distance >= 1000 ? `${(g.distance / 1000).toFixed(1)}km` : `${g.distance}m`}
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
-            </>
-          )}
           {innerTab === 'food' && (() => {
             // 네이버 지도(스마트플레이스) 검색 열기
             const openNaverPlace = (q) => Linking.openURL(
