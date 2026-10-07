@@ -1686,7 +1686,7 @@ export function GuideScreen({ route, navigation }) {
           onRegionChange={setExploreRegion}
           top100={top100}
           master={exploreMaster}
-          onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); }}
+          onSelectCourse={(id) => { setSelected(id); setInnerTab('course'); showTabBar(); }}
           onOpenPreview={handleOpenPreview}
           onOpenCourseLog={() => setShowCourseLog(true)}
         />

@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const _and = Platform.OS === 'android';
 import { C, F, fs } from '../constants/colors';
+import { useScrollHide } from '../utils/tabBarHide';   // 목록 모드 스크롤 방향으로 하단 탭바 숨김(홈·여권·코스 상세와 같은 훅, 2026-10-07)
 import { CourseMapExplore } from './CourseMapExplore';
 
 // ★코스 탭 지도 퍼스트(2026-08-26) — 기본이 지도, '목록'은 토글. 신규가 검색어 없이도 둘러보게.
@@ -102,19 +103,22 @@ function MoreButton({ moreCount, expanded, onPress }) {
 // forwardRef — 코스 탭 재탭(tabPress) 시 부모(GuideScreen)가 scrollToTop()을 호출해 목록을 맨 위로 올림.
 export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectCourse, onOpenPreview, onOpenCourseLog, region: regionProp, onRegionChange, top100: top100Prop, master: masterProp, startInPassport = false }, ref) {
   const scrollRef = useRef(null);   // 메인 목록 ScrollView — 스크롤 톱 복귀용
+  // 목록 스크롤 → 하단 탭바 숨김/복귀. ★이 화면은 언마운트되지 않으므로 지도↔목록 전환·탭 재탭·여권/상세 열기에서 showTabBar()로 되돌린다.
+  const { onScroll: onListScroll, show: showTabBar } = useScrollHide();
   const mapExpRef = useRef(null);   // 지도(CourseMapExplore) — 탭 재탭 시 전국 뷰 리셋용
   useImperativeHandle(ref, () => ({
-    scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
+    scrollToTop: () => { showTabBar(); scrollRef.current?.scrollTo({ y: 0, animated: true }); },
     refresh: () => { refreshSaved(); refreshRecent(); refreshFav(); }, // 코스 상세에서 저장/해제 후 '내 저장 골프장' 즉시 갱신
     // 탭 재탭·복귀 → '지도 처음'(지도 모드 + 전국 뷰)으로. 목록 모드였어도 지도로 돌아온다(사용자 2026-08-26).
-    openPassport: () => setPassportOpen(true),   // 새 도장 연출 '여권 보기' → 코스 탭 { openPassport } 파라미터로 진입
+    openPassport: () => { showTabBar(); setPassportOpen(true); },   // 새 도장 연출 '여권 보기' → 코스 탭 { openPassport } 파라미터로 진입
     resetHome: () => {
       setPassportOpen(false);   // 여권 덮개도 접는다(탭 재탭=지도 처음)
+      showTabBar();
       if (!MAP_OK) return;
       viewModeCache = 'map'; setViewModeState('map'); AsyncStorage.setItem(VIEW_MODE_KEY, 'map').catch(() => {});
       mapExpRef.current?.reset();
     },
-  }), [refreshSaved, refreshRecent, refreshFav]);
+  }), [refreshSaved, refreshRecent, refreshFav, showTabBar]);
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -185,7 +189,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
       if (v === 'list' || v === 'map') { viewModeCache = v; setViewModeState(v); }
     }).catch(() => {});
   }, []);
-  const setViewMode = (m) => { viewModeCache = m; setViewModeState(m); AsyncStorage.setItem(VIEW_MODE_KEY, m).catch(() => {}); };
+  const setViewMode = (m) => { showTabBar(); viewModeCache = m; setViewModeState(m); AsyncStorage.setItem(VIEW_MODE_KEY, m).catch(() => {}); };
   const [savedExpanded, setSavedExpanded] = useState(false); // 내 저장 골프장 더보기
   const [savedFav, setSavedFav] = useState([]); // 내 저장 골프장(위시리스트) — 코스 상세 ★ 저장분
   const [favEditMode, setFavEditMode] = useState(false); // 내 저장 골프장 순서 편집(↑/↓)
@@ -329,6 +333,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   // 지역 전체 골프장(마스터) 항목 탭 — 마스터엔 이미 kakaoId·좌표가 있어 검색 없이 바로 연다.
   //   이미 내 코스로 저장돼 있으면 그 상세로, 아니면 미리보기로(openTop100Course 꼬리와 동일 분기).
   const openMasterCourse = async (c) => {
+    showTabBar();   // 상세로 넘어가며 목록에서 숨긴 탭바 복귀
     try { await addRecentCourse(c); refreshRecent(); } catch {}
     const existing = savedCourses.find(s => String(s.kakaoId) === String(c.kakaoId));
     if (existing) onSelectCourse?.(existing.id);
@@ -383,7 +388,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
     {MAP_OK && mapMounted && (
       <CourseMapExplore ref={mapExpRef} master={master} top100={top100} savedFav={savedFav} visited={visitedStats}
         onPressCourse={openMasterCourse} onOpenCourseLog={onOpenCourseLog}
-        onSwitchToList={() => setViewMode('list')} onOpenPassport={() => setPassportOpen(true)} />
+        onSwitchToList={() => setViewMode('list')} onOpenPassport={() => { showTabBar(); setPassportOpen(true); }} />
     )}
     {/* ★zIndex/elevation 30 — 밑에 산 채로 있는 지도의 검색창·지역칩·하단 카드(20)가 목록 덮개를 뚫고
         올라와 목록 검색창을 가리던 것(2026-09-23). 코스 상세 오버레이(GuideScreen, c50a1b8)와 같은 처방. */}
@@ -397,7 +402,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
       flexDirection: 'row', alignItems: 'center' }}>
       <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, marginLeft: 4, marginRight: 4 }}>코스</Text>
       {/* 골프 여권 진입 — 목록 모드 헤더(지도 모드는 지도 위 필). */}
-      <TouchableOpacity onPress={() => setPassportOpen(true)} activeOpacity={0.75} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+      <TouchableOpacity onPress={() => { showTabBar(); setPassportOpen(true); }} activeOpacity={0.75} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 6, marginRight: 2, paddingHorizontal: 9, paddingVertical: 5,
           borderRadius: 9, backgroundColor: C.charcoal }}>
         <Icon name="idCard" size={fs(13)} color={C.butter} strokeWidth={1.9} />
@@ -412,6 +417,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
       </TouchableOpacity>
     </View>
     <ScrollView ref={scrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled
+      onScroll={onListScroll} scrollEventThrottle={16}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshNearby} tintColor={C.warmGray} />}>
       {/* 1. 검색창 — 위키 진입점(맨 위). 어느 골프장이든 검색해 평점·후기를 본다. '내 코스 모아보기'는 검색 아래로(솔로 신규는 검색 먼저). */}
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 9 }}>
