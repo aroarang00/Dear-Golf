@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';   // 한마디 입력칸이 키보드에 가리지 않게(사용자 2026-10-10). RN Modal은 별도 윈도우라 자체 Provider 필요
+import { Modal, View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
@@ -97,7 +96,6 @@ export function RoundShareModal({ round, visible, onClose }) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
-      <KeyboardProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
           <View style={{ paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -106,8 +104,11 @@ export function RoundShareModal({ round, visible, onClose }) {
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>라운딩 카드</Text>
           </View>
 
-          {/* KeyboardAwareScrollView — 포커스된 한마디 칸을 키보드 위로 자동 스크롤. keyboardShouldPersistTaps="always"는 DiaryAddModal과 같은 이유(안드 첫 탭 먹힘) */}
-          <KeyboardAwareScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always" keyboardDismissMode="on-drag" bottomOffset={24}
+          {/* 한마디 입력칸 키보드 가림(사용자 2026-10-10) — 1차 keyboard-controller KAS는 이 풀스크린 Modal에서 안 먹었다(재보고).
+              iOS는 RN ScrollView 자체 기능 automaticallyAdjustKeyboardInsets(키보드만큼 인셋 + 포커스 칸 자동 스크롤)로,
+              안드는 adjustResize로 화면이 줄며 포커스 칸이 보인다. 외부 라이브러리 의존 없음. */}
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
             {/* 스타일 — 칩 3개(스와이프 캐러셀 대신 한눈에) */}
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
@@ -172,10 +173,9 @@ export function RoundShareModal({ round, visible, onClose }) {
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.charcoal }}>이미지 저장</Text>
               </TouchableOpacity>
             </View>
-          </KeyboardAwareScrollView>
+          </ScrollView>
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
         </SafeAreaView>
-      </KeyboardProvider>
       </SafeAreaProvider>
     </Modal>
   );
