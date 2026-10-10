@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { KeyboardProvider, KeyboardAwareScrollView } from 'react-native-keyboard-controller';   // 한마디 입력칸이 키보드에 가리지 않게(사용자 2026-10-10). RN Modal은 별도 윈도우라 자체 Provider 필요
 import { Image } from 'expo-image';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
@@ -96,6 +97,7 @@ export function RoundShareModal({ round, visible, onClose }) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
+      <KeyboardProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
           <View style={{ paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -104,7 +106,9 @@ export function RoundShareModal({ round, visible, onClose }) {
             <Text style={{ fontFamily: F.sysB, fontSize: fs(15), color: C.charcoal }}>라운딩 카드</Text>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
+          {/* KeyboardAwareScrollView — 포커스된 한마디 칸을 키보드 위로 자동 스크롤. keyboardShouldPersistTaps="always"는 DiaryAddModal과 같은 이유(안드 첫 탭 먹힘) */}
+          <KeyboardAwareScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always" keyboardDismissMode="on-drag" bottomOffset={24}
+            contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
             {/* 스타일 — 칩 3개(스와이프 캐러셀 대신 한눈에) */}
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
               {STYLES.map(s => chip(s.label, styleKey === s.key, () => setStyleKey(s.key), { dim: s.key === 'score' && !hasHoles }))}
@@ -168,9 +172,10 @@ export function RoundShareModal({ round, visible, onClose }) {
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.charcoal }}>이미지 저장</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollView>
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
         </SafeAreaView>
+      </KeyboardProvider>
       </SafeAreaProvider>
     </Modal>
   );
