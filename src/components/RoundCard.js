@@ -123,9 +123,9 @@ export function RoundCard({ item, width = 320 }) {
             ) : null}
             <View style={{ paddingTop: 9, paddingBottom: 10, paddingHorizontal: 13,
               backgroundColor: 'rgba(18,16,14,0.46)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(201,168,76,0.42)' }}>
-              {/* 자랑 헤드라인 — 기록에서 자동 생성("올해 12번째" 등, 2026-08-26). 평범한 날에도 공유할 서사 */}
+              {/* 자랑 헤드라인 — 자동 생성 또는 공유 모달 '한마디'(최대 40자). 2줄까지(사용자 2026-10-10, 한 줄은 25자에서 잘렸음) */}
               {item.bragLine ? (
-                <Text numberOfLines={1} style={[{ fontFamily: F.sysSb, fontSize: fs(10.5), color: GOLD, letterSpacing: 1, marginBottom: 5 }, SHADOW]}>
+                <Text numberOfLines={2} style={[{ fontFamily: F.sysSb, fontSize: fs(10.5), lineHeight: fs(15), color: GOLD, letterSpacing: 1, marginBottom: 5 }, SHADOW]}>
                   {item.bragLine}
                 </Text>
               ) : null}
@@ -186,7 +186,7 @@ export function RoundCard({ item, width = 320 }) {
               <Text style={[{ fontFamily: F.en, fontSize: fs(18), color: GOLD, letterSpacing: 3, marginBottom: 9 }, SHADOW]}>{sideBadge}</Text>
             ) : null}
             {item.bragLine ? (
-              <Text numberOfLines={1} style={[{ fontFamily: F.sysSb, fontSize: fs(11.5), color: GOLD, letterSpacing: 1, marginBottom: 7 }, SHADOW]}>
+              <Text numberOfLines={2} style={[{ fontFamily: F.sysSb, fontSize: fs(11.5), lineHeight: fs(17), color: GOLD, letterSpacing: 1, marginBottom: 7 }, SHADOW]}>
                 {item.bragLine}
               </Text>
             ) : null}
