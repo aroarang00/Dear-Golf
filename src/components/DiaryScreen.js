@@ -19,7 +19,10 @@ import { HallOfFameCard } from './HallOfFameCard';
 import { DiagContext } from '../utils/diag';   // ★임시 진단(2026-09-21) — 첫 카드 흐림 추적 오버레이, 내 기록에도 스위치. 원인 잡으면 제거
 import { MilestoneCard, reachedMilestones, milestoneId, buildMilestoneEntry, trackTopMedals, SHAREABLE_MILESTONE_MIN } from './MilestoneCard';
 import { loadFriendData, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
-import { ShareMomentModal } from './ShareMomentModal';
+import { ShareMomentModal } from './ShareMomentModal';   // 특별한 순간·마일스톤 카드(라운딩 카드는 RoundShareModal로 분리, 2026-10-10)
+import { RoundShareModal } from './RoundShareModal';     // 라운딩 카드 공유 — 한 화면 간소화([[record-share-redesign]])
+import { RecapShareModal } from './RecapShareModal';     // 월·연 결산 카드
+import { suggestRecap, recapTitle } from '../utils/recap';
 import { DiaryCard } from './DiaryCard';
 import { DiaryRowCompact } from './DiaryRowCompact';   // 요약보기 — 사진 없는 한 줄 목록
 import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모션(맥동·nudge) 공용 래퍼
@@ -256,6 +259,8 @@ export function DiaryScreen({ route, navigation }) {
   const [milestoneHof, setMilestoneHof] = useState([]);
   const [hofHydrated, setHofHydrated] = useState(false);
   const [shareMoment, setShareMoment] = useState(null);   // 특별한 순간 공유 대상
+  const [shareRound, setShareRound] = useState(null);     // 라운딩 카드 공유 대상(RoundShareModal)
+  const [recapOpen, setRecapOpen] = useState(null);       // 결산 카드 모달 — 열 기간 {year, month|null}, 닫힘=null
   const [search, setSearch] = useState('');
   const [filterKey, setFilterKey] = useState('전체');
   const [feedLimit, setFeedLimit] = useState(10);   // 피드 점진 렌더 — 비가상화 ScrollView 버벅임 완화(미디어 디코드량 분산). 첫 10개+더보기
@@ -459,7 +464,6 @@ export function DiaryScreen({ route, navigation }) {
   }, [navigation]);
 
   const handleSave = async (type, data) => {
-    const cameFromSchedule = returnToScheduleRef.current; // await 전에 캡처 — onClose가 ref를 곧 false로 리셋
     try {  // 저장/수정 실패(규칙 거부 등) 시 조용히 유실 안 되게 안내 — 모달은 이미 닫혀도 알림은 뜸
     if (type === 'diary') {
       // Firestore에서 ID 자동 생성. 신규 생성 후 명예의 전당도 같이 갱신.
@@ -495,23 +499,10 @@ export function DiaryScreen({ route, navigation }) {
       });
       refreshFriendData(); // 방금 추가한 친구 동반자 별명을 상세에서 바로 잡도록 갱신([[companion-design]] Phase A)
       // 특별한 순간·퍼스트 싱글 카드는 기록에서 파생(diaryHof) — 여기서 직접 등재하지 않음(추가 즉시 자동 반영).
-      // 저장 직후 라운딩 카드 — 최근 라운딩(2일 이내) + 일정 복귀 동선 아닐 때만 축하 시트. 방금 만든 라운딩을 자랑/기록 카드로.
-      // 옛 기록 몰아입력 시엔 안 뜸(상세 골드칩으로 언제든 가능). 톤은 카드가 스코어 따라 분기 ([[score-brag-card]])
-      let pendingCard = null;   // 저장 직후 라운딩 카드 — 새 도장 연출이 있으면 그걸 닫은 뒤에 띄운다(겹치지 않게)
-      if (data.kind !== 'moment' && !cameFromSchedule) {
-        const parts = String(data.date || '').split('.').map(n => parseInt(n, 10));
-        if (parts.length === 3 && parts.every(n => !isNaN(n))) {
-          const rd = new Date(parts[0], parts[1] - 1, parts[2]).setHours(0, 0, 0, 0);
-          const today = new Date().setHours(0, 0, 0, 0);
-          const days = Math.round((today - rd) / 86400000);
-          if (days >= 0 && days <= 2) {
-            pendingCard = { ...data, id: created.id, par: 72, shareKind: 'round', playerName: (userProfile.realName || userProfile.nickname || '').trim() };
-          }
-        }
-      }
+      // ★저장 직후 라운딩 카드 자동 팝업은 폐지(2026-10-10, [[record-share-redesign]]) — 매번 튀어나와 반사적으로 닫게 되고,
+      //   그게 습관이 되면 정말 자랑할 날에도 안 열어 봤다(사용자 "나조차 안 쓴다"). 카드는 피드·상세 '공유'에서 원할 때만.
       // 골프 여권 새 도장([[golf-passport]] 2단계) — 이 기록 '이전' 여권에 없던 구장이면 '쾅' 연출(전역 호스트, 어느 탭에서든).
-      //   재료(마스터·100대·직접체크)는 캐시라 빠르지만 저장 흐름은 안 막는다(기다리지 않음).
-      //   순서: 작성 모달 닫힘(≈450ms) → 새 도장 → 닫으면 라운딩 카드(420ms 뒤). 새 도장이 없으면 카드만 350ms 뒤(종전).
+      //   재료(마스터·100대·직접체크)는 캐시라 빠르지만 저장 흐름은 안 막는다(기다리지 않음). 작성 모달 닫힘(≈450ms) 뒤.
       if (data.kind !== 'moment') {
         const beforeDiaries = diaries;   // 저장 전 스냅샷(클로저) — created는 혹시 몰라 한 번 더 뺀다
         (async () => {
@@ -521,14 +512,10 @@ export function DiaryScreen({ route, navigation }) {
             stamp = detectNewStamp({ master, top100, diaries: (beforeDiaries || []).filter(d => d.id !== created.id),
               schedules, manualKeys, course: data.course, date: data.date });
           } catch (e) { if (__DEV__) console.warn('[passport] new stamp detect fail', e?.message); }
-          const card = pendingCard;
           if (stamp) {
             setTimeout(() => showNewStamp({ ...stamp,
               onOpenPassport: () => navigation.navigate(ROUTES.COURSE, { openPassport: true }),
-              onClose: () => { if (card) setTimeout(() => setShareMoment(card), 420); },
             }), 450);
-          } else if (card) {
-            setTimeout(() => setShareMoment(card), 350); // 작성 모달 닫힘 애니메이션 후 자연스럽게
           }
         })();
       }
@@ -663,11 +650,14 @@ export function DiaryScreen({ route, navigation }) {
     return parts.slice(0, 2).join(' · ');
   }, [diaries]);
 
-  // 라운딩 자랑 카드 열기 — 상세 헤더·피드 카드 공유 버튼 공용(피드 한 탭 진입, 진단 ②)
+  // 라운딩 카드 열기 — 상세 헤더·피드 카드 공유 버튼 공용(피드 한 탭 진입, 진단 ②). RoundShareModal(간소화판)로.
   const openShareRound = React.useCallback((round) => {
-    setShareMoment({ ...round, shareKind: 'round', bragLine: buildBragLine(round),
+    setShareRound({ ...round, par: typeof round.par === 'number' ? round.par : 72, bragLine: buildBragLine(round),
       playerName: (userProfile.realName || userProfile.nickname || '').trim() });
   }, [buildBragLine, userProfile.realName, userProfile.nickname]);
+  const playerName = (userProfile.realName || userProfile.nickname || '').trim();
+  // 결산 입구 — 12월·1월엔 연 결산, 그 외엔 가장 최근 지난달(기록 있는 달). 기록 없으면 입구 자체가 없음
+  const recapSuggest = useMemo(() => suggestRecap(diaries), [diaries]);
 
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
@@ -710,6 +700,7 @@ export function DiaryScreen({ route, navigation }) {
       {/* 상세는 early return이라 메인 트리의 ShareMomentModal(아래)이 안 떠서 '상세를 닫아야 공유가 보이던' 버그.
           상세 위에서도 뜨도록 여기서도 형제로 렌더(RN Modal이라 상세 위에 오버레이됨) */}
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
+      <RoundShareModal round={shareRound} visible={!!shareRound} onClose={() => setShareRound(null)} />
     </>
   );
 
@@ -1088,6 +1079,19 @@ export function DiaryScreen({ route, navigation }) {
                 </View>
               ) : null)}
 
+              {/* 결산 입구 — 지난달(12월·1월엔 올해) 결산 카드 한 줄([[record-share-redesign]] 2026-10-10).
+                  건별 카드와 달리 '때'가 있어 공유 동기가 있는 카드. 닫기 없이 상시(기록 있는 동안) — 모달 안에서 ‹ › 로 다른 달·해도 본다. */}
+              {recapSuggest && (
+                <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+                  <TouchableOpacity onPress={() => setRecapOpen(recapSuggest)} activeOpacity={0.85}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#2A2622', borderRadius: 12, borderWidth: 1, borderColor: '#C9A84C55', paddingVertical: 12, paddingHorizontal: 14 }}>
+                    <Icon name="chart" size={fs(18)} color="#E8D9A0" strokeWidth={1.8} />
+                    <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#EFE7CC' }}>{recapTitle(recapSuggest)}</Text>
+                    <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#C9A84C' }}>카드 보기 ›</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {filtered.length === 0 ? (
                 <View style={dS.emptyWrap}>
                   <Text style={dS.emptyMsg}>{filterKey === '일상' ? '아직 일상이 없어요' : filterKey === '라운딩' ? '아직 라운딩 기록이 없어요' : filterKey === '올해' ? '올해 기록이 없어요' : filterKey === '베스트 스코어' ? '아직 라운딩 기록이 없어요' : '검색 결과가 없어요'}</Text>
@@ -1114,12 +1118,17 @@ export function DiaryScreen({ route, navigation }) {
                       const [yy, mm] = (g.ym || '').split('.');
                       return (
                         <View key={g.ym || gi} style={dS.compactCard}>
-                          <View style={dS.compactCardHead}>
-                            <Text style={dS.compactCardMonth}>{`${yy}. ${parseInt(mm, 10) || ''}`}</Text>
+                          {/* 월 헤더 탭 → 그 달 결산 카드(2026-10-10). 요약은 이미 달별로 묶여 있어 결산 입구로 자연스럽다 */}
+                          <TouchableOpacity style={dS.compactCardHead} activeOpacity={0.7}
+                            onPress={() => { const y = parseInt(yy, 10), m = parseInt(mm, 10); if (y && m) setRecapOpen({ year: y, month: m }); }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={dS.compactCardMonth}>{`${yy}. ${parseInt(mm, 10) || ''}`}</Text>
+                              <Text style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: '#C9A84C' }}>결산 ›</Text>
+                            </View>
                             {scored.length > 0 && (
                               <Text style={dS.compactCardStat}>{`${scored.length}라운딩 · 평균 ${avg} · 베스트 ${best}`}</Text>
                             )}
-                          </View>
+                          </TouchableOpacity>
                           {g.items.map((item, ii) => {
                             const open = rowOpenId === item.id;
                             return (
@@ -1223,6 +1232,8 @@ export function DiaryScreen({ route, navigation }) {
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
 
       <ShareMomentModal moment={shareMoment} visible={!!shareMoment} onClose={() => setShareMoment(null)} />
+      <RoundShareModal round={shareRound} visible={!!shareRound} onClose={() => setShareRound(null)} />
+      <RecapShareModal visible={!!recapOpen} onClose={() => setRecapOpen(null)} diaries={diaries} playerName={playerName} initial={recapOpen} />
       <MyPageModal visible={showMyPage} onClose={() => setShowMyPage(false)} />
       {/* 한마디 편집 팝업 — 명함 한마디 탭 시 중앙 팝업으로 넓게(하단 시트는 네비바·키보드에 가려 부적합, 2026-06-24).
           KAV center로 키보드 올라오면 팝업이 위로 밀림. 바깥 탭 닫기 + 카드 탭은 전파 차단. */}

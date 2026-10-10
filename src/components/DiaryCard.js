@@ -299,7 +299,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   );
 
   // 카드 공유 — 내 라운딩 카드에 한 탭 진입(2026-08-26). 전엔 상세를 열어야만 보여 유명무실(사용자 진단).
-  //   자랑 카드(ShareMomentModal)는 부모(DiaryScreen)의 openShareRound가 연다. 친구 카드·일상엔 없음.
+  //   라운딩 카드(RoundShareModal, 2026-10-10 간소화판)는 부모(DiaryScreen)의 openShareRound가 연다. 친구 카드·일상엔 없음.
   const shareBtn = (!isFriend && onShare) ? (
     <TouchableOpacity onPress={() => onShare(item)} activeOpacity={0.7}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

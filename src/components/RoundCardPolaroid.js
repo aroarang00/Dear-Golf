@@ -37,9 +37,10 @@ export function RoundCardPolaroid({ item, width = 320 }) {
   const photoRaw = (item.photos && item.photos[0]) || null;
   const photoUri = photoRaw ? resolvePhotoUri(typeof photoRaw === 'object' ? photoRaw.uri : photoRaw) : null;
 
-  const hasScore = typeof item.score === 'number';
+  // 표시 옵션(RoundShareModal, 2026-10-10) — hideScore: SCORE 스탯 숨김 / caption: 인용 줄을 '한마디'로 대체(빈 문자열이면 생략)
+  const hasScore = typeof item.score === 'number' && !item.hideScore;
   const flag = item.overseas && item.country ? getCountryFlag(item.country) : '';
-  const memo = (item.memo || '').trim();
+  const memo = (item.caption != null ? item.caption : (item.memo || '')).trim();
   const special = item.special || null; // 홀인원·이글 등 — 사진 좌상단 작은 버건디 배지
   const dateLabel = fmtDate(item.date);
 

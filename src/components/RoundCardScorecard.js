@@ -23,7 +23,7 @@ const UNDERLINE = 'rgba(240,237,227,0.75)'; // 보기 — 숫자 하단 짧은 �
 export function RoundCardScorecard({ item, width = 320 }) {
   const height = Math.round(width * 1.25);
   const flag = item.overseas && item.country ? getCountryFlag(item.country) : '';
-  const playerName = (item.playerName || '').trim();
+  const playerName = item.hideName ? '' : (item.playerName || '').trim();   // hideName: 공유 모달 '이름' 토글(2026-10-10)
   const hasScore = typeof item.score === 'number';
   const special = item.special || null; // 홀인원·이글 등 — 총타수 옆 버건디 알약
 
