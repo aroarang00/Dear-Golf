@@ -39,7 +39,7 @@ import { calcHandicap, syncMyHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds, countVisitedCourses } from '../utils/roundStats';
 import { roundsOnly, isMomentDiary, isRoundDiary } from '../utils/diaryKind';
 import { getGolfCourses } from '../utils/golfCourses';            // 새 도장 판정용 마스터(캐시)
-import { getTop100Courses } from '../utils/top100';               // 새 도장 100대 순위 배지
+import { getTop100Courses, getManualTop100Checks } from '../utils/top100';   // 새 도장 100대 순위 배지 + 100대 체크(직접 체크 구장엔 축하 X)
 import { detectNewStamp, getVisitedChecks } from '../utils/passport';   // 골프 여권 새 도장 판정([[golf-passport]])
 import { showNewStamp } from './NewStampHost';                    // 새 도장 '쾅' 연출(전역 호스트)
 import { usePassportCounts } from '../hooks/usePassportCounts';   // 내 스코어 배너 안 '여권 n' 알약 숫자
@@ -507,9 +507,9 @@ export function DiaryScreen({ route, navigation }) {
         (async () => {
           let stamp = null;
           try {
-            const [master, top100, manualKeys] = await Promise.all([getGolfCourses(), getTop100Courses(), getVisitedChecks()]);
+            const [master, top100, manualKeys, top100Checks] = await Promise.all([getGolfCourses(), getTop100Courses(), getVisitedChecks(), getManualTop100Checks()]);
             stamp = detectNewStamp({ master, top100, diaries: (beforeDiaries || []).filter(d => d.id !== created.id),
-              schedules, manualKeys, course: data.course, date: data.date });
+              schedules, manualKeys, top100Checks, course: data.course, date: data.date });
           } catch (e) { if (__DEV__) console.warn('[passport] new stamp detect fail', e?.message); }
           if (stamp) {
             setTimeout(() => showNewStamp({ ...stamp,

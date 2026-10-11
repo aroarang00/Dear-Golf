@@ -7,6 +7,7 @@ import { COURSE_LOG, getCountryFlag } from '../constants/data';
 import { syncUserCoursesFromFirestore } from '../utils/userCourses';
 import { getTop100Courses, matchVisitedTop100, getManualTop100Checks, saveManualTop100Checks, normalizeCourseName } from '../utils/top100';
 import { getGolfCourses } from '../utils/golfCourses';
+import { getVisitedChecks, saveVisitedChecks, masterKeyOf } from '../utils/passport';   // 여권 '예전에 간 구장' 체크 — 100대 카운트에 합산(2026-10-12)
 import { Icon } from './common/Icon'; // 🏆 → 커스텀 트로피
 import { isRoundDiary } from '../utils/diaryKind';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -188,6 +189,7 @@ export function CourseLogTab({ avgRating, navigation }) {
   const [top100, setTop100] = useState([]);
   const [top100Open, setTop100Open] = useState(false);
   const [manualChecks, setManualChecks] = useState([]); // 사용자가 직접 체크한 100대 코스 rank
+  const [visitedKeys, setVisitedKeys] = useState([]);   // 여권에서 '예전에 간 구장'으로 직접 체크한 마스터 열쇠(id:kakaoId 등)
   const scrollRef = useRef(null);
 
   // 스코어 배너 계산·렌더는 공용 ScoreBanner로 위임(MY 명함 화면과 동일 컴포넌트).
@@ -197,15 +199,17 @@ export function CourseLogTab({ avgRating, navigation }) {
     const load = async () => {
       // 프레시설치 시 로컬 userCourses가 비어 코스 주소(loc)가 전부 누락 → 지역탭이 모두 '기타'로 떨어짐.
       // Firestore 동기화본을 써서 등록코스 주소를 확실히 확보 (실패 시 내부적으로 로컬 폴백)
-      const [uc, t100, checks, master] = await Promise.all([
+      const [uc, t100, checks, master, vkeys] = await Promise.all([
         syncUserCoursesFromFirestore(),
         getTop100Courses(),
         getManualTop100Checks(),
         getGolfCourses().catch(() => []),
+        getVisitedChecks().catch(() => []),
       ]);
       setUserCourses(uc || []);
       if (t100 && t100.length) setTop100(t100);
       setManualChecks(checks || []);
+      setVisitedKeys(vkeys || []);
       if (master && master.length) setMasterCourses(master);
     };
     load();
@@ -392,19 +396,34 @@ export function CourseLogTab({ avgRating, navigation }) {
     () => new Set(matchVisitedTop100(top100, myCourses.map(c => c.name)).map(c => c.rank)),
     [top100, myCourses],
   );
+  // 여권 직접 체크(구장 열쇠) → 100대 순위. 여권에서 '예전에 간 구장'으로 넣은 100대 구장이 여기 카운트에서 빠지던 구멍(2026-10-12).
+  const passportRankKeys = React.useMemo(() => {
+    const byKey = new Map((masterCourses || []).map(c => [masterKeyOf(c), c]));
+    const out = new Map();   // rank → [key]
+    (visitedKeys || []).forEach(k => {
+      const c = byKey.get(k); if (!c) return;
+      const hit = matchVisitedTop100(top100, [c.name])[0];
+      if (hit) out.set(hit.rank, [...(out.get(hit.rank) || []), k]);
+    });
+    return out;
+  }, [visitedKeys, masterCourses, top100]);
   const checkedRanks = React.useMemo(
-    () => new Set([...autoCheckedRanks, ...manualChecks]),
-    [autoCheckedRanks, manualChecks],
+    () => new Set([...autoCheckedRanks, ...manualChecks, ...passportRankKeys.keys()]),
+    [autoCheckedRanks, manualChecks, passportRankKeys],
   );
   const checkedCount = checkedRanks.size;
 
-  // 직접 체크 토글 — 자동 체크된 코스(라운딩 기록 있음)는 토글 불가
+  // 직접 체크 토글 — 자동 체크된 코스(라운딩 기록 있음)는 토글 불가.
+  //   해제는 두 저장소 모두: 여권 열쇠로 들어온 체크면 그 열쇠도 지운다(어디서 풀어도 다른 화면에 안 남게).
   const toggleManualCheck = (rank) => {
-    setManualChecks(prev => {
-      const next = prev.includes(rank) ? prev.filter(r => r !== rank) : [...prev, rank];
-      saveManualTop100Checks(next);
-      return next;
-    });
+    const keys = passportRankKeys.get(rank);
+    const on = manualChecks.includes(rank) || !!keys;
+    if (on) {
+      if (keys) { const nextKeys = visitedKeys.filter(k => !keys.includes(k)); setVisitedKeys(nextKeys); saveVisitedChecks(nextKeys); }
+      if (manualChecks.includes(rank)) { const next = manualChecks.filter(r => r !== rank); setManualChecks(next); saveManualTop100Checks(next); }
+      return;
+    }
+    const next = [...manualChecks, rank]; setManualChecks(next); saveManualTop100Checks(next);
   };
 
   // 기록 없는 카드 → 해당 골프장·날짜로 다이어리 기록 입력 화면 이동
@@ -603,7 +622,7 @@ export function CourseLogTab({ avgRating, navigation }) {
                     {c.name}
                   </Text>
                   <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }}>
-                    {c.region}{isAuto ? ' · 라운딩 기록' : ''}
+                    {c.region}{isAuto ? ' · 라운딩 기록' : passportRankKeys.has(c.rank) ? ' · 여권 체크' : ''}
                   </Text>
                 </View>
                 <TouchableOpacity

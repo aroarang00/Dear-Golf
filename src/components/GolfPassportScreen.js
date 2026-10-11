@@ -11,7 +11,7 @@ import { showAppAlert } from './AppAlert';
 import { PassportStamp, EmptyStamp } from './PassportStamp';
 import { C, F, fs } from '../constants/colors';
 import { useContentWidth } from '../utils/contentWidth';
-import { normalizeCourseName, syncTop100ChecksFromFirestore, saveManualTop100Checks, getManualTop100Checks } from '../utils/top100';
+import { normalizeCourseName, syncTop100ChecksFromFirestore, saveManualTop100Checks, getManualTop100Checks, top100RankOf } from '../utils/top100';
 import { buildPassport, masterKeyOf, syncVisitedChecksFromFirestore, saveVisitedChecks, getVisitedChecks, REGION_INK } from '../utils/passport';
 
 // =============================================================
@@ -148,10 +148,18 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
   const openCourse = useCallback((s) => {
     if (s?.kakaoId && onPressCourse) onPressCourse({ kakaoId: s.kakaoId, name: s.name, loc: s.loc, x: s.x, y: s.y });
   }, [onPressCourse]);
+  // 직접 체크 해제 — 두 저장소(여권 구장 열쇠 manualKeys · 100대 순위 top100Checks) 어디로 들어왔든 둘 다 지운다(2026-10-12).
+  //   예전엔 한쪽만 지워 다른 화면(코스 탭 100대·여권 100대 칸)에 체크가 남았다.
+  const uncheck = (stamp, rank) => {
+    const key = stamp?.manualKey || stamp?.key;
+    const rk = rank ?? stamp?.top100Rank ?? (stamp ? top100RankOf(top100, stamp.name) : null);
+    if (key && manualKeys.includes(key)) saveVisitedChecks(manualKeys.filter(k => k !== key)).then(setManualKeys);
+    if (rk != null && top100Checks.includes(Number(rk))) saveManualTop100Checks(top100Checks.filter(r => r !== Number(rk))).then(() => setTop100Checks(prev => prev.filter(r => r !== Number(rk))));
+  };
   const pressStamp = (s) => {
     if (s.count > 0) { openCourse(s); return; }
     showAppAlert(s.name, '직접 체크한 구장이에요.', [
-      { text: '체크 해제', style: 'destructive', onPress: () => saveVisitedChecks(manualKeys.filter(k => k !== s.key)).then(setManualKeys) },
+      { text: '체크 해제', style: 'destructive', onPress: () => uncheck(s, null) },
       ...(s.kakaoId ? [{ text: '구장 보기', onPress: () => openCourse(s) }] : []),
       { text: '닫기', style: 'cancel' },
     ]);
@@ -161,7 +169,7 @@ export function GolfPassportScreen({ onClose, master = [], top100 = [], diaries 
     if (row.stamp && row.stamp.count > 0) { openCourse(row.stamp); return; }
     if (row.visited) {
       showAppAlert(`No.${row.rank} ${row.name}`, '직접 체크한 구장이에요.', [
-        { text: '체크 해제', style: 'destructive', onPress: () => saveManualTop100Checks(top100Checks.filter(r => r !== row.rank)).then(() => setTop100Checks(prev => prev.filter(r => r !== row.rank))) },
+        { text: '체크 해제', style: 'destructive', onPress: () => uncheck(row.stamp, row.rank) },
         { text: '닫기', style: 'cancel' },
       ]);
       return;

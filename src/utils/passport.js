@@ -102,9 +102,27 @@ export function buildPassport({ master = [], top100 = [], diaries = [], schedule
   const masterByKey = new Map((master || []).map(c => [masterKeyOf(c), c]));
   (manualKeys || []).forEach(k => {
     if (!k) return;
-    if (stamps.has(k)) { stamps.get(k).manual = true; return; }
+    if (stamps.has(k)) { const s = stamps.get(k); s.manual = true; s.manualKey = k; return; }
     const c = masterByKey.get(k);
-    if (c) touch(c.name, null, null, true);
+    if (c) { touch(c.name, null, null, true); const s = stamps.get(k); if (s) s.manualKey = k; }
+  });
+  // ④ 100대 직접 체크(순위) → 도장(2026-10-12). 예전엔 100대 카운트에만 들어가고 '다녀온 구장' 도장은 안 생겨
+  //   여권 안내문("기록이 없어도 도장이 찍혀요")과 달랐다. 마스터에 있으면 그 구장 도장, 없으면(코스 단위 큐레이션 등) 100대 이름으로.
+  //   stamp.top100Rank = 체크 해제 때 순위 목록에서도 지우기 위한 역참조.
+  const top100ByRank = new Map((top100 || []).map(c => [Number(c.rank), c]));
+  (top100Checks || []).forEach(rk => {
+    const c = top100ByRank.get(Number(rk));
+    if (!c || !c.name) return;
+    const mc = findCourseByName(master, c.name);
+    const name = mc?.name || c.name;
+    const r = stampKeyOf(master, name);
+    if (!r.key) return;
+    if (!stamps.has(r.key)) touch(name, null, null, true);
+    const s = stamps.get(r.key);
+    if (!s) return;
+    s.manual = true;
+    s.top100Rank = Number(rk);
+    if (s.region === '기타' && c.region) s.region = regionOf(c.region);   // 마스터에 없는 100대 구장은 100대 목록의 지역으로
   });
 
   // 100대 구장 — 도장 이름으로 순위 매칭(큐레이션 규칙 포함) + 수동 체크(rank) 합집합
@@ -140,11 +158,11 @@ export function buildPassport({ master = [], top100 = [], diaries = [], schedule
 //   ★이 라운딩의 자기 일정(같은 구장·같은 날)은 이전 여권에서 뺀다 — 일정 잡고 다음 날 기록하는 게 보통 흐름인데,
 //     지난 일정이 이미 도장을 만들어 "새 도장"이 영영 안 뜨는 걸 막는다. 다른 날 다녀온 일정이 있으면 새 도장 아님(맞음).
 //   반환: null | { name, region, ink, ordinal, regionOrdinal, top100Rank, date }
-export function detectNewStamp({ master = [], top100 = [], diaries = [], schedules = [], manualKeys = [], course, date }) {
+export function detectNewStamp({ master = [], top100 = [], diaries = [], schedules = [], manualKeys = [], top100Checks = [], course, date }) {
   const { key, course: mc } = stampKeyOf(master, course);
   if (!key) return null;
   const own = (schedules || []).filter(s => !(s && s.date === date && stampKeyOf(master, s.course).key === key));
-  const before = buildPassport({ master, top100, diaries, schedules: own, manualKeys, top100Checks: [] });
+  const before = buildPassport({ master, top100, diaries, schedules: own, manualKeys, top100Checks });   // 100대 체크로 찍힌 도장도 '이미 있음'(직접 체크엔 축하 X, 사용자 2026-10-12)
   if (before.stamps.has(key)) return null;
   const region = regionOf(mc?.loc);
   const name = mc?.name || String(course).trim();
