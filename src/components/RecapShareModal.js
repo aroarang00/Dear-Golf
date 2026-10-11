@@ -96,11 +96,16 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
                 placeholder="카드에 넣을 한마디 (비우면 생략)" placeholderTextColor={C.warmGrayLight}
                 style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 1, borderColor: C.hairline, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
             </View>
+            {/* 카드 입체감 — 웜 화이트 카드가 크림 바탕(bgPrimary)과 같은 계열이라 경계가 안 보임(사용자 2026-10-11, 안드 먼저·iOS도).
+                그림자는 ViewShot 바깥에 — 안쪽이면 공유 PNG에 그림자가 같이 찍힌다. 안드 elevation은 배경색 필수(카드 종이색). */}
+            <View style={{ alignSelf: 'center', width: CARD_WIDTH, borderRadius: 8, backgroundColor: '#FFFDF8',
+              shadowColor: '#2A2622', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.22, shadowRadius: 16, elevation: 10 }}>
             <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH, alignSelf: 'center' }}>
               <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
                 <RecapCard recap={recap} playerName={playerName} width={CARD_WIDTH} showWith={showWith} caption={caption} />
               </View>
             </ViewShot>
+            </View>
 
             {/* 표시 토글 — 동반자가 있는 기간만 '함께한 사람' 칩(이름 토글은 불필요, 사용자 2026-10-11) */}
             {recap.topCompanions?.length > 0 && (
