@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StatusBar, ActivityIndicator } from 'react-native';
 import AppTextInput from './common/AppTextInput';
-import { showAppAlert } from './AppAlert';   // 길게 누르기 삭제 확인
+import { OverlayAlert } from './common/OverlayAlert';   // 길게 누르기 삭제 확인 — DM 목록은 RN Modal 안이라 글로벌 AppAlert가 뒤에 깔림(DMChatScreen과 동일 처방)
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
 import { GestureHandlerRootView } from 'react-native-gesture-handler'; // (Swipeable 삭제는 2026-10-12 길게 누르기로 교체 — 숨은 제스처라 못 찾고, 안드 Modal에서 탭이 안 먹었다)
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -56,6 +56,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
   // 삭제(내 목록에서 숨김) 로컬 가드 — clearedAt은 serverTimestamp라 쓰기 직후 로컬 스냅샷엔 null로 와서 isCleared가 false →
   //   행이 곧바로 되살아났다('삭제가 안 된다', 사용자 2026-10-12). 삭제 시각을 기억해 그 이후 새 메시지(lastAt)가 없으면 숨긴다.
   const hiddenRef = useRef(new Map());   // convId → 삭제 시각(ms)
+  const [alert, setAlert] = useState(null);   // 삭제 확인(모달 안 오버레이)
   const applyHidden = useCallback((list) => (list || []).filter(c => {
     const h = hiddenRef.current.get(c.id);
     if (!h) return true;
@@ -140,10 +141,12 @@ export function DMListScreen({ onClose, onOpenChat }) {
     clearConversation(conv.id).catch(e => { hiddenRef.current.delete(conv.id); if (__DEV__) console.warn('[DMList] clear', e?.message); });
   }, []);
   const confirmDelete = useCallback((conv, name) => {
-    showAppAlert(`${name}과의 대화를 삭제할까요?`, '내 목록에서만 사라져요. 상대에겐 영향이 없고,\n새 메시지가 오면 다시 보여요.', [
+    // ★글로벌 showAppAlert(루트 Modal) 금지 — DM 목록은 RN Modal 안이라 알럿이 뒤에 깔려 안 보이고, DM을 닫으면 그 투명 층이
+    //   남아 모임 화면이 먹통이 됐다(사용자 2026-10-12 실사례). 화면 안 오버레이(OverlayAlert)로.
+    setAlert({ title: `${name}과의 대화를 삭제할까요?`, message: '내 목록에서만 사라져요. 상대에겐 영향이 없고,\n새 메시지가 오면 다시 보여요.', buttons: [
       { text: '취소', style: 'cancel' },
       { text: '삭제', style: 'destructive', onPress: () => handleDelete(conv) },
-    ]);
+    ] });
   }, [handleDelete]);
 
   const renderItem = ({ item }) => {
@@ -267,6 +270,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
       )}
     </SafeAreaView>
     </SafeAreaProvider>
+    <OverlayAlert data={alert} onClose={() => setAlert(null)} />
     </GestureHandlerRootView>
   );
 }
