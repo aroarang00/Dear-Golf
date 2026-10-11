@@ -115,7 +115,9 @@ function SwipeCarousel({ media, width, onOpen }) {
   );
 }
 
-export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM }) {
+// onEditPost(post)·onDeletePost(post) — 원글 수정·삭제는 앨범(CrewAlbumScreen)이 처리(작성기 열기·deleteCrewPost). 이 화면이 앨범 위
+//   절대좌표 오버레이(zIndex 100)라 앨범의 액션시트가 밑에 깔려 안 보이므로, 시트는 여기서 띄우고 실행만 위임한다(2026-10-11).
+export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM, onEditPost, onDeletePost }) {
   const winW = useContentWidth();   // 폴드 펼침·태블릿은 500으로 클램프
   const insets = useSafeAreaInsets();
   const currentUid = useCurrentUid();
@@ -246,6 +248,13 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
   const confirmDelete = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
+    if (a.kind === 'post') {   // 원글 삭제 — 앨범에 위임(사진·글·댓글 모두 삭제, 성공 시 앨범이 이 화면을 닫음)
+      showAppAlert('게시물을 삭제할까요?', '사진·글·댓글이 모두 삭제돼요.', [
+        { text: '취소', style: 'cancel' },
+        { text: '삭제', style: 'destructive', onPress: () => onDeletePost?.(post) },
+      ]);
+      return;
+    }
     // 부모 댓글이면 대댓글도 함께 정리 — 화면엔 안 보이는데 카운트에만 남던 고아 방지(이미 로드된 목록 사용 — 추가 read 0)
     const docs = commentDocs || [];
     const replyIds = docs.filter((c) => c.parentId === a.id).map((c) => c.id);
@@ -272,6 +281,7 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
   const startEdit = () => {
     const a = actionFor; setActionFor(null);
     if (!a) return;
+    if (a.kind === 'post') { onEditPost?.(post); return; }   // 원글 수정 — 앨범이 이 화면을 닫고 작성기를 연다
     setReplyTo(null); setCErr(''); setEditingComment({ id: a.id }); setDraft(a.text || '');
   };
   const sendComment = async () => {
@@ -328,6 +338,14 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
               <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: INK }}>{post?.author?.name || '친구'}</Text>
               <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: SUB, marginTop: 1 }}>{post?.time || ''}</Text>
             </View>
+            {/* 원글 더보기 — 내 글이면 수정·삭제. 예전엔 앨범 격자에서 길게 누르는 것만 있어 "상세에서 수정·삭제가 안 된다"(사용자 2026-10-11) */}
+            {post?.author?.id === currentUid && (
+              <TouchableOpacity onPress={() => setActionFor({ kind: 'post', id: post.id, authorUid: post.author.id, name: post.author.name, text: post.text })}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="게시물 더보기"
+                style={{ paddingHorizontal: 6, paddingVertical: 4 }}>
+                <Text style={{ fontSize: fs(18), color: SUB }}>⋯</Text>
+              </TouchableOpacity>
+            )}
           </View>
           {!!post?.text && (
             <LinkText style={{ fontFamily: F.sysM, fontSize: fs(15.5), color: INK, marginTop: 10, lineHeight: fs(22) }}>{post.text}</LinkText>
@@ -495,10 +513,10 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM })
             {actionFor.authorUid === currentUid ? (
               <>
               <TouchableOpacity onPress={startEdit} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>댓글 수정</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: INK }}>{actionFor.kind === 'post' ? '게시물 수정' : '댓글 수정'}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={confirmDelete} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: 0.5, borderTopColor: LINE }}>
-                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: '#B23B3B' }}>댓글 삭제</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: fs(16), color: '#B23B3B' }}>{actionFor.kind === 'post' ? '게시물 삭제' : '댓글 삭제'}</Text>
               </TouchableOpacity>
               </>
             ) : (

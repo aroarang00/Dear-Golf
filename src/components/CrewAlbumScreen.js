@@ -950,7 +950,12 @@ export function CrewAlbumScreen({ crew, onClose, onOpenDM, onOpenRoundup, seenAt
         <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, elevation: 30 }}
           entering={SlideInRight.duration(230)}>
           <CrewCommentScreen crew={crew} post={commentPost} names={crewDoc?.names || {}}
-            onClose={() => setCommentPost(null)} onOpenDM={onOpenDM} />
+            onClose={() => setCommentPost(null)} onOpenDM={onOpenDM}
+            onEditPost={(p) => { setCommentPost(null); setEditingPost(p); }}   // 상세 ⋯ → 작성기(수정 모드). 격자 길게 누르기와 같은 경로
+            onDeletePost={async (p) => {
+              try { await deleteCrewPost(crewId, p.id); setCommentPost(null); }
+              catch (e) { if (__DEV__) console.warn('[crewAlbum] delete(from detail)', e?.code, e?.message); }
+            }} />
         </Animated.View>
       )}
     </SafeAreaView>
