@@ -16,7 +16,12 @@ import { loadLatestRoundComments, setLatestCache } from '../utils/roundComments'
 import { queueLike, getMyLike, setMyLike, subscribeMyLikes } from '../utils/pendingLikes'; // 좋아요 유실 방지 대기 큐 + 화면 간 공유 메모장
 import { showAppAlert } from './AppAlert'; // 좋아요 실패 안내 — 조용한 롤백이 '안 눌림'으로 보이던 것(2026-08-26)
 import { ownerVisibilityLabel } from '../utils/friendGroups';
-import { getPhotoRatio, feedFrameAspect, firstPhotoUri, ratiosReady, cardPhotoRatio } from '../utils/photoRatio';   // 사진에 맞는 카드 틀(4:3·1:1·4:5)
+import { getPhotoRatio, feedFrameAspect, firstPhotoUri, ratiosReady, cardPhotoRatio, firstPhotoRatioHint } from '../utils/photoRatio';   // 사진에 맞는 카드 틀(4:3·1:1·4:5)
+import { patchRoundPhotos } from '../utils/round';   // 옛 기록 ar 백필(내 글만)
+import { DiariesContext } from '../contexts/DiariesContext';
+
+// ar 백필 중복 방지 — 같은 세션에서 같은 기록을 두 번 쓰지 않게(카드 재마운트·요약보기 펼침 등)
+const _arBackfilled = new Set();
 
 // 라운딩 기록 카드.
 //  - variant 'mine'(기본): MY 다이어리 — 사진 캐러셀(탭→상세) + 기록 보기 토글로 상세 펼침
@@ -67,6 +72,23 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
   //   '이 기기에서 처음 보는' 사진도 로드 전에 틀이 맞아 접혔다 펼쳐지는 점프·안드 작은틀 디코드 흐림이 사라진다.
   const [photoAr, setPhotoAr] = useState(() => cardPhotoRatio(item.photos));
   const frameAspect = feedFrameAspect(photoAr);
+  // ★옛 기록 ar 백필(2026-10-11) — 10-05 이전 기록은 사진에 ar이 없어 '이 기기에서 처음 보는' 순간 4:3→4:5 점프가 남았다
+  //   (디스크 캐시는 기기별이라 폰 바꾸거나 캐시 밀리면 재발). 내 글이면 첫 측정값을 기록의 photos[0].ar로 되써
+  //   다음부터는 어느 기기든 로드 전에 틀이 맞는다. 사진 1장당 1회·세션 중복 방지. 영상(포스터)은 제외. 실패해도 조용히(표시엔 영향 없음).
+  const { setDiaries } = useContext(DiariesContext);   // 로컬 미러만(서버는 위 patchRoundPhotos가 이미 썼음) — dev 경고는 무시해도 됨
+  const onFirstRatio = (r) => {
+    setPhotoAr(r);
+    if (isFriend || !item?.id || item.id === 'sample' || !Number.isFinite(r) || r <= 0) return;
+    const p0 = Array.isArray(item.photos) ? item.photos[0] : null;
+    if (!p0 || (typeof p0 === 'object' && p0.type === 'video') || firstPhotoRatioHint(item.photos)) return;
+    if (_arBackfilled.has(item.id)) return;
+    _arBackfilled.add(item.id);
+    const ar = Math.round(r * 1000) / 1000;
+    const patched = [typeof p0 === 'string' ? { uri: p0, ar } : { ...p0, ar }, ...item.photos.slice(1)];
+    patchRoundPhotos(item.id, patched)
+      .then(() => { setDiaries && setDiaries(prev => prev.map(d => (d.id === item.id ? { ...d, photos: patched } : d))); })
+      .catch(e => { _arBackfilled.delete(item.id); if (__DEV__) console.warn('[DiaryCard] ar backfill fail', item.id, e?.message); });
+  };
   // ★임시 진단(2026-09-17) — 친구 피드 첫 카드 흐림 추적. 카드 틀(4:3·1:1·4:5)이 언제 정해지는지. 원인 잡으면 제거.
   useEffect(() => {
     if (__DEV__) console.log('[DiaryCard] frame', variant, String(firstPhotoUri(item.photos) || '').split('?')[0].slice(-22), 'ar', photoAr ? photoAr.toFixed(3) : 'null', '→', frameAspect.toFixed(3));
@@ -356,7 +378,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
 
   const photoHero = (onTap, scoreNode) => (
     <View style={[dS.photoHero43, { aspectRatio: frameAspect }]}>
-      <MediaCarousel photos={item.photos} onTap={onTap} onFirstRatio={setPhotoAr} />
+      <MediaCarousel photos={item.photos} onTap={onTap} onFirstRatio={onFirstRatio} />
       {ownerChip}
       <View pointerEvents="none" style={[dS.photoBottomOverlay, { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }]}>
         <View style={{ flex: 1 }}>
@@ -394,7 +416,7 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
       // withDate=true → 사진 위 날짜 그라데이션(친구 카드). 내 카드는 날짜를 아래 더보기 줄로 옮김(false).
       const photoEl = (withDate) => (
         <View style={[dS.photoHero43, { aspectRatio: frameAspect }]}>
-          <MediaCarousel photos={item.photos} onFirstRatio={setPhotoAr}
+          <MediaCarousel photos={item.photos} onFirstRatio={onFirstRatio}
             onTap={isFriend ? (i => onOpenPhoto && onOpenPhoto(item.photos, i)) : (() => onPress(item))} />
           {ownerChip}
           {withDate && (

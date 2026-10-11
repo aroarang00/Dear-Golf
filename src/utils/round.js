@@ -301,6 +301,13 @@ export async function updateRound(roundId, data) {
   });
 }
 
+// 사진 메타(ar 등)만 되쓰기 — 옛 기록 비율 백필용(2026-10-11, [[friend-feed-first-photo-blur-slow]]).
+//   updateRound는 업로드·audience 정리까지 타서 무겁고 부작용이 있다. 여기선 photos 배열만 그대로 교체(본인 글만, 규칙 허용).
+export async function patchRoundPhotos(roundId, photos) {
+  if (!roundId || !Array.isArray(photos)) return;
+  await updateDoc(doc(db, COLLECTION, roundId), { photos });
+}
+
 // 다이어리 삭제 — 본인만 가능 (보안 규칙).
 export async function deleteRound(roundId) {
   if (!roundId) throw new Error('roundId required');
