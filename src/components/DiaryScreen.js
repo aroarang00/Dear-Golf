@@ -378,14 +378,6 @@ export function DiaryScreen({ route, navigation }) {
     }
   }, [diaries, userProfile.lifeBest]);
 
-  // 홈 인사말 닉네임 탭 → 설정 모달 바로 열기(2026-10-11). 홈이 MyPageModal을 안 가져 MY 탭으로 넘어와 연다.
-  //   params 즉시 초기화 — 안 하면 다음 MY 탭 진입 때 또 열림.
-  useEffect(() => {
-    if (!route?.params?.openSettings) return;
-    navigation.setParams({ openSettings: undefined });
-    setShowMyPage(true);
-  }, [route?.params?.openSettings]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // 홈 'D-0 기록 보기'로 상세 진입한 경우, 닫을 때(안드 뒤로가기 포함) MY 목록이 아니라 홈으로 복귀
   const detailFromHomeRef = React.useRef(false);
   const detailFromScheduleRef = React.useRef(false); // 일정 캘린더에서 상세 진입 — 닫을 때 캘린더 재오픈용

@@ -77,7 +77,8 @@ import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 import { FriendRequestInbox } from './FriendRequestInbox';
 import { RoundupInviteInbox } from './RoundupInviteInbox';
 import { ScoreShareInbox } from './ScoreShareInbox';
-import { RecapBanner } from './RecapBanner';             // 월·연 결산 입구 띠 — 최근 기록 위(사용자 2026-10-11, 기록 탭과 공용)
+import { RecapBanner } from './RecapBanner';
+import { MyPageModal } from './MyPageModal';   // 홈 인사말 닉네임 탭 → 설정을 홈 위에서 바로(탭 전환 없이, 2026-10-11)             // 월·연 결산 입구 띠 — 최근 기록 위(사용자 2026-10-11, 기록 탭과 공용)
 import { RecapShareModal } from './RecapShareModal';
 import { suggestRecap } from '../utils/recap';   // 동반자 스코어 공유 수신 — 기록화면에서 홈으로 이동(안 쓰는 유저도 홈에서 바로 인지, 2026-07-23)
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
@@ -271,6 +272,8 @@ export function HomeScreen({ navigation, route }) {
   // 결산 — 매월 1~10일만 띠. 10월~1월엔 시즌(연), 그 외엔 바로 지난달(기록 있을 때). 홈에선 '최근 기록' 섹션 바로 위([[record-share-redesign]])
   const recapSuggest = React.useMemo(() => suggestRecap(diaries), [diaries]);
   const [recapOpen, setRecapOpen] = useState(null);   // 열 기간 {year, month|null}, 닫힘=null
+  // 설정 모달을 홈이 직접 띄움 — MY 탭으로 navigate해 열면 기록 탭 첫 마운트와 모달 지연마운트가 겹쳐 '흐리다가 진해지며 늦게 열림'(사용자 2026-10-11).
+  const [showSettings, setShowSettings] = useState(false);
   // 결산 푸시 탭 → 결산 모달 자동 오픈(App.js data.type==='recap' → openRecap={year, month|null}).
   //   콜드스타트엔 diaries가 아직 비어 있어 hydrated 후에 연다(openScheduleSheetId와 같은 pending 패턴).
   const [pendingRecap, setPendingRecap] = useState(null);
@@ -1585,9 +1588,9 @@ export function HomeScreen({ navigation, route }) {
             </View>
           </View>
           {/* 크루 버튼은 hdr 맨 마지막 자식으로 이동 — iOS서 그리팅/배너 위에 와야 터치를 받음(아래) */}
-          {/* 인사말 닉네임 탭 → 설정(MY 탭의 MyPageModal). 설정 문이 기록 탭 톱니 하나뿐이라 "찾기 어렵다"(사용자 2026-10-11) →
+          {/* 인사말 닉네임 탭 → 설정(홈이 MyPageModal을 직접 띄움). 설정 문이 기록 탭 톱니 하나뿐이라 "찾기 어렵다"(사용자 2026-10-11) →
               첫 화면에 문을 하나 더. 새 버튼 없이 이름 자체가 문(끝에 › 로 눌림 암시). 홈 레이아웃 변화 0. */}
-          <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MY, { openSettings: true })} activeOpacity={0.7}
+          <TouchableOpacity onPress={() => setShowSettings(true)} activeOpacity={0.7}
             hitSlop={{ top: 6, bottom: 6, left: 4, right: 8 }} style={{ alignSelf: 'flex-start' }} accessibilityLabel="설정 열기">
             <Text style={homeS.hdrGreeting}>
               안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
@@ -2495,6 +2498,7 @@ export function HomeScreen({ navigation, route }) {
 
       {/* ★골프 가계부 — 홈 요약 카드 탭. 기록(다이어리) 헤더 알약과 같은 모달 재사용 */}
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
+      <MyPageModal visible={showSettings} onClose={() => setShowSettings(false)} />
       <RecapShareModal visible={!!recapOpen} onClose={() => setRecapOpen(null)} diaries={diaries}
         playerName={(userProfile?.realName || userProfile?.nickname || '').trim()} initial={recapOpen} />
 
