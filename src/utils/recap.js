@@ -106,15 +106,33 @@ export function listRecapPeriods(diaries) {
   };
 }
 
-// 지금 보여줄 결산 — 12월·1월엔 연 결산(해당 연도), 그 외엔 가장 최근 '지난' 달(이번 달 제외, 기록 있는 달).
-//   이번 달은 아직 진행 중이라 결산이 아니다. 기록이 하나도 없으면 null.
-export function suggestRecap(diaries, now = new Date()) {
+// 지금 '때'에 맞는 결산 기간 — 10~12월 = 올해 시즌 결산, 1월 = 지난해 시즌 결산(국내 시즌이 3~11월이라 10월부터 '한 해' 숫자를 보여준다 — 사용자 2026-10-11).
+//   그 외 달 = 바로 지난달 결산. 지난달 기록이 없으면 몇 달 전 결산을 끌어오지 않고 null(5월에 '2월 결산'은 때가 아니다).
+function timelyRecap(diaries, now) {
   const { months, years } = listRecapPeriods(diaries);
   const y = now.getFullYear(), m = now.getMonth() + 1;
-  if (m === 12 && years.some(p => p.year === y)) return { year: y, month: null };
+  if (m >= 10 && years.some(p => p.year === y)) return { year: y, month: null };
   if (m === 1 && years.some(p => p.year === y - 1)) return { year: y - 1, month: null };
-  const past = months.find(p => p.year * 100 + p.month < y * 100 + m);
-  return past ? { year: past.year, month: past.month } : null;
+  const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;   // 바로 지난달
+  return months.some(p => p.year === py && p.month === pm) ? { year: py, month: pm } : null;
+}
+
+// 결산 띠(홈·기록 탭)에 보여줄 기간 — 매월 1~10일에만(월초 '때' 느낌을 살리고 상시 노출을 피함, 사용자 2026-10-11). 11일부터는 null.
+//   띠가 없는 날의 상시 입구 = 기록 탭 보기방식 줄의 '결산' 버튼(defaultRecap) → 모달에서 월/연 칩·‹ ›로 작년 결산까지 이동.
+export function suggestRecap(diaries, now = new Date()) {
+  return now.getDate() > 10 ? null : timelyRecap(diaries, now);
+}
+
+// '결산' 버튼(상시 입구)이 열 기본 기간 — 띠 규칙에서 날짜 창만 뺀 것. 때에 맞는 게 없으면 기록 있는 가장 최근 '지난' 달
+//   (이번 달은 진행 중이라 뒤로), 지난 달이 하나도 없으면 이번 달, 그것도 없으면 최근 해. 기록이 하나도 없으면 null(버튼이 무시).
+export function defaultRecap(diaries, now = new Date()) {
+  const t = timelyRecap(diaries, now);
+  if (t) return t;
+  const { months, years } = listRecapPeriods(diaries);
+  const cur = now.getFullYear() * 100 + now.getMonth() + 1;
+  const past = months.find(p => p.year * 100 + p.month < cur) || months[0];
+  if (past) return { year: past.year, month: past.month };
+  return years[0] ? { year: years[0].year, month: null } : null;
 }
 
 export const recapTitle = ({ year, month }) => (month == null ? `${year}년 결산` : `${year}년 ${month}월 결산`);
