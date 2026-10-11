@@ -4,7 +4,6 @@ import Constants from 'expo-constants'; // 앱 실제 버전 조회 — 하드�
 import AppTextInput from './common/AppTextInput';
 import { OverlayAlert } from './common/OverlayAlert';
 import { C, F, fs } from '../constants/colors';
-import { DIARY_DATA } from '../constants/data';
 import { ROUNDUP_PUBLIC_ENABLED } from '../constants/roundup';
 import { DiariesContext } from '../contexts/DiariesContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
@@ -12,7 +11,8 @@ import { calcHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUid } from '../utils/firebase';
-import { saveNotifyPref } from '../utils/pushTokens';   // 알림 토글 서버 동기(CF 게이팅이 읽는 users.settings.notifyPrefs)
+import { saveNotifyPref } from '../utils/pushTokens';
+import { connectKakaoAccount } from '../utils/kakaoAuth';   // 설정 '카카오 로그인 연동' — 친구·라운지 게이트와 같은 공용 흐름   // 알림 토글 서버 동기(CF 게이팅이 읽는 users.settings.notifyPrefs)
 import { savePrivateDeparture, savePrivateWork } from '../utils/privateProfile'; // 출발지·회사 비공개 Firestore 저장(기기 간 유지)
 import { RoundEvaluationModal } from './RoundEvaluationModal';
 import { myS } from '../styles/myS';
@@ -89,6 +89,10 @@ export function MyPageModal({ visible, onClose }) {
   // 총 라운딩 — 자동 완료 라운딩 + 마이페이지 입력 기준값(입력 이후 증가분만 가산). DiaryScreen과 동일 헬퍼.
   const completedRounds = countCompletedRounds(diaries, schedules);
   const effectiveTotalRounds = displayTotalRounds(userProfile, completedRounds);
+  // 베스트 폴백 — lifeBest 미입력이면 실제 기록(라운딩·스코어>0)의 최저 타수, 그것도 없으면 '-'.
+  //   ★예전엔 개발 샘플(DIARY_DATA) 최솟값 76이 그대로 떠 '가짜 베스트'가 보였다(2026-10-11 감사).
+  const scoredRounds = (diaries || []).filter(d => d && d.kind !== 'moment' && typeof d.score === 'number' && d.score > 0).map(d => d.score);
+  const bestFromDiaries = scoredRounds.length ? Math.min(...scoredRounds) : null;
   const scrollRef = useRef(null);
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
@@ -562,7 +566,7 @@ export function MyPageModal({ visible, onClose }) {
                     {[
                       { label: '총 라운딩', value: effectiveTotalRounds },
                       { label: '핸디', value: handicap ?? '-' },
-                      { label: '베스트', value: userProfile.lifeBest || Math.min(...DIARY_DATA.map(d => d.score)) },
+                      { label: '베스트', value: userProfile.lifeBest || bestFromDiaries || '-' },
                     ].map((st, i) => (
                       <View key={i} style={myS.statBox}>
                         <Text style={myS.statVal}>{String(st.value)}</Text>
@@ -954,12 +958,17 @@ export function MyPageModal({ visible, onClose }) {
                     ? [{ icon: '🍎', label: 'Apple 연동됨', value: '연결됨', onPress: () => {} }]
                     : userProfile.kakaoLinked
                     ? [{ icon: '💛', label: '카카오 연동됨', value: '연결됨', onPress: () => {} }]
-                    : [{ icon: '💛', label: '카카오 로그인 연동',
-                        onPress: () => setAlertData({
-                          title: '카카오 로그인 연동',
-                          message: '카카오 로그인을 연동하면 닉네임 변경 주기가 30일 → 15일로 단축돼요.\n(연동 화면은 추후 추가될 예정)',
-                          buttons: [{ text: '확인' }],
-                        }) }]),
+                    // 익명 사용자 — 실제 연동(connectKakaoAccount: 친구·라운지 게이트와 같은 공용 흐름). 예전엔 '추후 추가 예정' 안내만 뜨는 막힌 문이었다(2026-10-11).
+                    : [{ icon: '💛', label: '카카오 로그인 연동', value: '연동하기',
+                        onPress: async () => {
+                          const r = await connectKakaoAccount();
+                          if (r?.banned) { setAlertData({ title: '이용이 제한된 계정이에요', message: '이 카카오 계정은 Dear Golf 이용이 제한되었어요.' }); return; }
+                          if (!r?.ok) { setAlertData({ title: '카카오 연동 실패', message: '잠시 후 다시 시도해주세요.' }); return; }
+                          const next = { ...userProfile, kakaoLinked: true };
+                          setUserProfile(next);
+                          storage.save(STORAGE_KEYS.profile, next);
+                          setAlertData({ title: '카카오 연동 완료', message: '친구·라운지 기능을 바로 쓸 수 있어요.\n닉네임 변경 주기도 30일 → 15일로 짧아져요.' });
+                        } }]),
                   // 약관 및 정책 — 앱 내 본문 뷰어 + 외부 웹 옵션 (deargolf.app)
                   { icon: '📄', label: '이용약관',
                     onPress: () => setTermsViewer({
