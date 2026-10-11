@@ -138,6 +138,17 @@ export function DiaryScreen({ route, navigation }) {
     setEditingStatus(false);
   };
   const [showMyPage, setShowMyPage] = useState(false); // 설정 (마이페이지)
+  // 명함 이름 글자 크기 — 우측 알약(가계부·설정)이 폭 140을 차지해 좁은 안드(360dp)에선 한글 5자(20px)부터 줄바꿈(사용자 2026-10-11 지적).
+  //   컬럼 폭을 재서 한 줄에 들어가는 크기로 내린다(한글 1em·그 외 0.62em 추정, 13~20px). 안드는 adjustsFontSizeToFit이
+  //   커스텀 폰트에서 안 줄어([[responsive-zoom-backlog]]) 직접 계산. 그래도 넘치면 numberOfLines=1 말줄임.
+  const [nameColW, setNameColW] = useState(0);
+  const nameFont = useMemo(() => {
+    const name = userProfile.nickname || '나';
+    if (!nameColW) return fs(20);
+    const em = [...name].reduce((acc, ch) => acc + (/[ㄱ-ㆎ가-힣]/.test(ch) ? 1 : 0.62), 0);
+    const avail = nameColW - 12;   // marginLeft 12
+    return Math.max(fs(13), Math.min(fs(20), Math.floor(avail / Math.max(1, em))));
+  }, [nameColW, userProfile.nickname]);
   const [dmChat, setDmChat] = useState(null);    // DM 푸시 딥링크(openDmUid)로 연 대화방 { uid, name } — 목록 진입점은 친구 탭으로 이관([[dm-design]])
   const [gradeModalOpen, setGradeModalOpen] = useState(false); // 신뢰 등급 설명
   const [mannerModalOpen, setMannerModalOpen] = useState(false); // 매너 등급 설명
@@ -863,11 +874,11 @@ export function DiaryScreen({ route, navigation }) {
             {/* 💬 메시지(DM) 진입은 친구 탭 헤더로 이관 — 테스터 발견성 피드백(2026-06-13, [[dm-design]]). 푸시 딥링크는 아래 Modal로 유지. */}
           </View>
           {/* 이름+마일스톤 / 라이프베스트 / 멘트 — 친구모집 전환으로 신뢰·매너·주최·참석 제거([[roundup-friend-redesign]]) */}
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1 }} onLayout={(e) => setNameColW(e.nativeEvent.layout.width)}>
             {/* 이름 — 옆은 깔끔하게(배지 미부착). 마일스톤은 아래 흐린 줄로. */}
             {/* 이름 탭 → 설정(마이페이지). 톱니만으론 '설정이 숨어 있다'(사용자 2026-10-11) — 프로필을 누르는 습관을 받아준다. */}
             <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.6} style={{ alignSelf: 'flex-start' }} accessibilityLabel="설정 열기">
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12, marginTop: Platform.OS === 'android' ? 8 : 0 }}>{myName}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: nameFont, color: C.charcoal, marginLeft: 12, marginTop: Platform.OS === 'android' ? 8 : 0 }}>{myName}</Text>
             </TouchableOpacity>
             {/* 멘트(상태 메시지) — 이름 아래 line 2로 올림(마일스톤 칩과 위치 스왑, 2026-06-14). 한 줄·인용·연한 톤.
                 버튼(💰·⚙️)보다 아래라 우측 여백 되찾아(marginRight 음수) 폭 확보 */}
