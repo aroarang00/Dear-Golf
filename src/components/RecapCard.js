@@ -62,6 +62,9 @@ export function RecapCard({ recap, playerName = '', width = 320 }) {
 
   const maxBar = recap.monthly ? Math.max(1, ...recap.monthly) : 1;
   const photos = (recap.photos || []).map(resolvePhotoUri).filter(Boolean);
+  // 사진 없는 달 폴백 — 그 달 날짜 점 띠(라운딩 친 날만 골드 채움). 빈 여백보다 '언제 쳤나'가 남는다(사용자 2026-10-11 "사진 없는 유저는?")
+  const daysInMonth = isYear ? 0 : new Date(recap.year, recap.month, 0).getDate();
+  const roundDays = new Set((recap.rounds || []).map(r => parseInt(String(r.date || '').split('.')[2], 10)).filter(Boolean));
   const topLabel = isYear ? `${recap.year} SEASON` : `${MONTHS_EN[recap.month - 1]} ${recap.year}`;
 
   return (
@@ -78,14 +81,18 @@ export function RecapCard({ recap, playerName = '', width = 320 }) {
             <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: INK }}>Dear Golf</Text>
           </View>
 
-          {/* 히어로 — 라운딩 수 크게(골드) + 제목(네이비) + 이름 */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 14 }}>
-            <Text style={{ fontFamily: F.en, fontSize: fs(58), lineHeight: fs(60), color: GOLD }}>{recap.count}</Text>
-            <View style={{ marginLeft: 10, marginBottom: 7, flex: 1 }}>
-              <Text style={{ fontFamily: F.sysB, fontSize: fs(19), color: NAVY, letterSpacing: 0.2 }}>
-                {isYear ? `${recap.year}년의 라운딩` : `${recap.month}월의 라운딩`}
+          {/* 히어로 — 좌: 제목(네이비)+이름 / 우: 라운딩 수(골드 큰 숫자)+단위.
+              ★숫자를 제목 앞에 두면 '7 9월…'이 날짜처럼 읽혀 횟수인지 월인지 애매(사용자 2026-10-11) → 우측으로, 단위 '라운딩'을 붙여 횟수임을 명시 */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 14 }}>
+            <View style={{ flex: 1, marginRight: 12, marginBottom: 6 }}>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(21), color: NAVY, letterSpacing: 0.2 }}>
+                {isYear ? `${recap.year} 결산` : `${recap.month}월 결산`}
               </Text>
               {name ? <Text numberOfLines={1} style={{ fontFamily: F.sysM, fontSize: fs(11.5), color: INK_SOFT, marginTop: 3 }}>{name}</Text> : null}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <Text style={{ fontFamily: F.en, fontSize: fs(50), lineHeight: fs(52), color: GOLD }}>{recap.count}</Text>
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: GOLD_DEEP, marginLeft: 5 }}>라운딩</Text>
             </View>
           </View>
           <View style={{ height: 1.5, width: 28, backgroundColor: GOLD, marginTop: 10, marginBottom: 6 }} />
@@ -119,6 +126,20 @@ export function RecapCard({ recap, playerName = '', width = 320 }) {
               ))}
               {/* 3장 미만이면 빈 자리는 종이색으로 — 폭이 들쭉날쭉하지 않게 */}
               {Array.from({ length: Math.max(0, 3 - photos.length) }).map((_, i) => <View key={`e${i}`} style={{ flex: 1 }} />)}
+            </View>
+          ) : daysInMonth > 0 ? (
+            <View>
+              <Text style={{ fontFamily: F.sysM, fontSize: 9.5, color: INK_SOFT, letterSpacing: 0.4, marginBottom: 7 }}>라운딩 간 날</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const on = roundDays.has(i + 1);
+                  return <View key={i} style={{ width: on ? 7 : 5, height: on ? 7 : 5, borderRadius: 4, backgroundColor: on ? GOLD : HAIR }} />;
+                })}
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                <Text style={{ fontFamily: F.sysM, fontSize: 8, color: INK_SOFT }}>1</Text>
+                <Text style={{ fontFamily: F.sysM, fontSize: 8, color: INK_SOFT }}>{daysInMonth}</Text>
+              </View>
             </View>
           ) : null}
           {/* 브랜드 삼색 미니바 — 화이트 카드와 같은 시그니처 */}
