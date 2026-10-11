@@ -102,7 +102,7 @@ export function RecapCard({ recap, playerName = '', width = 320, showWith = true
           <View style={{ height: 1.5, width: 28, backgroundColor: GOLD, marginTop: 10, marginBottom: 6 }} />
           {/* 한마디 — 행잉 인용(화이트 카드와 같은 결). 2줄까지 */}
           {memo ? (
-            <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', marginTop: 2, marginBottom: 14 }}>
               <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: INK, lineHeight: fs(18) }}>"</Text>
               <Text numberOfLines={2} style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: INK, lineHeight: fs(18) }}>{memo}"</Text>
             </View>

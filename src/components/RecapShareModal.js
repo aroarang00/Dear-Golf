@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';   // 안드 모달 입력 가림 방지(CrewComposeScreen과 같은 처방)
 import ViewShot from 'react-native-view-shot';
 import { C, F, fs } from '../constants/colors';
 import { RecapCard } from './RecapCard';
@@ -58,6 +59,7 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
+      <KeyboardProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
           <View style={{ paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -70,6 +72,8 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
             </View>
           </View>
 
+          {/* 키보드 — iOS는 ScrollView 자체 인셋, 안드는 keyboard-controller KAV(padding)로 ScrollView 높이를 줄인다(사용자 2026-10-11 "안드는 가린다") */}
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" enabled={Platform.OS === 'android'}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
             automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
@@ -84,6 +88,14 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
               </TouchableOpacity>
             </View>
 
+            {/* 한마디 — ★카드 '위'에(사용자 2026-10-11). 아래 두면 입력 때 카드가 고정 헤더 밑으로 밀려 들어갔다.
+                위에 있으면 키보드가 떠도 입력칸·카드 인용 줄(카드 상단부) 둘 다 보여 스크롤 자체가 필요 없다. 비우면 카드에 줄이 안 들어간다 */}
+            <View style={{ marginBottom: 14 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>한마디</Text>
+              <AppTextInput value={caption} onChangeText={setCaption} maxLength={40}
+                placeholder="카드에 넣을 한마디 (비우면 생략)" placeholderTextColor={C.warmGrayLight}
+                style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 1, borderColor: C.hairline, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
+            </View>
             <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH, alignSelf: 'center' }}>
               <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
                 <RecapCard recap={recap} playerName={playerName} width={CARD_WIDTH} showWith={showWith} caption={caption} />
@@ -99,13 +111,6 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
                 </View>
               </View>
             )}
-            {/* 한마디 — 라운딩 카드와 같은 칸. 비우면 카드에 줄 자체가 안 들어간다 */}
-            <View style={{ marginTop: 16 }}>
-              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>한마디</Text>
-              <AppTextInput value={caption} onChangeText={setCaption} maxLength={40}
-                placeholder="카드에 넣을 한마디 (비우면 생략)" placeholderTextColor={C.warmGrayLight}
-                style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 1, borderColor: C.hairline, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
-            </View>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 12, lineHeight: fs(17), textAlign: 'center' }}>
               카드 이미지로 공유돼요. Dear Golf 마크가 들어가요.
             </Text>
@@ -123,8 +128,10 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
               </TouchableOpacity>
             </View>
           </ScrollView>
+          </KeyboardAvoidingView>
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
         </SafeAreaView>
+      </KeyboardProvider>
       </SafeAreaProvider>
     </Modal>
   );

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardProvider, KeyboardAvoidingView } from 'react-native-keyboard-controller';   // 안드 모달 입력 가림 방지(iOS는 ScrollView 인셋)
 import ViewShot from 'react-native-view-shot';
 import AppTextInput from './common/AppTextInput';
 import { C, F, fs } from '../constants/colors';
@@ -96,6 +97,7 @@ export function RoundShareModal({ round, visible, onClose }) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleRequestClose}>
       <SafeAreaProvider>
+      <KeyboardProvider>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bgPrimary }} edges={['top', 'left', 'right']}>
           <View style={{ paddingHorizontal: 20, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -107,6 +109,8 @@ export function RoundShareModal({ round, visible, onClose }) {
           {/* 한마디 입력칸 키보드 가림(사용자 2026-10-10) — 1차 keyboard-controller KAS는 이 풀스크린 Modal에서 안 먹었다(재보고).
               iOS는 RN ScrollView 자체 기능 automaticallyAdjustKeyboardInsets(키보드만큼 인셋 + 포커스 칸 자동 스크롤)로,
               안드는 adjustResize로 화면이 줄며 포커스 칸이 보인다. 외부 라이브러리 의존 없음. */}
+          {/* 안드(2026-10-11 "가린다") — keyboard-controller KAV(padding)로 ScrollView 높이를 줄인다. iOS는 아래 인셋이 담당 */}
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" enabled={Platform.OS === 'android'}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
             automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
@@ -174,8 +178,10 @@ export function RoundShareModal({ round, visible, onClose }) {
               </TouchableOpacity>
             </View>
           </ScrollView>
+          </KeyboardAvoidingView>
           <OverlayAlert data={alert} onClose={() => setAlert(null)} />
         </SafeAreaView>
+      </KeyboardProvider>
       </SafeAreaProvider>
     </Modal>
   );
