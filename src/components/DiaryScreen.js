@@ -23,7 +23,7 @@ import { ShareMomentModal } from './ShareMomentModal';   // 특별한 순간·�
 import { RoundShareModal } from './RoundShareModal';     // 라운딩 카드 공유 — 한 화면 간소화([[record-share-redesign]])
 import { RecapShareModal } from './RecapShareModal';     // 월·연 결산 카드
 import { RecapBanner } from './RecapBanner';             // 결산 입구 띠(홈과 공용)
-import { suggestRecap, defaultRecap } from '../utils/recap';   // 띠(1~10일) / '결산' 버튼(상시) 기본 기간
+import { defaultRecap } from '../utils/recap';   // 기록 탭 결산 띠 = 상시(사용자 2026-10-11 '기록 탭에선 항상'). 홈만 suggestRecap(1~10일)
 import { DiaryCard } from './DiaryCard';
 import { DiaryRowCompact } from './DiaryRowCompact';   // 요약보기 — 사진 없는 한 줄 목록
 import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모션(맥동·nudge) 공용 래퍼
@@ -657,8 +657,9 @@ export function DiaryScreen({ route, navigation }) {
       playerName: (userProfile.realName || userProfile.nickname || '').trim() });
   }, [buildBragLine, userProfile.realName, userProfile.nickname]);
   const playerName = (userProfile.realName || userProfile.nickname || '').trim();
-  // 결산 입구 띠 — 매월 1~10일만. 10월~1월엔 시즌(연) 결산, 그 외엔 바로 지난달(기록 있을 때). 없으면 띠 없음(요약보기 월헤더가 상시 입구)
-  const recapSuggest = useMemo(() => suggestRecap(diaries), [diaries]);
+  // 결산 입구 띠 — 기록 탭에선 항상(10월~1월=시즌 결산, 그 외=바로 지난달, 없으면 최근 달·해). 홈 띠만 1~10일 창(suggestRecap).
+  //   11일 이후 아이콘 버튼만 남기니 사용자도 못 찾았다(2026-10-11) → 글자 있는 띠를 상시로.
+  const recapSuggest = useMemo(() => defaultRecap(diaries), [diaries]);
 
   // 퍼스트 싱글 명예의 전당 카드와 연결된 다이어리 id — 피드 배지 표시용
   const firstSingleId = hallOfFame.find(h => h.type === '퍼스트 싱글')?.diaryId;
@@ -928,9 +929,9 @@ export function DiaryScreen({ route, navigation }) {
               })}
             </ScrollView>
           </View>
-          {/* 보기 방식 줄 — 사진 카드 / 요약 목록 / 검색 / 결산 (사용자 2026-07-21).
+          {/* 보기 방식 줄 — 사진 카드 / 요약 목록 / 검색 (사용자 2026-07-21).
               필터 칩(무엇을 볼까)과 보기 방식(어떻게 볼까)을 줄로 분리. sticky 인덱스 2 블록 안이라 함께 고정된다.
-              '결산'(2026-10-11) = 띠가 1~10일에만 뜨게 되면서 작년 결산 등을 늘 찾아갈 상시 입구. 기본 기간은 defaultRecap(때에 맞는 것→최근 달→최근 해). */}
+              (결산 아이콘 버튼은 2026-10-11 하루 만에 제거 — 아이콘만으론 사용자도 못 찾음. 결산 입구는 위 띠가 상시로 맡는다) */}
           <View style={dS.viewModeRow}>
             {/* ★임시 진단 스위치(2026-09-21) — 이 빈 자리를 길게 누르면 켜짐(켜지면 '진단' 글자가 보임). 원인 잡으면 빈 View로 되돌릴 것 */}
             <Text onLongPress={() => setDiagOn((v) => !v)} delayLongPress={600}
@@ -948,14 +949,9 @@ export function DiaryScreen({ route, navigation }) {
               <Icon name="list" size={fs(17)} color={compact ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.7} accessibilityLabel="검색"
-              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={dS.viewModeBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={[dS.viewModeBtn, { paddingRight: 0 }]}
               onPress={() => { if (showSearch) { setShowSearch(false); setSearch(''); } else setShowSearch(true); }}>
               <Icon name="search" size={fs(17)} color={showSearch ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7} accessibilityLabel="결산 카드 보기"
-              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={[dS.viewModeBtn, { paddingRight: 0 }]}
-              onPress={() => { const p = defaultRecap(diaries); if (p) setRecapOpen(p); }}>
-              <Icon name="chart" size={fs(17)} color={recapOpen ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
             </TouchableOpacity>
           </View>
           {showSearch && (
@@ -1088,8 +1084,8 @@ export function DiaryScreen({ route, navigation }) {
                 </View>
               ) : null)}
 
-              {/* 결산 입구 — 매월 1~10일만 뜨는 띠(10월~1월=시즌 결산, 그 외=바로 지난달)([[record-share-redesign]]). 홈 '최근 기록' 위에도 같은 띠(RecapBanner 공용).
-                  닫기 버튼 없음 — 10일이면 사라지고, 모달 안에서 월/연 칩·‹ › 로 다른 달·작년 결산도 본다. */}
+              {/* 결산 입구 — 기록 탭에선 상시 띠(10월~1월=시즌 결산, 그 외=바로 지난달, 없으면 최근 달)([[record-share-redesign]]).
+                  홈의 같은 띠(RecapBanner 공용)만 매월 1~10일 창. 모달 안에서 월/연 칩·‹ › 로 다른 달·작년 결산도 본다. */}
               {recapSuggest && (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                   <RecapBanner diaries={diaries} period={recapSuggest} onPress={() => setRecapOpen(recapSuggest)} onCream />

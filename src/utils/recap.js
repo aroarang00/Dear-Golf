@@ -117,13 +117,13 @@ function timelyRecap(diaries, now) {
   return months.some(p => p.year === py && p.month === pm) ? { year: py, month: pm } : null;
 }
 
-// 결산 띠(홈·기록 탭)에 보여줄 기간 — 매월 1~10일에만(월초 '때' 느낌을 살리고 상시 노출을 피함, 사용자 2026-10-11). 11일부터는 null.
-//   띠가 없는 날의 상시 입구 = 기록 탭 보기방식 줄의 '결산' 버튼(defaultRecap) → 모달에서 월/연 칩·‹ ›로 작년 결산까지 이동.
+// 홈 결산 띠에 보여줄 기간 — 매월 1~10일에만(월초 알림 역할, 사용자 2026-10-11). 11일부터는 null.
+//   기록 탭 띠는 상시(defaultRecap) — 아이콘 버튼만 두니 사용자도 못 찾아 글자 있는 띠로 되돌림(같은 날).
 export function suggestRecap(diaries, now = new Date()) {
   return now.getDate() > 10 ? null : timelyRecap(diaries, now);
 }
 
-// '결산' 버튼(상시 입구)이 열 기본 기간 — 띠 규칙에서 날짜 창만 뺀 것. 때에 맞는 게 없으면 기록 있는 가장 최근 '지난' 달
+// 기록 탭 상시 띠가 보여줄 기간 — 홈 띠 규칙에서 날짜 창만 뺀 것. 때에 맞는 게 없으면 기록 있는 가장 최근 '지난' 달
 //   (이번 달은 진행 중이라 뒤로), 지난 달이 하나도 없으면 이번 달, 그것도 없으면 최근 해. 기록이 하나도 없으면 null(버튼이 무시).
 export function defaultRecap(diaries, now = new Date()) {
   const t = timelyRecap(diaries, now);
