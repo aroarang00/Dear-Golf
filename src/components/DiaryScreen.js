@@ -863,7 +863,10 @@ export function DiaryScreen({ route, navigation }) {
           {/* 이름+마일스톤 / 라이프베스트 / 멘트 — 친구모집 전환으로 신뢰·매너·주최·참석 제거([[roundup-friend-redesign]]) */}
           <View style={{ flex: 1 }}>
             {/* 이름 — 옆은 깔끔하게(배지 미부착). 마일스톤은 아래 흐린 줄로. */}
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12, marginTop: Platform.OS === 'android' ? 8 : 0 }}>{myName}</Text>
+            {/* 이름 탭 → 설정(마이페이지). 톱니만으론 '설정이 숨어 있다'(사용자 2026-10-11) — 프로필을 누르는 습관을 받아준다. */}
+            <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.6} style={{ alignSelf: 'flex-start' }} accessibilityLabel="설정 열기">
+              <Text style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12, marginTop: Platform.OS === 'android' ? 8 : 0 }}>{myName}</Text>
+            </TouchableOpacity>
             {/* 멘트(상태 메시지) — 이름 아래 line 2로 올림(마일스톤 칩과 위치 스왑, 2026-06-14). 한 줄·인용·연한 톤.
                 버튼(💰·⚙️)보다 아래라 우측 여백 되찾아(marginRight 음수) 폭 확보 */}
             {/* 한마디 — 탭하면 하단 시트로 넓게 편집(좁은 명함 인라인 대신, 2026-06-24). 평소엔 표시 + pen 힌트. */}

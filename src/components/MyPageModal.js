@@ -66,6 +66,15 @@ function AlarmBadge({ name, size = 17 }) {
   );
 }
 
+// 2단 구조 서브 페이지 제목(2026-10-11)
+const PAGE_TITLE = { stats: '나의 통계', storage: '저장공간', alarm: '알림', info: '내 정보', app: '앱 설정', help: '도움말 · 약관', account: '계정' };
+// 옛 '설정' 섹션 한 배열을 세 페이지로 나눔 — 라벨로 분류(배열을 쪼개지 않아 변경 최소). 없는 라벨은 help(약관·문의류).
+const SETTING_GROUP = {
+  '알림 설정': 'app', '앱 권한 (사진·위치)': 'app', '캘린더 연동': 'app', '내 라운지 활동': 'app', '친구 그룹 관리': 'app', '차단 관리': 'app',
+  'Apple 연동됨': 'account', '카카오 연동됨': 'account', '카카오 로그인 연동': 'account',
+};
+const settingGroupOf = (label) => SETTING_GROUP[label] || 'help';
+
 // 앱 버전 — app.config의 version(빌드/ OTA 매니페스트에 그대로 담김). 하드코딩('1.0.0') 대신 실제 값 표시.
 const APP_VERSION = Constants.expoConfig?.version || '';
 
@@ -90,6 +99,12 @@ export function MyPageModal({ visible, onClose }) {
   const completedRounds = countCompletedRounds(diaries, schedules);
   const effectiveTotalRounds = displayTotalRounds(userProfile, completedRounds);
   const scrollRef = useRef(null);
+  // 2단 구조 — null=첫 화면(7줄 목록), 그 외=서브 페이지 키(PAGE_TITLE). 열 때마다 첫 화면부터.
+  const [page, setPage] = useState(null);
+  const scrollTop = () => requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+  const openPage = (k) => { setPage(k); scrollTop(); };
+  const goRoot = () => { setPage(null); setEditingInfo(false); setEditingStats(false); scrollTop(); };
+  useEffect(() => { if (visible) setPage(null); }, [visible]);
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
   const [blockManageOpen, setBlockManageOpen] = useState(false);  // 차단 관리
@@ -109,6 +124,7 @@ export function MyPageModal({ visible, onClose }) {
   // 안드로이드 뒤로가기 — 확인창이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
   const handleRequestClose = () => {
     if (alertData) { setAlertData(null); return; }
+    if (page) { goRoot(); return; }   // 서브 페이지에선 뒤로가기 = 목록으로
     onClose();
   };
   const [nickname, setNickname] = useState(userProfile.nickname);
@@ -417,8 +433,20 @@ export function MyPageModal({ visible, onClose }) {
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
           <View style={myS.sheet}>
             <View style={myS.handle} />
+            {page && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 6 }}>
+                <TouchableOpacity onPress={goRoot} activeOpacity={0.6} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityLabel="설정 목록으로"
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 6 }}>
+                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(24), color: C.charcoal, lineHeight: 26, includeFontPadding: false }}>‹</Text>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, marginLeft: 6 }}>{PAGE_TITLE[page]}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <ScrollView ref={scrollRef} style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+              {!page && (
+              <>
               <View style={myS.profileArea}>
                 <View style={myS.avatar}>
                   <Text style={myS.avatarTxt}>{nickname.charAt(0)}</Text>
@@ -479,6 +507,41 @@ export function MyPageModal({ visible, onClose }) {
                 </View>
               </View>
               <TripleStripe height={1.5} />
+              {/* ★2단 구조(2026-10-11) — 설정이 한 스크롤 30여 항목에 묻혀 '숨어 있다'(사용자). 첫 화면은 7줄만, 각 줄 → 서브 페이지(page 상태, 모달 안 전환).
+                  모달 위 모달을 피해(iOS 형제 Modal·안드 중첩 Modal 함정) 한 Modal 안에서 page로 분기. 뒤로가기 = goRoot. */}
+              {(() => {
+                const used = countDiaryMedia(diaries);
+                const quota = mediaQuotaOf(userProfile);
+                const rows = [
+                  { key: 'stats', iconName: 'chart', label: '나의 통계', sub: `총 라운딩 ${effectiveTotalRounds} · 핸디 ${handicap ?? '-'}` },
+                  { key: 'storage', iconName: 'image', label: '저장공간', sub: `사진 ${used.photos}/${quota.maxPhotos}장 · 영상 ${used.videos}/${quota.maxVideos}개` },
+                  { key: 'alarm', iconName: 'bell', label: '알림', sub: '기상·출발 알림 · 푸시 종류' },
+                  { key: 'info', iconName: 'person', label: '내 정보', sub: '출발지 · 회사 · 본명 · 전화' },
+                  { key: 'app', iconName: 'gear', label: '앱 설정', sub: '권한 · 캘린더 · 친구 그룹 · 차단' },
+                  { key: 'help', iconName: 'book', label: '도움말 · 약관', sub: '이용 안내 · 문의 · 신고 · 약관' },
+                  { key: 'account', iconName: 'lock', label: '계정',
+                    sub: userProfile.appleLinked ? 'Apple 연동 · 로그아웃' : userProfile.kakaoLinked ? '카카오 연동 · 로그아웃' : '로그아웃 · 탈퇴' },
+                ];
+                return (
+                  <View style={[myS.section, { marginTop: 14 }]}>
+                    {rows.map((r, i) => (
+                      <TouchableOpacity key={r.key} style={[myS.menuRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}
+                        activeOpacity={0.7} onPress={() => openPage(r.key)}>
+                        <MenuIcon name={r.iconName} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={myS.menuLabel}>{r.label}</Text>
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{r.sub}</Text>
+                        </View>
+                        <Text style={myS.menuValue}>›</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                );
+              })()}
+              </>
+              )}
+              {page === 'help' && (
+              <>
               {/* 이용 안내 배너 — 홈 띠가 첫 유저 1회성이 되면서 여기가 상시 진입점. 설정 리스트 안은 발견이 안 돼
                   (사용자 2026-07-03 "없는 줄") 명함 바로 아래 상시 노출 배너로. */}
               <TouchableOpacity onPress={() => setIntroOpen(true)} activeOpacity={0.8}
@@ -492,6 +555,9 @@ export function MyPageModal({ visible, onClose }) {
                 </View>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>›</Text>
               </TouchableOpacity>
+              </>
+              )}
+              {page === 'stats' && (
               <View style={myS.sectionPlain}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <Text style={myS.sectionLabel}>나의 통계</Text>
@@ -572,9 +638,10 @@ export function MyPageModal({ visible, onClose }) {
                   </View>
                 )}
               </View>
+              )}
               {/* 저장공간 — 사진·영상 총량 사용량([[monetization-plan]] 1단계, 2026-10-11). 지금은 표시만, 차단 없음.
                   목적 = 초대 보상(+20장/+1개)이 눈에 보이게. 한도는 users.entitlements(CF만 상향), 사용량은 내 기록 photos 합산. */}
-              {(() => {
+              {page === 'storage' && (() => {
                 const quota = mediaQuotaOf(userProfile);
                 const used = countDiaryMedia(diaries);
                 const bonusPhotos = quota.maxPhotos - DEFAULT_ENTITLEMENTS.maxPhotos;
@@ -618,6 +685,8 @@ export function MyPageModal({ visible, onClose }) {
                   </View>
                 );
               })()}
+              {page === 'info' && (
+              <>
               <View style={myS.divider} />
               <View style={myS.section}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
@@ -757,6 +826,10 @@ export function MyPageModal({ visible, onClose }) {
                 </View>
                 </TouchableOpacity>
               </View>
+              </>
+              )}
+              {page === 'alarm' && (
+              <>
               <View style={myS.divider} />
               <View style={myS.section}>
                 <Text style={myS.sectionLabel}>알림</Text>
@@ -914,9 +987,13 @@ export function MyPageModal({ visible, onClose }) {
                   신고 결과·패널티 적용 같은 중요 알림은 항상 발송돼요
                 </Text>
               </View>
+              </>
+              )}
+              {(page === 'app' || page === 'help' || page === 'account') && (
+              <>
               <View style={myS.divider} />
               <View style={myS.section}>
-                <Text style={myS.sectionLabel}>설정</Text>
+                <Text style={myS.sectionLabel}>{page === 'app' ? '앱 설정' : page === 'help' ? '문의 · 약관' : '로그인 연동'}</Text>
                 {[
                   // 닉네임 변경은 상단 프로필의 닉네임 옆 ✏️수정으로 이동(설정 중복 제거)
                   { iconName: 'gear', icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
@@ -1061,7 +1138,7 @@ export function MyPageModal({ visible, onClose }) {
                       body: `Dear Golf 사업자 정보\n\nDear Golf는 노닐는나무가 운영하는 서비스입니다.\n\n상호: 노닐는나무\n대표자: 황지현\n사업자등록번호: 102-36-64293\n주소: 경기도 고양시 일산동구 강송로41 윈스턴파크 704호\n고객센터: deargolf.official@gmail.com\n\n전자상거래등에서의 소비자보호에 관한 법률에 따라 사업자 정보를 명시합니다.\n\n분쟁 발생 시 안내:\n- 한국소비자원 (1372 소비자상담센터)\n- 전자거래분쟁조정위원회 (www.ecmc.or.kr)\n- 콘텐츠분쟁조정위원회 (www.kcdrc.kr)`,
                       externalUrl: null,
                     }) },
-                ].map((item, i) => (
+                ].filter((item) => settingGroupOf(item.label) === page).map((item, i) => (
                   <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7} onPress={item.onPress}>
                     <MenuIcon name={item.iconName} emoji={item.icon} />
                     <Text style={myS.menuLabel}>{item.label}</Text>
@@ -1073,7 +1150,7 @@ export function MyPageModal({ visible, onClose }) {
                 ))}
                 {/* 라운지 — 모르는 사람 모집 숨기기 토글 (켜면 '전체' 탭 사라짐, 친구 모집만 보임) */}
                 {/* 전체공개 전역 비활성화 시엔 항상 친구 모집만이라 토글 숨김 ([[roundup-public-disabled]]) */}
-                {ROUNDUP_PUBLIC_ENABLED && (() => {
+                {page === 'app' && ROUNDUP_PUBLIC_ENABLED && (() => {
                   const on = !!userProfile.hideStrangerRoundups;
                   const toggle = () => {
                     const next = { ...userProfile, hideStrangerRoundups: !on };
@@ -1099,6 +1176,10 @@ export function MyPageModal({ visible, onClose }) {
                   );
                 })()}
               </View>
+              </>
+              )}
+              {page === 'help' && (
+              <>
               <View style={myS.divider} />
               <View style={myS.section}>
                 <Text style={myS.sectionLabel}>정보</Text>
@@ -1115,7 +1196,9 @@ export function MyPageModal({ visible, onClose }) {
                   <Text style={myS.menuValue}>{`v${APP_VERSION}`}</Text>
                 </View>
               </View>
-              {__DEV__ && (
+              </>
+              )}
+              {!page && __DEV__ && (
                 <>
                   <View style={myS.divider} />
                   <View style={myS.section}>
@@ -1176,6 +1259,8 @@ export function MyPageModal({ visible, onClose }) {
                   </View>
                 </>
               )}
+              {page === 'account' && (
+              <>
               <View style={myS.divider} />
               <View style={myS.section}>
                 <Text style={myS.sectionLabel}>계정</Text>
@@ -1192,9 +1277,13 @@ export function MyPageModal({ visible, onClose }) {
                   <Text style={myS.menuValue}>›</Text>
                 </TouchableOpacity>
               </View>
+              </>
+              )}
+              {!page && (
               <View style={{ alignItems: 'center', paddingVertical: 20 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{`Dear Golf v${APP_VERSION}`}</Text>
               </View>
+              )}
             </ScrollView>
           </View>
         </View>
