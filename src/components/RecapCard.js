@@ -59,7 +59,7 @@ export function RecapCard({ recap, playerName = '', width = 320, showWith = true
     recap.courseCount > 0 ? { label: '구장', value: `${recap.courseCount}곳`, sub: recap.newCourses > 0 ? `처음 밟은 곳 ${recap.newCourses}` : '' } : null,
     recap.birdies > 0 ? { label: '버디', value: `${recap.birdies}개` } : null,
     withValue ? { label: '함께', value: withValue, sub: withSub } : null,
-    recap.specials > 0 ? { label: '특별한 순간', value: `${recap.specials}번` } : null,
+    recap.specials > 0 ? { label: '특별한 순간', value: recap.specialLabel || `${recap.specials}번` } : null,   // '홀인원 · 이글 2'처럼 뭐였는지
     recap.overseas > 0 ? { label: '해외', value: `${recap.overseas}회` } : null,
   ].filter(Boolean).slice(0, memo ? 4 : 5);   // 최대 5행(한마디 있으면 4행) — 더 넣으면 다시 빽빽해진다
 

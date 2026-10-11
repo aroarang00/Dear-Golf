@@ -73,7 +73,13 @@ export function buildRecap(diaries, { year, month = null }) {
   const topCompanions = [...compCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name, n]) => ({ name, count: n }));
 
   const birdies = rounds.reduce((s, r) => s + ((typeof r.birdieCount === 'number' && r.birdieCount > 0) ? r.birdieCount : birdiesFromHoles(r)), 0);
-  const specials = rounds.filter(r => r.special).length;   // 홀인원·이글 등
+  // 특별한 순간 — 횟수만으론 '1번'이 뭔지 모른다(사용자 2026-10-11) → 종류별 집계도 함께. 값은 'HOLE IN ONE'/'EAGLE'/'ALBATROSS'
+  const specialRounds = rounds.filter(r => r.special && r.special !== '없음');
+  const specials = specialRounds.length;
+  const specialCounts = new Map();
+  specialRounds.forEach(r => specialCounts.set(r.special, (specialCounts.get(r.special) || 0) + 1));
+  const SPECIAL_KO = { 'HOLE IN ONE': '홀인원', 'EAGLE': '이글', 'ALBATROSS': '알바트로스' };
+  const specialLabel = [...specialCounts.entries()].map(([k, n]) => `${SPECIAL_KO[k] || k}${n > 1 ? ` ${n}` : ''}`).join(' · ');
   const overseas = rounds.filter(r => r.overseas).length;
   // 사진 — 최신순 최대 3장(기록당 대표 1장)
   const photos = [...rounds].reverse().map(r => photoUriOf((r.photos || [])[0])).filter(Boolean).slice(0, 3);
@@ -87,7 +93,7 @@ export function buildRecap(diaries, { year, month = null }) {
     peakMonth = mx > 0 ? monthly.indexOf(mx) + 1 : null;
   }
 
-  return { year, month, count, avg, best, prevAvg, courseCount, newCourses, topCompanions, birdies, specials, overseas, photos, monthly, peakMonth, rounds };
+  return { year, month, count, avg, best, prevAvg, courseCount, newCourses, topCompanions, birdies, specials, specialLabel, overseas, photos, monthly, peakMonth, rounds };
 }
 
 // 기록이 있는 기간 목록 — 월(최신순)·연(최신순). 모달 ‹ › 이동과 '결산 보기' 입구가 같은 목록을 쓴다.
