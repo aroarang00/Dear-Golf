@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StatusBar, ActivityIndicator } from 'react-native';
 import AppTextInput from './common/AppTextInput';
+import { showAppAlert } from './AppAlert';   // 길게 누르기 삭제 확인
 import { Image } from 'expo-image'; // 아바타 디스크캐시 ([[image-load-speed]])
-import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler'; // 행 좌측밀기 삭제(친구카드와 동일 레거시 Swipeable). RN Modal 안이라 자체 RootView 필요
+import { GestureHandlerRootView } from 'react-native-gesture-handler'; // (Swipeable 삭제는 2026-10-12 길게 누르기로 교체 — 숨은 제스처라 못 찾고, 안드 Modal에서 탭이 안 먹었다)
 import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
 
@@ -52,6 +53,16 @@ export function DMListScreen({ onClose, onOpenChat }) {
   const [myUid, setMyUid] = useState(null);
   const currentUid = useCurrentUid();   // uid 안정화([[uid-stabilization-plan]] 3단계) — uid 변경 시 대화목록 재구독
   const [convs, setConvs] = useState(null);    // null = 로딩 중
+  // 삭제(내 목록에서 숨김) 로컬 가드 — clearedAt은 serverTimestamp라 쓰기 직후 로컬 스냅샷엔 null로 와서 isCleared가 false →
+  //   행이 곧바로 되살아났다('삭제가 안 된다', 사용자 2026-10-12). 삭제 시각을 기억해 그 이후 새 메시지(lastAt)가 없으면 숨긴다.
+  const hiddenRef = useRef(new Map());   // convId → 삭제 시각(ms)
+  const applyHidden = useCallback((list) => (list || []).filter(c => {
+    const h = hiddenRef.current.get(c.id);
+    if (!h) return true;
+    const la = c.lastAt?.toMillis ? c.lastAt.toMillis() : 0;
+    if (la > h) { hiddenRef.current.delete(c.id); return true; }   // 삭제 뒤 새 메시지 → 다시 보임(카톡식)
+    return false;
+  }), []);
   const [nameMap, setNameMap] = useState({});  // uid → nickname
   const [avatarMap, setAvatarMap] = useState({});  // uid → 원격 avatarUrl (사진 우선·이니셜 fallback, 친구리스트와 동일)
   const [friendMeta, setFriendMeta] = useState({});
@@ -89,7 +100,7 @@ export function DMListScreen({ onClose, onOpenChat }) {
       setMyUid(uid);
       // 대화 목록을 즉시 구독 — 친구 메타(이름·아바타·차단) 로딩을 기다리지 않아 목록이 바로 뜸(느린 로딩 개선).
       //   이름·아바타는 친구 메타가 채워지면 리렌더로 hydrate, 차단 숨김은 blocked state 도착 후 렌더에서 적용.
-      unsub = subscribeConversations(uid, (list) => { if (alive) setConvs(list); });
+      unsub = subscribeConversations(uid, (list) => { if (alive) setConvs(applyHidden(list)); });
       // 친구 메타·차단은 병렬로 별도 로드(목록 표시를 막지 않음)
       try {
         const [fd, friends, blockedArr] = await Promise.all([
@@ -120,18 +131,20 @@ export function DMListScreen({ onClose, onOpenChat }) {
     [convs, blocked, myUid]
   );
 
-  // 좌측밀기 → 삭제(나만 목록에서 숨김). 상대·기록엔 영향 없음, 새 메시지 오면 다시 뜸([[dm-design]]).
-  //   낙관적 제거(즉시 사라짐) + clearedAt 기록. 실패 시 구독 스냅샷이 되살림.
+  // 길게 누르기 → 삭제 확인(나만 목록에서 숨김). 상대·기록엔 영향 없음, 새 메시지 오면 다시 뜸([[dm-design]]).
+  //   2026-10-12: 좌측밀기(iOS 카톡식)에서 교체 — 숨은 제스처라 못 찾고 안드 Modal 안에서 탭이 안 먹었다. 친구 목록(10-05)과 같은 길게 누르기.
+  //   낙관적 제거 + hiddenRef 가드 + clearedAt 기록. 실패하면 가드를 풀어 구독이 되살린다.
   const handleDelete = useCallback((conv) => {
+    hiddenRef.current.set(conv.id, Date.now());
     setConvs(prev => (prev || []).filter(c => c.id !== conv.id));
-    clearConversation(conv.id).catch(e => { if (__DEV__) console.warn('[DMList] clear', e?.message); });
+    clearConversation(conv.id).catch(e => { hiddenRef.current.delete(conv.id); if (__DEV__) console.warn('[DMList] clear', e?.message); });
   }, []);
-  const renderRightActions = (conv) => (
-    <TouchableOpacity activeOpacity={0.8} onPress={() => handleDelete(conv)}
-      style={{ width: 84, backgroundColor: '#B3261E', alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>삭제</Text>
-    </TouchableOpacity>
-  );
+  const confirmDelete = useCallback((conv, name) => {
+    showAppAlert(`${name}과의 대화를 삭제할까요?`, '내 목록에서만 사라져요. 상대에겐 영향이 없고,\n새 메시지가 오면 다시 보여요.', [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: () => handleDelete(conv) },
+    ]);
+  }, [handleDelete]);
 
   const renderItem = ({ item }) => {
     const ouid = otherUidOf(item, myUid);
@@ -139,8 +152,8 @@ export function DMListScreen({ onClose, onOpenChat }) {
     const avatar = avatarMap[ouid];
     const unreadN = item.unread?.[myUid] || 0;  // 안읽은 메시지 수(목록 뱃지)
     return (
-      <Swipeable renderRightActions={() => renderRightActions(item)} overshootRight={false} friction={2}>
       <TouchableOpacity activeOpacity={0.7} onPress={() => onOpenChat?.(ouid, name, avatar || null)}
+        onLongPress={() => confirmDelete(item, name)} delayLongPress={350}
         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, gap: 12, backgroundColor: DM_CANVAS }}>
         {/* 사진 우선 + 이니셜 fallback — 대화방 아바타와 통일(다크 차콜 배경 + 버터골드 이니셜) */}
         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: DM_AVATAR, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
@@ -167,7 +180,6 @@ export function DMListScreen({ onClose, onOpenChat }) {
           </View>
         </View>
       </TouchableOpacity>
-      </Swipeable>
     );
   };
 
