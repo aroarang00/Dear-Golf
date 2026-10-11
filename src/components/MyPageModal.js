@@ -66,8 +66,16 @@ function AlarmBadge({ name, size = 17 }) {
   );
 }
 
-// 2단 구조 서브 페이지 제목(2026-10-11)
-const PAGE_TITLE = { stats: '나의 통계', storage: '저장공간', alarm: '알림', info: '내 정보', app: '앱 설정', help: '도움말 · 약관', account: '계정' };
+// 아코디언 섹션 메타(2026-10-11) — 순서는 렌더 순서와 무관(헤더는 각 섹션 앞에 직접 둠). sub(부제)는 컴포넌트 안에서 계산.
+const SECTIONS = {
+  stats: { iconName: 'chart', label: '나의 통계' },
+  storage: { iconName: 'image', label: '저장공간' },
+  info: { iconName: 'person', label: '내 정보' },
+  alarm: { iconName: 'bell', label: '알림' },
+  app: { iconName: 'gear', label: '앱 설정' },
+  help: { iconName: 'book', label: '도움말 · 약관' },
+  account: { iconName: 'lock', label: '계정' },
+};
 // 옛 '설정' 섹션 한 배열을 세 페이지로 나눔 — 라벨로 분류(배열을 쪼개지 않아 변경 최소). 없는 라벨은 help(약관·문의류).
 const SETTING_GROUP = {
   '알림 설정': 'app', '앱 권한 (사진·위치)': 'app', '캘린더 연동': 'app', '내 라운지 활동': 'app', '친구 그룹 관리': 'app', '차단 관리': 'app',
@@ -99,12 +107,10 @@ export function MyPageModal({ visible, onClose }) {
   const completedRounds = countCompletedRounds(diaries, schedules);
   const effectiveTotalRounds = displayTotalRounds(userProfile, completedRounds);
   const scrollRef = useRef(null);
-  // 2단 구조 — null=첫 화면(7줄 목록), 그 외=서브 페이지 키(PAGE_TITLE). 열 때마다 첫 화면부터.
-  const [page, setPage] = useState(null);
-  const scrollTop = () => requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
-  const openPage = (k) => { setPage(k); scrollTop(); };
-  const goRoot = () => { setPage(null); setEditingInfo(false); setEditingStats(false); scrollTop(); };
-  useEffect(() => { if (visible) setPage(null); }, [visible]);
+  // 아코디언 — 펼친 섹션 키(SECTIONS) 하나 또는 null. 같은 줄 다시 누르면 접힘. 열 때마다 전부 접힌 상태로.
+  const [open, setOpen] = useState(null);
+  const toggleOpen = (k) => { if (open === k) { setOpen(null); setEditingInfo(false); setEditingStats(false); } else setOpen(k); };
+  useEffect(() => { if (visible) setOpen(null); }, [visible]);
   const [calPickerOpen, setCalPickerOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);   // 라운딩 평가 모달 미리보기 (개발용)
   const [blockManageOpen, setBlockManageOpen] = useState(false);  // 차단 관리
@@ -124,7 +130,6 @@ export function MyPageModal({ visible, onClose }) {
   // 안드로이드 뒤로가기 — 확인창이 떠 있으면 그것만 취소로 닫고, 아니면 모달을 닫는다.
   const handleRequestClose = () => {
     if (alertData) { setAlertData(null); return; }
-    if (page) { goRoot(); return; }   // 서브 페이지에선 뒤로가기 = 목록으로
     onClose();
   };
   const [nickname, setNickname] = useState(userProfile.nickname);
@@ -416,6 +421,222 @@ export function MyPageModal({ visible, onClose }) {
     });
   };
 
+  // 옛 '설정' 섹션(한 배열) — 라벨→그룹(SETTING_GROUP)으로 앱 설정/도움말/계정 세 아코디언에 나눠 그린다.
+  const settingSection = (group) => (
+    <>
+              <View style={myS.divider} />
+              <View style={myS.section}>
+                {[
+                  // 닉네임 변경은 상단 프로필의 닉네임 옆 ✏️수정으로 이동(설정 중복 제거)
+                  { iconName: 'gear', icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
+                  { iconName: 'camera', icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
+                  { iconName: 'calendar', icon: '📅', label: '캘린더 연동', onPress: () => setCalPickerOpen(true) },
+                  // 내 라운지 활동 — 매너·신뢰 등급, 패널티 이력, 진행 중 신고 통합 진입점 ([[my-roundup-activity]]).
+                  //   전체공개 OFF 동안 메뉴 통째로 숨김 — 매너·신뢰는 낯선사람 신뢰용이라 친구 전용 모드에선 의미 약함 ([[roundup-public-disabled]]).
+                  ...(ROUNDUP_PUBLIC_ENABLED ? [{ iconName: 'clipboard', icon: '📋', label: '내 라운지 활동',
+                    onPress: () => setRoundupActivityOpen(true) }] : []),
+                  { iconName: 'people', icon: '👥', label: '친구 그룹 관리',
+                    onPress: () => setGroupManageOpen(true) },
+                  { iconName: 'ban', icon: '🚫', label: '차단 관리', value: (userProfile.blockedUsers?.length || 0) + '명',
+                    onPress: () => setBlockManageOpen(true) },
+                  // 문의·의견 — 출시 초반 오류 보고를 적극 수집(2026-07-04). 공식 메일로, 기기·OS 정보 자동 첨부
+                  //   (오류 재현에 필수인데 사용자가 직접 안 적음). 크래시는 Sentry가 자동 수집 — 이건 '비정상 동작' 제보용.
+                  { icon: '✉️', label: '문의·의견 보내기', value: '오류 제보 환영',
+                    onPress: () => {
+                      const subject = encodeURIComponent('[디어골프] 문의·오류 제보');
+                      const body = encodeURIComponent(
+                        '어떤 화면에서, 어떤 동작을 했을 때 문제가 있었는지 적어주세요.\n\n\n'
+                        + '――― 아래 정보는 문제 해결에 사용돼요 ―――\n'
+                        + `기기: ${Platform.OS === 'android' ? '안드로이드' : 'iOS'} ${Platform.Version}\n`
+                        + `앱 버전: ${APP_VERSION}`);
+                      Linking.openURL(`mailto:deargolf.official@gmail.com?subject=${subject}&body=${body}`).catch(() =>
+                        setAlertData({ title: '메일 앱을 열 수 없어요', message: 'deargolf.official@gmail.com 으로 보내주시면 확인할게요.' }));
+                    } },
+                  // 신고하기 — 라운지 등 다른 화면에서 직접 진입하지 않고 마이페이지로 일원화 ([[report-block-policy]] §5-1)
+                  // Firestore reports 컬렉션 등록·이메일 발송·검토 결과 통보는 Phase 2 Cloud Functions
+                  { iconName: 'siren', icon: '🚨', label: '신고하기',
+                    // 월 1건 한도. "1/1" 분수는 다 쓴 것처럼 헷갈려 "N건 남음"으로 명확히.
+                    value: reportRemaining > 0 ? `이번 달 ${reportRemaining}건 남음` : '이번 달 한도 도달',
+                    onPress: () => setReportOpen(true) },
+                  ...(userProfile.appleLinked
+                    // Apple 로그인 유저(4.8 대응) — kakaoLinked=true(계정연동 공용 플래그)여도 카카오로 표기하지 않음
+                    ? [{ icon: '🍎', label: 'Apple 연동됨', value: '연결됨', onPress: () => {} }]
+                    : userProfile.kakaoLinked
+                    ? [{ icon: '💛', label: '카카오 연동됨', value: '연결됨', onPress: () => {} }]
+                    : [{ icon: '💛', label: '카카오 로그인 연동',
+                        onPress: () => setAlertData({
+                          title: '카카오 로그인 연동',
+                          message: '카카오 로그인을 연동하면 닉네임 변경 주기가 30일 → 15일로 단축돼요.\n(연동 화면은 추후 추가될 예정)',
+                          buttons: [{ text: '확인' }],
+                        }) }]),
+                  // 약관 및 정책 — 앱 내 본문 뷰어 + 외부 웹 옵션 (deargolf.app)
+                  { icon: '📄', label: '이용약관',
+                    onPress: () => setTermsViewer({
+                      visible: true, title: '이용약관', body: TERMS_OF_SERVICE,
+                      externalUrl: 'https://deargolf.app/legal#terms',
+                    }) },
+                  { icon: '🔒', label: '개인정보처리방침',
+                    onPress: () => setTermsViewer({
+                      visible: true, title: '개인정보처리방침', body: PRIVACY_POLICY,
+                      externalUrl: 'https://deargolf.app/legal#privacy',
+                    }) },
+                  { icon: '📍', label: '위치기반서비스 약관',
+                    onPress: () => setTermsViewer({
+                      visible: true, title: '위치기반서비스 약관', body: LOCATION_BASED_SERVICE_TERMS,
+                      externalUrl: 'https://deargolf.app/legal#location',
+                    }) },
+                  { icon: '🤝', label: '커뮤니티 가이드라인',
+                    onPress: () => setTermsViewer({
+                      visible: true, title: '커뮤니티 가이드라인', body: COMMUNITY_GUIDELINES,
+                      externalUrl: 'https://deargolf.app/legal#community',
+                    }) },
+                  { icon: '⚖️', label: '자동 패널티 시스템 동의서',
+                    onPress: () => setTermsViewer({
+                      visible: true, title: '자동 패널티 시스템 동의서', body: PENALTY_CONSENT,
+                      externalUrl: 'https://deargolf.app/legal#penalty',
+                    }) },
+                  // 자동 결정 이의·설명요구 — PIPA 제37조의2 (변호사 권고 B-9)
+                  { icon: '🧭', label: '자동 결정 이의 신청',
+                    onPress: () => setTermsViewer({
+                      visible: true,
+                      title: '자동 결정에 대한 이의·설명 요구',
+                      body: `Dear Golf는 매너 평가·신고 이력 누적 등 자동화된 시스템을 통해 신뢰등급 산정 및 서비스 이용 제한(자동 패널티)을 결정합니다.
+
+회원은 자신의 권리·의무에 중대한 영향을 미치는 자동화된 결정에 대하여 거부하거나 설명을 요구할 수 있습니다.
+
+▷ 이메일: deargolf.official@gmail.com
+▷ 요청 내용에 포함할 정보
+  · 본인 닉네임 / 카카오 ID
+  · 이의를 제기하는 결정 종류 (노쇼 확정 / 영구 정지 / 모집 박탈 등)
+  · 사유 및 증빙
+▷ 회사는 정당한 사유가 없는 한 인적 재검토 절차를 안내합니다.
+
+근거: 개인정보 보호법 제37조의2.`,
+                    }) },
+                  // 위치정보 권리 행사 — 위치정보법 제24조 (변호사 권고 C-3)
+                  { icon: '📡', label: '위치정보 권리 행사',
+                    onPress: () => setTermsViewer({
+                      visible: true,
+                      title: '위치정보 권리 행사',
+                      body: `이용자는 위치정보법 제24조에 따라 다음 권리를 행사할 수 있습니다.
+
+1. 동의 철회 — 앱 설정에서 위치 권한 해제로 즉시 처리됩니다.
+2. 일시 중지 — 이메일 요청 시 즉시 처리됩니다.
+3. 이용·제공사실 확인자료 열람 — 위치정보를 어떤 외부 서비스(기상청·카카오·OpenWeather 등)에 보낸 이력을 확인할 수 있습니다.
+4. 개인위치정보가 제3자에게 제공된 이유 및 내용 고지 요구.
+5. 정보 정정 요구.
+
+▷ 이메일: deargolf.official@gmail.com
+▷ 회사는 접수 후 10일 이내에 처리합니다.
+
+위치정보 이용·제공사실 확인자료는 6개월간 자동 기록·보존됩니다. (위치정보법 제16조 제2항)`,
+                    }) },
+                  // 개인정보 권리 행사 — PIPA 제35조. 마이페이지에서 직접 처리 가능한 권리·이메일 요청 권리 통합 안내
+                  { icon: '🔐', label: '개인정보 권리 행사',
+                    onPress: () => setTermsViewer({
+                      visible: true,
+                      title: '개인정보 권리 행사',
+                      body: `개인정보 보호법 제35조에 따라 회원은 다음 권리를 행사할 수 있습니다.
+
+1. 열람 권리
+본인의 개인정보 처리 현황을 마이페이지에서 직접 확인할 수 있어요.
+
+2. 정정·삭제 권리 (앱에서 직접 처리 가능)
+- 닉네임·프로필 사진·골프 정보: 마이페이지에서 수정
+- 라운딩 기록: MY 탭에서 직접 삭제
+- 친구·차단 목록: 친구 탭 / 차단 관리에서 직접 관리
+
+3. 처리 정지 권리 (이메일 요청)
+특정 데이터의 처리를 잠시 정지하길 원하는 경우 deargolf.official@gmail.com으로 다음 정보와 함께 요청해주세요.
+- 회원 닉네임
+- 정지 요청 데이터 종류 (예: 라운딩 기록·매너 평가)
+- 정지 사유 (선택)
+접수 후 10일 이내 처리됩니다. (개인정보 보호법 시행령 제43조)
+
+4. 데이터 다운로드 권리 (이메일 요청)
+본인의 모든 데이터를 한 번에 받고 싶은 경우 위 이메일로 요청해주세요. 접수 후 10일 이내 처리됩니다.
+
+5. 회원 탈퇴 (전체 삭제)
+마이페이지 하단 [계정 탈퇴]에서 모든 데이터를 한 번에 완전 삭제할 수 있어요.
+
+권리 행사를 거부당했다고 판단되는 경우 한국인터넷진흥원 개인정보침해센터(국번없이 118)에 신고하실 수 있습니다.`,
+                      externalUrl: null,
+                    }) },
+                  // 사업자 정보 — 전자상거래법 의무 명시. 출시 전 사업자 등록 후 정보 채움.
+                  { icon: '🏢', label: '사업자 정보',
+                    onPress: () => setTermsViewer({
+                      visible: true,
+                      title: '사업자 정보',
+                      body: `Dear Golf 사업자 정보\n\nDear Golf는 노닐는나무가 운영하는 서비스입니다.\n\n상호: 노닐는나무\n대표자: 황지현\n사업자등록번호: 102-36-64293\n주소: 경기도 고양시 일산동구 강송로41 윈스턴파크 704호\n고객센터: deargolf.official@gmail.com\n\n전자상거래등에서의 소비자보호에 관한 법률에 따라 사업자 정보를 명시합니다.\n\n분쟁 발생 시 안내:\n- 한국소비자원 (1372 소비자상담센터)\n- 전자거래분쟁조정위원회 (www.ecmc.or.kr)\n- 콘텐츠분쟁조정위원회 (www.kcdrc.kr)`,
+                      externalUrl: null,
+                    }) },
+                ].filter((item) => settingGroupOf(item.label) === group).map((item, i) => (
+                  <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7} onPress={item.onPress}>
+                    <MenuIcon name={item.iconName} emoji={item.icon} />
+                    <Text style={myS.menuLabel}>{item.label}</Text>
+                    {item.value ? (
+                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginRight: 4 }}>{item.value}</Text>
+                    ) : null}
+                    <Text style={myS.menuValue}>›</Text>
+                  </TouchableOpacity>
+                ))}
+                {/* 라운지 — 모르는 사람 모집 숨기기 토글 (켜면 '전체' 탭 사라짐, 친구 모집만 보임) */}
+                {/* 전체공개 전역 비활성화 시엔 항상 친구 모집만이라 토글 숨김 ([[roundup-public-disabled]]) */}
+                {group === 'app' && ROUNDUP_PUBLIC_ENABLED && (() => {
+                  const on = !!userProfile.hideStrangerRoundups;
+                  const toggle = () => {
+                    const next = { ...userProfile, hideStrangerRoundups: !on };
+                    setUserProfile(next);
+                    storage.save(STORAGE_KEYS.profile, next);
+                  };
+                  return (
+                    <View style={myS.menuRow}>
+                      <Text style={myS.menuIcon}>🤝</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={myS.menuLabel}>친구 모집만 보기</Text>
+                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
+                          라운지에서 '전체' 탭을 숨기고 친구 모집만 표시
+                        </Text>
+                      </View>
+                      <TouchableOpacity onPress={toggle} activeOpacity={0.8}
+                        style={{ width: 46, height: 27, borderRadius: 14, padding: 3, justifyContent: 'center',
+                          backgroundColor: on ? C.burgundy : C.hairline }}>
+                        <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#fff',
+                          alignSelf: on ? 'flex-end' : 'flex-start' }} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })()}
+              </View>
+    </>
+  );
+
+  // 아코디언 헤더 줄 — 크림 바탕 위 한 줄(아이콘·제목·부제·›). 펼치면 › 가 아래로 돌고 제목이 버건디. 섹션 카드는 그 아래 그대로.
+  const sectionSub = {
+    stats: `총 라운딩 ${effectiveTotalRounds} · 핸디 ${handicap ?? '-'}`,
+    storage: (() => { const u = countDiaryMedia(diaries), q = mediaQuotaOf(userProfile); return `사진 ${u.photos}/${q.maxPhotos}장 · 영상 ${u.videos}/${q.maxVideos}개`; })(),
+    info: '출발지 · 회사 · 본명 · 전화',
+    alarm: '기상·출발 알림 · 푸시 종류',
+    app: '권한 · 캘린더 · 친구 그룹 · 차단',
+    help: '이용 안내 · 문의 · 신고 · 약관',
+    account: userProfile.appleLinked ? 'Apple 연동 · 로그아웃' : userProfile.kakaoLinked ? '카카오 연동 · 로그아웃' : '로그아웃 · 탈퇴',
+  };
+  const sectionHeader = (key) => {
+    const m = SECTIONS[key]; const on = open === key;
+    return (
+      <TouchableOpacity key={`hdr-${key}`} onPress={() => toggleOpen(key)} activeOpacity={0.7}
+        style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 12, paddingHorizontal: 16, paddingVertical: 13,
+          marginTop: on ? 6 : 0, borderBottomWidth: on ? 0 : 0.5, borderBottomColor: C.hairline }}>
+        <MenuIcon name={m.iconName} />
+        <View style={{ flex: 1 }}>
+          <Text style={[myS.menuLabel, on && { color: C.burgundy, fontFamily: F.sysB }]}>{m.label}</Text>
+          {!on && <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{sectionSub[key]}</Text>}
+        </View>
+        <Text style={[myS.menuValue, { transform: [{ rotate: on ? '90deg' : '0deg' }] }]}>›</Text>
+      </TouchableOpacity>
+    );
+  };
+
   // 지연 마운트 스켈레톤 — 시트 틀만 즉시 띄워 탭 반응을 보장(본문은 bodyReady 후). ★훅 없음(조기반환 함정 회피).
   if (visible && !bodyReady) {
     return (
@@ -433,20 +654,8 @@ export function MyPageModal({ visible, onClose }) {
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
           <View style={myS.sheet}>
             <View style={myS.handle} />
-            {page && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 6 }}>
-                <TouchableOpacity onPress={goRoot} activeOpacity={0.6} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityLabel="설정 목록으로"
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 6 }}>
-                  <Text style={{ fontFamily: F.sysSb, fontSize: fs(24), color: C.charcoal, lineHeight: 26, includeFontPadding: false }}>‹</Text>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(16), color: C.charcoal, marginLeft: 6 }}>{PAGE_TITLE[page]}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
             <ScrollView ref={scrollRef} style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
-              {!page && (
-              <>
               <View style={myS.profileArea}>
                 <View style={myS.avatar}>
                   <Text style={myS.avatarTxt}>{nickname.charAt(0)}</Text>
@@ -507,57 +716,10 @@ export function MyPageModal({ visible, onClose }) {
                 </View>
               </View>
               <TripleStripe height={1.5} />
-              {/* ★2단 구조(2026-10-11) — 설정이 한 스크롤 30여 항목에 묻혀 '숨어 있다'(사용자). 첫 화면은 7줄만, 각 줄 → 서브 페이지(page 상태, 모달 안 전환).
-                  모달 위 모달을 피해(iOS 형제 Modal·안드 중첩 Modal 함정) 한 Modal 안에서 page로 분기. 뒤로가기 = goRoot. */}
-              {(() => {
-                const used = countDiaryMedia(diaries);
-                const quota = mediaQuotaOf(userProfile);
-                const rows = [
-                  { key: 'stats', iconName: 'chart', label: '나의 통계', sub: `총 라운딩 ${effectiveTotalRounds} · 핸디 ${handicap ?? '-'}` },
-                  { key: 'storage', iconName: 'image', label: '저장공간', sub: `사진 ${used.photos}/${quota.maxPhotos}장 · 영상 ${used.videos}/${quota.maxVideos}개` },
-                  { key: 'alarm', iconName: 'bell', label: '알림', sub: '기상·출발 알림 · 푸시 종류' },
-                  { key: 'info', iconName: 'person', label: '내 정보', sub: '출발지 · 회사 · 본명 · 전화' },
-                  { key: 'app', iconName: 'gear', label: '앱 설정', sub: '권한 · 캘린더 · 친구 그룹 · 차단' },
-                  { key: 'help', iconName: 'book', label: '도움말 · 약관', sub: '이용 안내 · 문의 · 신고 · 약관' },
-                  { key: 'account', iconName: 'lock', label: '계정',
-                    sub: userProfile.appleLinked ? 'Apple 연동 · 로그아웃' : userProfile.kakaoLinked ? '카카오 연동 · 로그아웃' : '로그아웃 · 탈퇴' },
-                ];
-                return (
-                  <View style={[myS.section, { marginTop: 14 }]}>
-                    {rows.map((r, i) => (
-                      <TouchableOpacity key={r.key} style={[myS.menuRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}
-                        activeOpacity={0.7} onPress={() => openPage(r.key)}>
-                        <MenuIcon name={r.iconName} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={myS.menuLabel}>{r.label}</Text>
-                          <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>{r.sub}</Text>
-                        </View>
-                        <Text style={myS.menuValue}>›</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                );
-              })()}
-              </>
-              )}
-              {page === 'help' && (
-              <>
-              {/* 이용 안내 배너 — 홈 띠가 첫 유저 1회성이 되면서 여기가 상시 진입점. 설정 리스트 안은 발견이 안 돼
-                  (사용자 2026-07-03 "없는 줄") 명함 바로 아래 상시 노출 배너로. */}
-              <TouchableOpacity onPress={() => setIntroOpen(true)} activeOpacity={0.8}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 20, marginTop: 14,
-                  backgroundColor: '#fff', borderRadius: 12,
-                  paddingHorizontal: 14, paddingVertical: 11 }}>
-                <Text style={{ fontSize: fs(20) }}>💡</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>Dear Golf 이용 안내</Text>
-                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }}>기능 한눈에 보기</Text>
-                </View>
-                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>›</Text>
-              </TouchableOpacity>
-              </>
-              )}
-              {page === 'stats' && (
+              {/* ★아코디언(2026-10-11) — 설정이 한 스크롤 30여 항목에 묻혀 '숨어 있다'(사용자). 아래 7줄 헤더만 보이고, 누른 줄만 그 자리에 펼쳐진다(한 번에 하나).
+                  서브 페이지 이동 방식은 '더 불편하다'(사용자)로 접음 — 한 화면 유지. 각 섹션 코드는 그대로, 헤더+open 조건만 앞에. */}
+              {sectionHeader('stats')}
+              {open === 'stats' && (
               <View style={myS.sectionPlain}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <Text style={myS.sectionLabel}>나의 통계</Text>
@@ -641,7 +803,8 @@ export function MyPageModal({ visible, onClose }) {
               )}
               {/* 저장공간 — 사진·영상 총량 사용량([[monetization-plan]] 1단계, 2026-10-11). 지금은 표시만, 차단 없음.
                   목적 = 초대 보상(+20장/+1개)이 눈에 보이게. 한도는 users.entitlements(CF만 상향), 사용량은 내 기록 photos 합산. */}
-              {page === 'storage' && (() => {
+              {sectionHeader('storage')}
+              {open === 'storage' && (() => {
                 const quota = mediaQuotaOf(userProfile);
                 const used = countDiaryMedia(diaries);
                 const bonusPhotos = quota.maxPhotos - DEFAULT_ENTITLEMENTS.maxPhotos;
@@ -685,7 +848,8 @@ export function MyPageModal({ visible, onClose }) {
                   </View>
                 );
               })()}
-              {page === 'info' && (
+              {sectionHeader('info')}
+              {open === 'info' && (
               <>
               <View style={myS.divider} />
               <View style={myS.section}>
@@ -828,11 +992,11 @@ export function MyPageModal({ visible, onClose }) {
               </View>
               </>
               )}
-              {page === 'alarm' && (
+              {sectionHeader('alarm')}
+              {open === 'alarm' && (
               <>
               <View style={myS.divider} />
               <View style={myS.section}>
-                <Text style={myS.sectionLabel}>알림</Text>
                 {/* 일정 추가 시 알람 팝업 — D-3·D-1·당일 시점은 이 팝업에서 고른다 */}
                 {(() => {
                   const on = !userProfile.alarmPromptDisabled;
@@ -989,196 +1153,28 @@ export function MyPageModal({ visible, onClose }) {
               </View>
               </>
               )}
-              {(page === 'app' || page === 'help' || page === 'account') && (
+              {sectionHeader('app')}
+              {open === 'app' && settingSection('app')}
+              {sectionHeader('help')}
+              {open === 'help' && (
               <>
-              <View style={myS.divider} />
-              <View style={myS.section}>
-                <Text style={myS.sectionLabel}>{page === 'app' ? '앱 설정' : page === 'help' ? '문의 · 약관' : '로그인 연동'}</Text>
-                {[
-                  // 닉네임 변경은 상단 프로필의 닉네임 옆 ✏️수정으로 이동(설정 중복 제거)
-                  { iconName: 'gear', icon: '🔔', label: '알림 설정', onPress: () => Linking.openSettings() },
-                  { iconName: 'camera', icon: '📷', label: '앱 권한 (사진·위치)', onPress: () => Linking.openSettings() },
-                  { iconName: 'calendar', icon: '📅', label: '캘린더 연동', onPress: () => setCalPickerOpen(true) },
-                  // 내 라운지 활동 — 매너·신뢰 등급, 패널티 이력, 진행 중 신고 통합 진입점 ([[my-roundup-activity]]).
-                  //   전체공개 OFF 동안 메뉴 통째로 숨김 — 매너·신뢰는 낯선사람 신뢰용이라 친구 전용 모드에선 의미 약함 ([[roundup-public-disabled]]).
-                  ...(ROUNDUP_PUBLIC_ENABLED ? [{ iconName: 'clipboard', icon: '📋', label: '내 라운지 활동',
-                    onPress: () => setRoundupActivityOpen(true) }] : []),
-                  { iconName: 'people', icon: '👥', label: '친구 그룹 관리',
-                    onPress: () => setGroupManageOpen(true) },
-                  { iconName: 'ban', icon: '🚫', label: '차단 관리', value: (userProfile.blockedUsers?.length || 0) + '명',
-                    onPress: () => setBlockManageOpen(true) },
-                  // 문의·의견 — 출시 초반 오류 보고를 적극 수집(2026-07-04). 공식 메일로, 기기·OS 정보 자동 첨부
-                  //   (오류 재현에 필수인데 사용자가 직접 안 적음). 크래시는 Sentry가 자동 수집 — 이건 '비정상 동작' 제보용.
-                  { icon: '✉️', label: '문의·의견 보내기', value: '오류 제보 환영',
-                    onPress: () => {
-                      const subject = encodeURIComponent('[디어골프] 문의·오류 제보');
-                      const body = encodeURIComponent(
-                        '어떤 화면에서, 어떤 동작을 했을 때 문제가 있었는지 적어주세요.\n\n\n'
-                        + '――― 아래 정보는 문제 해결에 사용돼요 ―――\n'
-                        + `기기: ${Platform.OS === 'android' ? '안드로이드' : 'iOS'} ${Platform.Version}\n`
-                        + `앱 버전: ${APP_VERSION}`);
-                      Linking.openURL(`mailto:deargolf.official@gmail.com?subject=${subject}&body=${body}`).catch(() =>
-                        setAlertData({ title: '메일 앱을 열 수 없어요', message: 'deargolf.official@gmail.com 으로 보내주시면 확인할게요.' }));
-                    } },
-                  // 신고하기 — 라운지 등 다른 화면에서 직접 진입하지 않고 마이페이지로 일원화 ([[report-block-policy]] §5-1)
-                  // Firestore reports 컬렉션 등록·이메일 발송·검토 결과 통보는 Phase 2 Cloud Functions
-                  { iconName: 'siren', icon: '🚨', label: '신고하기',
-                    // 월 1건 한도. "1/1" 분수는 다 쓴 것처럼 헷갈려 "N건 남음"으로 명확히.
-                    value: reportRemaining > 0 ? `이번 달 ${reportRemaining}건 남음` : '이번 달 한도 도달',
-                    onPress: () => setReportOpen(true) },
-                  ...(userProfile.appleLinked
-                    // Apple 로그인 유저(4.8 대응) — kakaoLinked=true(계정연동 공용 플래그)여도 카카오로 표기하지 않음
-                    ? [{ icon: '🍎', label: 'Apple 연동됨', value: '연결됨', onPress: () => {} }]
-                    : userProfile.kakaoLinked
-                    ? [{ icon: '💛', label: '카카오 연동됨', value: '연결됨', onPress: () => {} }]
-                    : [{ icon: '💛', label: '카카오 로그인 연동',
-                        onPress: () => setAlertData({
-                          title: '카카오 로그인 연동',
-                          message: '카카오 로그인을 연동하면 닉네임 변경 주기가 30일 → 15일로 단축돼요.\n(연동 화면은 추후 추가될 예정)',
-                          buttons: [{ text: '확인' }],
-                        }) }]),
-                  // 약관 및 정책 — 앱 내 본문 뷰어 + 외부 웹 옵션 (deargolf.app)
-                  { icon: '📄', label: '이용약관',
-                    onPress: () => setTermsViewer({
-                      visible: true, title: '이용약관', body: TERMS_OF_SERVICE,
-                      externalUrl: 'https://deargolf.app/legal#terms',
-                    }) },
-                  { icon: '🔒', label: '개인정보처리방침',
-                    onPress: () => setTermsViewer({
-                      visible: true, title: '개인정보처리방침', body: PRIVACY_POLICY,
-                      externalUrl: 'https://deargolf.app/legal#privacy',
-                    }) },
-                  { icon: '📍', label: '위치기반서비스 약관',
-                    onPress: () => setTermsViewer({
-                      visible: true, title: '위치기반서비스 약관', body: LOCATION_BASED_SERVICE_TERMS,
-                      externalUrl: 'https://deargolf.app/legal#location',
-                    }) },
-                  { icon: '🤝', label: '커뮤니티 가이드라인',
-                    onPress: () => setTermsViewer({
-                      visible: true, title: '커뮤니티 가이드라인', body: COMMUNITY_GUIDELINES,
-                      externalUrl: 'https://deargolf.app/legal#community',
-                    }) },
-                  { icon: '⚖️', label: '자동 패널티 시스템 동의서',
-                    onPress: () => setTermsViewer({
-                      visible: true, title: '자동 패널티 시스템 동의서', body: PENALTY_CONSENT,
-                      externalUrl: 'https://deargolf.app/legal#penalty',
-                    }) },
-                  // 자동 결정 이의·설명요구 — PIPA 제37조의2 (변호사 권고 B-9)
-                  { icon: '🧭', label: '자동 결정 이의 신청',
-                    onPress: () => setTermsViewer({
-                      visible: true,
-                      title: '자동 결정에 대한 이의·설명 요구',
-                      body: `Dear Golf는 매너 평가·신고 이력 누적 등 자동화된 시스템을 통해 신뢰등급 산정 및 서비스 이용 제한(자동 패널티)을 결정합니다.
-
-회원은 자신의 권리·의무에 중대한 영향을 미치는 자동화된 결정에 대하여 거부하거나 설명을 요구할 수 있습니다.
-
-▷ 이메일: deargolf.official@gmail.com
-▷ 요청 내용에 포함할 정보
-  · 본인 닉네임 / 카카오 ID
-  · 이의를 제기하는 결정 종류 (노쇼 확정 / 영구 정지 / 모집 박탈 등)
-  · 사유 및 증빙
-▷ 회사는 정당한 사유가 없는 한 인적 재검토 절차를 안내합니다.
-
-근거: 개인정보 보호법 제37조의2.`,
-                    }) },
-                  // 위치정보 권리 행사 — 위치정보법 제24조 (변호사 권고 C-3)
-                  { icon: '📡', label: '위치정보 권리 행사',
-                    onPress: () => setTermsViewer({
-                      visible: true,
-                      title: '위치정보 권리 행사',
-                      body: `이용자는 위치정보법 제24조에 따라 다음 권리를 행사할 수 있습니다.
-
-1. 동의 철회 — 앱 설정에서 위치 권한 해제로 즉시 처리됩니다.
-2. 일시 중지 — 이메일 요청 시 즉시 처리됩니다.
-3. 이용·제공사실 확인자료 열람 — 위치정보를 어떤 외부 서비스(기상청·카카오·OpenWeather 등)에 보낸 이력을 확인할 수 있습니다.
-4. 개인위치정보가 제3자에게 제공된 이유 및 내용 고지 요구.
-5. 정보 정정 요구.
-
-▷ 이메일: deargolf.official@gmail.com
-▷ 회사는 접수 후 10일 이내에 처리합니다.
-
-위치정보 이용·제공사실 확인자료는 6개월간 자동 기록·보존됩니다. (위치정보법 제16조 제2항)`,
-                    }) },
-                  // 개인정보 권리 행사 — PIPA 제35조. 마이페이지에서 직접 처리 가능한 권리·이메일 요청 권리 통합 안내
-                  { icon: '🔐', label: '개인정보 권리 행사',
-                    onPress: () => setTermsViewer({
-                      visible: true,
-                      title: '개인정보 권리 행사',
-                      body: `개인정보 보호법 제35조에 따라 회원은 다음 권리를 행사할 수 있습니다.
-
-1. 열람 권리
-본인의 개인정보 처리 현황을 마이페이지에서 직접 확인할 수 있어요.
-
-2. 정정·삭제 권리 (앱에서 직접 처리 가능)
-- 닉네임·프로필 사진·골프 정보: 마이페이지에서 수정
-- 라운딩 기록: MY 탭에서 직접 삭제
-- 친구·차단 목록: 친구 탭 / 차단 관리에서 직접 관리
-
-3. 처리 정지 권리 (이메일 요청)
-특정 데이터의 처리를 잠시 정지하길 원하는 경우 deargolf.official@gmail.com으로 다음 정보와 함께 요청해주세요.
-- 회원 닉네임
-- 정지 요청 데이터 종류 (예: 라운딩 기록·매너 평가)
-- 정지 사유 (선택)
-접수 후 10일 이내 처리됩니다. (개인정보 보호법 시행령 제43조)
-
-4. 데이터 다운로드 권리 (이메일 요청)
-본인의 모든 데이터를 한 번에 받고 싶은 경우 위 이메일로 요청해주세요. 접수 후 10일 이내 처리됩니다.
-
-5. 회원 탈퇴 (전체 삭제)
-마이페이지 하단 [계정 탈퇴]에서 모든 데이터를 한 번에 완전 삭제할 수 있어요.
-
-권리 행사를 거부당했다고 판단되는 경우 한국인터넷진흥원 개인정보침해센터(국번없이 118)에 신고하실 수 있습니다.`,
-                      externalUrl: null,
-                    }) },
-                  // 사업자 정보 — 전자상거래법 의무 명시. 출시 전 사업자 등록 후 정보 채움.
-                  { icon: '🏢', label: '사업자 정보',
-                    onPress: () => setTermsViewer({
-                      visible: true,
-                      title: '사업자 정보',
-                      body: `Dear Golf 사업자 정보\n\nDear Golf는 노닐는나무가 운영하는 서비스입니다.\n\n상호: 노닐는나무\n대표자: 황지현\n사업자등록번호: 102-36-64293\n주소: 경기도 고양시 일산동구 강송로41 윈스턴파크 704호\n고객센터: deargolf.official@gmail.com\n\n전자상거래등에서의 소비자보호에 관한 법률에 따라 사업자 정보를 명시합니다.\n\n분쟁 발생 시 안내:\n- 한국소비자원 (1372 소비자상담센터)\n- 전자거래분쟁조정위원회 (www.ecmc.or.kr)\n- 콘텐츠분쟁조정위원회 (www.kcdrc.kr)`,
-                      externalUrl: null,
-                    }) },
-                ].filter((item) => settingGroupOf(item.label) === page).map((item, i) => (
-                  <TouchableOpacity key={i} style={myS.menuRow} activeOpacity={0.7} onPress={item.onPress}>
-                    <MenuIcon name={item.iconName} emoji={item.icon} />
-                    <Text style={myS.menuLabel}>{item.label}</Text>
-                    {item.value ? (
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(12), color: C.warmGray, marginRight: 4 }}>{item.value}</Text>
-                    ) : null}
-                    <Text style={myS.menuValue}>›</Text>
-                  </TouchableOpacity>
-                ))}
-                {/* 라운지 — 모르는 사람 모집 숨기기 토글 (켜면 '전체' 탭 사라짐, 친구 모집만 보임) */}
-                {/* 전체공개 전역 비활성화 시엔 항상 친구 모집만이라 토글 숨김 ([[roundup-public-disabled]]) */}
-                {page === 'app' && ROUNDUP_PUBLIC_ENABLED && (() => {
-                  const on = !!userProfile.hideStrangerRoundups;
-                  const toggle = () => {
-                    const next = { ...userProfile, hideStrangerRoundups: !on };
-                    setUserProfile(next);
-                    storage.save(STORAGE_KEYS.profile, next);
-                  };
-                  return (
-                    <View style={myS.menuRow}>
-                      <Text style={myS.menuIcon}>🤝</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={myS.menuLabel}>친구 모집만 보기</Text>
-                        <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 2 }}>
-                          라운지에서 '전체' 탭을 숨기고 친구 모집만 표시
-                        </Text>
-                      </View>
-                      <TouchableOpacity onPress={toggle} activeOpacity={0.8}
-                        style={{ width: 46, height: 27, borderRadius: 14, padding: 3, justifyContent: 'center',
-                          backgroundColor: on ? C.burgundy : C.hairline }}>
-                        <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#fff',
-                          alignSelf: on ? 'flex-end' : 'flex-start' }} />
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })()}
-              </View>
+              {/* 이용 안내 배너 — 홈 띠가 첫 유저 1회성이 되면서 여기가 상시 진입점. 설정 리스트 안은 발견이 안 돼
+                  (사용자 2026-07-03 "없는 줄") 명함 바로 아래 상시 노출 배너로. */}
+              <TouchableOpacity onPress={() => setIntroOpen(true)} activeOpacity={0.8}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 20, marginTop: 14,
+                  backgroundColor: '#fff', borderRadius: 12,
+                  paddingHorizontal: 14, paddingVertical: 11 }}>
+                <Text style={{ fontSize: fs(20) }}>💡</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(13), color: C.charcoal }}>Dear Golf 이용 안내</Text>
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 1 }}>기능 한눈에 보기</Text>
+                </View>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(14), color: C.warmGray }}>›</Text>
+              </TouchableOpacity>
               </>
               )}
-              {page === 'help' && (
+              {open === 'help' && settingSection('help')}
+              {open === 'help' && (
               <>
               <View style={myS.divider} />
               <View style={myS.section}>
@@ -1198,7 +1194,7 @@ export function MyPageModal({ visible, onClose }) {
               </View>
               </>
               )}
-              {!page && __DEV__ && (
+              {__DEV__ && (
                 <>
                   <View style={myS.divider} />
                   <View style={myS.section}>
@@ -1259,11 +1255,12 @@ export function MyPageModal({ visible, onClose }) {
                   </View>
                 </>
               )}
-              {page === 'account' && (
+              {sectionHeader('account')}
+              {open === 'account' && settingSection('account')}
+              {open === 'account' && (
               <>
               <View style={myS.divider} />
               <View style={myS.section}>
-                <Text style={myS.sectionLabel}>계정</Text>
                 {/* 로그아웃 — 서버 데이터 보존, 이 기기만 계정 분리(폰 대여·양도 대비, 2026-07-04).
                     ★사진·영상은 로컬 전용이라 함께 삭제됨 — 확인창에서 명시 경고 */}
                 <TouchableOpacity style={myS.menuRow} activeOpacity={0.7} onPress={handleLogout}>
@@ -1279,11 +1276,9 @@ export function MyPageModal({ visible, onClose }) {
               </View>
               </>
               )}
-              {!page && (
               <View style={{ alignItems: 'center', paddingVertical: 20 }}>
                 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>{`Dear Golf v${APP_VERSION}`}</Text>
               </View>
-              )}
             </ScrollView>
           </View>
         </View>
