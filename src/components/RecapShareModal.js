@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import AppTextInput from './common/AppTextInput';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 import { C, F, fs } from '../constants/colors';
@@ -19,8 +20,8 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
   const [busy, setBusy] = useState(false);
   const [period, setPeriod] = useState(initial);   // {year, month|null}
   const [showWith, setShowWith] = useState(true);   // 함께한 사람 표시(동반자 이름 — 남의 정보라 끄고 공유 가능, 사용자 2026-10-11)
-  const [showName, setShowName] = useState(true);   // 내 이름 표시
-  useEffect(() => { if (visible) { setPeriod(initial); setShowWith(true); setShowName(true); } }, [visible, initial]);
+  const [caption, setCaption] = useState('');       // 한마디(≤40자) — 카드 골드 룰 아래 인용 줄
+  useEffect(() => { if (visible) { setPeriod(initial); setShowWith(true); setCaption(''); } }, [visible, initial]);
 
   const periods = useMemo(() => listRecapPeriods(diaries), [diaries]);
   const isYear = !!period && period.month == null;
@@ -69,7 +70,9 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
             </View>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+            contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}>
             {/* 기간 이동 — ‹ 이전(더 옛날) / 다음(더 최근) › */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 12 }}>
               <TouchableOpacity onPress={() => toPeriod(older)} disabled={!older} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -83,20 +86,26 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
 
             <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH, alignSelf: 'center' }}>
               <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
-                <RecapCard recap={recap} playerName={playerName} width={CARD_WIDTH} showWith={showWith} showName={showName} />
+                <RecapCard recap={recap} playerName={playerName} width={CARD_WIDTH} showWith={showWith} caption={caption} />
               </View>
             </ViewShot>
 
-            {/* 표시 토글 — 라운딩 카드와 같은 칩. 동반자가 없는 기간이면 '함께한 사람' 칩은 숨김 */}
-            {(recap.topCompanions?.length > 0 || playerName) && (
+            {/* 표시 토글 — 동반자가 있는 기간만 '함께한 사람' 칩(이름 토글은 불필요, 사용자 2026-10-11) */}
+            {recap.topCompanions?.length > 0 && (
               <View style={{ marginTop: 16 }}>
                 <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>카드에 표시</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {recap.topCompanions?.length > 0 ? chip('함께한 사람', showWith, () => setShowWith(v => !v)) : null}
-                  {playerName ? chip('이름', showName, () => setShowName(v => !v)) : null}
+                  {chip('함께한 사람', showWith, () => setShowWith(v => !v))}
                 </View>
               </View>
             )}
+            {/* 한마디 — 라운딩 카드와 같은 칸. 비우면 카드에 줄 자체가 안 들어간다 */}
+            <View style={{ marginTop: 16 }}>
+              <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>한마디</Text>
+              <AppTextInput value={caption} onChangeText={setCaption} maxLength={40}
+                placeholder="카드에 넣을 한마디 (비우면 생략)" placeholderTextColor={C.warmGrayLight}
+                style={{ backgroundColor: C.bgSecondary, borderRadius: 10, borderWidth: 1, borderColor: C.hairline, paddingHorizontal: 12, paddingVertical: 10, fontFamily: F.sys, fontSize: fs(13), color: C.charcoal }} />
+            </View>
             <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 12, lineHeight: fs(17), textAlign: 'center' }}>
               카드 이미지로 공유돼요. Dear Golf 마크가 들어가요.
             </Text>

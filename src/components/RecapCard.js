@@ -37,12 +37,14 @@ function Row({ label, value, sub, last }) {
   );
 }
 
-// showWith / showName — 공유 모달 토글(사용자 2026-10-11 "동반자 표시 선택"). 동반자 이름은 남의 정보라 끄고 공유할 수 있어야 한다.
-export function RecapCard({ recap, playerName = '', width = 320, showWith = true, showName = true }) {
+// showWith — 공유 모달 토글(사용자 2026-10-11 "동반자 표시 선택"). 동반자 이름은 남의 정보라 끄고 공유할 수 있어야 한다(이름 토글은 불필요 판정).
+// caption — 한마디(≤40자). 골드 룰 아래 인용 줄. 있으면 행을 4개로 줄여 카드 높이를 지킨다.
+export function RecapCard({ recap, playerName = '', width = 320, showWith = true, caption = '' }) {
   const height = Math.round(width * 1.25);
   const isYear = recap.month == null;
   const PAD = 22;
-  const name = showName ? (playerName || '').trim() : '';
+  const name = (playerName || '').trim();
+  const memo = (caption || '').trim();
 
   // 평균 변화 — 좋아진 것만 말한다. 나빠졌거나 같으면 보조 문구 생략(숫자는 그대로).
   const delta = (recap.avg != null && recap.prevAvg != null) ? Math.round((recap.avg - recap.prevAvg) * 10) / 10 : null;
@@ -59,7 +61,7 @@ export function RecapCard({ recap, playerName = '', width = 320, showWith = true
     withValue ? { label: '함께', value: withValue, sub: withSub } : null,
     recap.specials > 0 ? { label: '특별한 순간', value: `${recap.specials}번` } : null,
     recap.overseas > 0 ? { label: '해외', value: `${recap.overseas}회` } : null,
-  ].filter(Boolean).slice(0, 5);   // 최대 5행 — 더 넣으면 다시 빽빽해진다
+  ].filter(Boolean).slice(0, memo ? 4 : 5);   // 최대 5행(한마디 있으면 4행) — 더 넣으면 다시 빽빽해진다
 
   const maxBar = recap.monthly ? Math.max(1, ...recap.monthly) : 1;
   const photos = (recap.photos || []).map(resolvePhotoUri).filter(Boolean);
@@ -97,6 +99,13 @@ export function RecapCard({ recap, playerName = '', width = 320, showWith = true
             </View>
           </View>
           <View style={{ height: 1.5, width: 28, backgroundColor: GOLD, marginTop: 10, marginBottom: 6 }} />
+          {/* 한마디 — 행잉 인용(화이트 카드와 같은 결). 2줄까지 */}
+          {memo ? (
+            <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+              <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: INK, lineHeight: fs(18) }}>"</Text>
+              <Text numberOfLines={2} style={{ flex: 1, fontFamily: F.sysM, fontSize: fs(12), color: INK, lineHeight: fs(18) }}>{memo}"</Text>
+            </View>
+          ) : null}
 
           {/* 행 리스트 — 박스 없이 헤어라인으로만 */}
           {rows.map((r, i) => <Row key={r.label} {...r} last={i === rows.length - 1} />)}
