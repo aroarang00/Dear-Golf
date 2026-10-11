@@ -820,16 +820,16 @@ export function DiaryScreen({ route, navigation }) {
         contentContainerStyle={{ paddingBottom: insets.bottom + 92 }}>{/* 플로팅 탭바(≈insets+66) 가림 방지 */}
       {/* 명함 영역 — 헤더 제거, 아바타 + 닉네임·등급 + 주최/참석, 우상단에 💰·⚙️ */}
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14, backgroundColor: C.bgPrimary }}>
-        {/* 가계부·설정 알약 — 절대좌표(우상단, 이름 줄과 겹침)에서 아바타 줄 '위' 오른쪽 정렬 한 줄로(2026-10-11).
-            이유: 알약 둘이 우측 140을 먹어 좁은 안드(360dp)에선 한글 5자부터 줄바꿈 → 닉네임 6자 제한과 함께 이름 줄 폭을 통째로 확보.
-            글자 축소·말줄임 없이 20px 6자(≈120dp)가 어느 폰에서도 한 줄(사용자 요구). 명함 높이 +38 정도. */}
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+        {/* 가계부·설정 알약 — 아바타 줄 우상단 절대좌표(원래 자리). 알약을 윗줄로 뺐더니 '프로필·이름이 내려갔다'(사용자 2026-10-11) → 복귀.
+            대신 알약을 줄여(글자 11px·여백 9·설정 톱니 제거) 둘 합쳐 ~97dp → 이름 줄 paddingRight 104면 360dp 안드에서도
+            20px 한글 6자(≈120dp)가 한 줄(가용 ≈122dp). iOS는 이름(marginTop:0)이 위에 붙어 top 8, 안드는 이름 marginTop:8이라 14([[rn-platform-gotchas]]). */}
+        <View style={{ position: 'absolute', top: Platform.OS === 'android' ? 14 : 8, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
           {/* 가계부 — 💰 이모지 → 텍스트 알약(사용자 2026-07-03). 가계부 모달 톤(차콜딥+골드)과 통일. */}
           <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={{ backgroundColor: C.charcoal, borderRadius: 15, paddingHorizontal: 11, height: 30,
+            style={{ backgroundColor: C.charcoal, borderRadius: 14, paddingHorizontal: 9, height: 28,
               alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.butter, includeFontPadding: false }}>가계부</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter, includeFontPadding: false }}>가계부</Text>
           </TouchableOpacity>
           {/* 정산(걷기)은 라운지 헤더로 옮김 — 모임 돈이라 개인 공간이 아니다(사용자 2026-07-22).
               여기 가계부는 '내 돈'이라 성격이 다르므로 같이 두지 않는다. */}
@@ -837,14 +837,13 @@ export function DiaryScreen({ route, navigation }) {
               톤은 가계부와 반대(크림 바탕+차콜 글자)로 둬 둘이 구분되게. */}
           <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary, borderWidth: 1.2, borderColor: C.burgundy,
-              borderRadius: 15, paddingHorizontal: 10, height: 30 }}>{/* 흰 알약이 바탕에 묻힘(사용자) → 버건디 테두리·글자 */}
-            <Icon name="gear" size={fs(14)} color={C.burgundy} strokeWidth={2.2} />
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.burgundy, includeFontPadding: false }}>설정</Text>
+            style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgSecondary, borderWidth: 1.2, borderColor: C.burgundy,
+              borderRadius: 14, paddingHorizontal: 9, height: 28 }}>{/* 흰 알약이 바탕에 묻힘(사용자) → 버건디 테두리·글자. 톱니는 폭 절약으로 뺌 */}
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.burgundy, includeFontPadding: false }}>설정</Text>
           </TouchableOpacity>
         </View>
         {/* paddingRight 80→104 — 가계부가 아이콘(36)→텍스트 알약(~60)으로 넓어져 이름과 안 겹치게 */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>{/* paddingRight 제거 — 알약이 위 줄로 가서 이름 폭 전부 사용 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 104 }}>{/* 104 = 알약 둘(~97)+여백. 이름 가용폭 360dp 기준 ≈122 */}
           {/* 아바타 — 탭하면 사진 변경 액션시트 */}
           <View>
             <TouchableOpacity activeOpacity={0.8} onPress={() => setAvatarSheetOpen(true)}
@@ -868,14 +867,14 @@ export function DiaryScreen({ route, navigation }) {
             {/* 이름 — 옆은 깔끔하게(배지 미부착). 마일스톤은 아래 흐린 줄로. */}
             {/* 이름 탭 → 설정(마이페이지). 톱니만으론 '설정이 숨어 있다'(사용자 2026-10-11) — 프로필을 누르는 습관을 받아준다. */}
             <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.6} style={{ alignSelf: 'flex-start' }} accessibilityLabel="설정 열기">
-              <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12 }}>{myName}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12, marginTop: Platform.OS === 'android' ? 8 : 0 }}>{myName}</Text>
             </TouchableOpacity>
             {/* 멘트(상태 메시지) — 이름 아래 line 2로 올림(마일스톤 칩과 위치 스왑, 2026-06-14). 한 줄·인용·연한 톤.
                 버튼(💰·⚙️)보다 아래라 우측 여백 되찾아(marginRight 음수) 폭 확보 */}
             {/* 한마디 — 탭하면 하단 시트로 넓게 편집(좁은 명함 인라인 대신, 2026-06-24). 평소엔 표시 + pen 힌트. */}
             {/* 안드는 닉네임을 살짝 내려(💰와 세로 분리) 한마디도 함께 내려감 → 한마디 자체 marginTop은 공통 7(2026-06-24). */}
             <TouchableOpacity onPress={() => { setStatusDraft(myStatus); setEditingStatus(true); }} activeOpacity={0.6}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 7, marginLeft: 12 }}>
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 7, marginLeft: 12, marginRight: -64 }}>
               <Text numberOfLines={1} style={{ fontFamily: myStatus ? F.sysM : F.sys, fontSize: fs(13),
                 color: myStatus ? 'rgba(61,57,53,0.7)' : C.warmGray, lineHeight: 22, flexShrink: 1 }}>
                 {myStatus ? `"${myStatus}"` : '한마디 입력하기'}
@@ -884,7 +883,7 @@ export function DiaryScreen({ route, navigation }) {
             </TouchableOpacity>
             {/* 마일스톤 — line 3(버튼 아래)로 내려 칩이 💰와 안 겹치게(스왑). 획득 훈장 느낌 골드 배지, 탭→안내 ([[milestone_badges]]) */}
             <TouchableOpacity onPress={() => setMilestoneInfoOpen(true)} activeOpacity={0.7}
-              style={{ alignSelf: 'stretch', marginTop: 9, marginLeft: 12 }}>
+              style={{ alignSelf: 'stretch', marginTop: 9, marginLeft: 12, marginRight: -60 }}>
               {(medals.rounds != null || medals.courses != null) ? (
                 <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap' }}>
                   {[medals.rounds != null ? `라운딩 ${medals.rounds}` : null,
