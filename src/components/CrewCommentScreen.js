@@ -119,7 +119,9 @@ function SwipeCarousel({ media, width, onOpen }) {
 //   절대좌표 오버레이(zIndex 100)라 앨범의 액션시트가 밑에 깔려 안 보이므로, 시트는 여기서 띄우고 실행만 위임한다(2026-10-11).
 export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM, onEditPost, onDeletePost }) {
   const winW = useContentWidth();   // 폴드 펼침·태블릿은 500으로 클램프
-  const { height: winH } = useWindowDimensions();   // 고정 원글 최대 높이(45%) 계산용
+  const { height: winH } = useWindowDimensions();   // 원글 고정/스크롤 판정(55%)용
+  const [postTall, setPostTall] = useState(false);   // 원글이 길어 고정하면 댓글 자리가 없을 때 true → 댓글과 함께 스크롤
+  useEffect(() => { setPostTall(false); }, [post?.id]);   // 다른 글로 바뀌면 다시 판정
   const insets = useSafeAreaInsets();
   const currentUid = useCurrentUid();
   const crewId = crew?.id;
@@ -312,25 +314,9 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM, o
 
   const media = post?.media || [];
 
-  return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-    <KeyboardProvider>
-    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
-      <StatusBar barStyle="dark-content" backgroundColor={BG} />
-
-      {/* 헤더 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12,
-        borderBottomWidth: 0.5, borderBottomColor: LINE }}>
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
-          <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
-        </TouchableOpacity>
-        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: INK, marginLeft: 6 }}>댓글{count > 0 ? ` ${count}` : ''}</Text>
-      </View>
-
-      {/* 원글 고정(2026-10-11, 사용자 "글은 안 움직여도 될 것 같다") — 댓글 ScrollView 바깥으로. 긴 글·사진 여러 장은 화면 45%까지만 차지하고
-          그 안에서 따로 스크롤(nestedScrollEnabled) — 댓글 공간을 다 먹지 않게. */}
-      <View style={{ maxHeight: Math.round(winH * 0.45) }}>
-        <ScrollView bounces={false} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+  // 원글 블록 — 고정 영역/스크롤 영역 두 자리에 같은 JSX. onLayout으로 실측해 55% 넘으면 스크롤 모드로(한 번만 전환).
+  const postBlock = (
+    <View onLayout={(e) => { if (!postTall && e.nativeEvent.layout.height > winH * 0.55) setPostTall(true); }}>
         {/* 원글 요약 — 어느 글에 댓글 다는지 상단 고정 카드 */}
         <View style={{ backgroundColor: CARD, paddingHorizontal: 14, paddingTop: 13, paddingBottom: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -364,11 +350,31 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM, o
           )}
         </View>
 
-        </ScrollView>
+    </View>
+  );
+
+  return (
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+    <KeyboardProvider>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: BG }}>
+      <StatusBar barStyle="dark-content" backgroundColor={BG} />
+
+      {/* 헤더 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12,
+        borderBottomWidth: 0.5, borderBottomColor: LINE }}>
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ padding: 4 }}>
+          <Text style={{ fontSize: fs(26), color: SAGE_DEEP, fontWeight: '600' }}>←</Text>
+        </TouchableOpacity>
+        <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: INK, marginLeft: 6 }}>댓글{count > 0 ? ` ${count}` : ''}</Text>
       </View>
+
+      {/* 원글 — 짧으면 여기 고정(댓글만 스크롤), 화면 55%를 넘는 긴 글·사진 많은 글은 postTall로 전환돼 아래 ScrollView 안에서 댓글과 함께 스크롤.
+          (중첩 ScrollView+maxHeight는 안드에서 높이를 못 잡아 글이 잘리고 사진이 안 보였다 — 사용자 2026-10-11) */}
+      {!postTall && postBlock}
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 12 }}
         onLayout={(e) => { scrollHRef.current = e.nativeEvent.layout.height; }}
         showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {postTall && postBlock}
 
         {/* 댓글 목록 */}
         <View style={{ paddingHorizontal: 14, paddingTop: 14 }}
