@@ -1585,9 +1585,15 @@ export function HomeScreen({ navigation, route }) {
             </View>
           </View>
           {/* 크루 버튼은 hdr 맨 마지막 자식으로 이동 — iOS서 그리팅/배너 위에 와야 터치를 받음(아래) */}
-          <Text style={homeS.hdrGreeting}>
-            안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
-          </Text>
+          {/* 인사말 닉네임 탭 → 설정(MY 탭의 MyPageModal). 설정 문이 기록 탭 톱니 하나뿐이라 "찾기 어렵다"(사용자 2026-10-11) →
+              첫 화면에 문을 하나 더. 새 버튼 없이 이름 자체가 문(끝에 › 로 눌림 암시). 홈 레이아웃 변화 0. */}
+          <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MY, { openSettings: true })} activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6, left: 4, right: 8 }} style={{ alignSelf: 'flex-start' }} accessibilityLabel="설정 열기">
+            <Text style={homeS.hdrGreeting}>
+              안녕하세요, <Text style={homeS.hdrGreetingName}>{userProfile.nickname}</Text>님
+              <Text style={{ fontFamily: F.sysSb, color: C.butter, fontSize: fs(17) }}> ›</Text>
+            </Text>
+          </TouchableOpacity>
           {/* ★주간 스트립(2026-08-24) → HomeCalendarStrip(2026-09-21): 주간 줄을 옆으로 넘기고, 월 라벨 탭하면 월 달력 펼침.
               상자 없음(사진 위 글자+그림자) — 홈 위쪽 반투명 판을 줄여 크림 D-N 카드가 주인공. 날짜 탭→일정 캘린더. */}
           <HomeCalendarStrip schedDaySet={_schedDaySet} onDayPress={() => setShowScheduleScreen(true)} />

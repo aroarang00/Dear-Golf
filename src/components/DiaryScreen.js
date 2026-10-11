@@ -378,6 +378,14 @@ export function DiaryScreen({ route, navigation }) {
     }
   }, [diaries, userProfile.lifeBest]);
 
+  // 홈 인사말 닉네임 탭 → 설정 모달 바로 열기(2026-10-11). 홈이 MyPageModal을 안 가져 MY 탭으로 넘어와 연다.
+  //   params 즉시 초기화 — 안 하면 다음 MY 탭 진입 때 또 열림.
+  useEffect(() => {
+    if (!route?.params?.openSettings) return;
+    navigation.setParams({ openSettings: undefined });
+    setShowMyPage(true);
+  }, [route?.params?.openSettings]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 홈 'D-0 기록 보기'로 상세 진입한 경우, 닫을 때(안드 뒤로가기 포함) MY 목록이 아니라 홈으로 복귀
   const detailFromHomeRef = React.useRef(false);
   const detailFromScheduleRef = React.useRef(false); // 일정 캘린더에서 상세 진입 — 닫을 때 캘린더 재오픈용
@@ -835,14 +843,18 @@ export function DiaryScreen({ route, navigation }) {
           </TouchableOpacity>
           {/* 정산(걷기)은 라운지 헤더로 옮김 — 모임 돈이라 개인 공간이 아니다(사용자 2026-07-22).
               여기 가계부는 '내 돈'이라 성격이 다르므로 같이 두지 않는다. */}
+          {/* 설정 — 톱니 아이콘 → '설정' 글자 알약(2026-10-11). 아이콘만으론 찾기 어렵다(사용자) + 옆 '가계부' 알약과 한 짝으로.
+              톤은 가계부와 반대(크림 바탕+차콜 글자)로 둬 둘이 구분되게. */}
           <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="gear" size={fs(30)} color={C.charcoal} strokeWidth={1.8} />
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
+              borderRadius: 15, paddingHorizontal: 10, height: 30 }}>
+            <Icon name="gear" size={fs(14)} color={C.charcoal} strokeWidth={2} />
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal, includeFontPadding: false }}>설정</Text>
           </TouchableOpacity>
         </View>
         {/* paddingRight 80→104 — 가계부가 아이콘(36)→텍스트 알약(~60)으로 넓어져 이름과 안 겹치게 */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 104 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 140 }}>{/* 104→140 — 설정도 글자 알약이 되어 우측 폭 ↑ */}
           {/* 아바타 — 탭하면 사진 변경 액션시트 */}
           <View>
             <TouchableOpacity activeOpacity={0.8} onPress={() => setAvatarSheetOpen(true)}
