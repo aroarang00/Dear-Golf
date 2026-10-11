@@ -1084,7 +1084,7 @@ export function DiaryScreen({ route, navigation }) {
                   닫기 없이 상시(기록 있는 동안, 사용자 10-11 "거슬리지 않음") — 모달 안에서 ‹ › 로 다른 달·해도 본다. */}
               {recapSuggest && (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-                  <RecapBanner diaries={diaries} period={recapSuggest} onPress={() => setRecapOpen(recapSuggest)} />
+                  <RecapBanner diaries={diaries} period={recapSuggest} onPress={() => setRecapOpen(recapSuggest)} onCream />
                 </View>
               )}
 
