@@ -39,6 +39,9 @@ export const LIFT_CONTACT = { shadowColor: '#000', shadowOffset: { width: 0, hei
 //   너무 진해 "지저분"(사용자). 그림자 색을 검정 대신 차콜 계열로, 세기 절반 이하·퍼짐 짧게.
 export const LIFT_AMBIENT_SOFT = { shadowColor: '#3D3935', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.10, shadowRadius: 12, elevation: 3 };
 export const LIFT_CONTACT_SOFT = { shadowColor: '#3D3935', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 2, elevation: 0 };
+// 중간 단계(2026-10-11) — 크루 게시글 미리보기 카드. SOFT는 하늘색 바탕에서 "입체감이 없다"(사용자), 홈용 LIFT_AMBIENT는 지저분.
+export const LIFT_AMBIENT_MID = { shadowColor: '#2A2622', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.16, shadowRadius: 14, elevation: 6 };
+export const LIFT_CONTACT_MID = { shadowColor: '#2A2622', shadowOffset: { width: 0, height: 1.5 }, shadowOpacity: 0.10, shadowRadius: 2.5, elevation: 0 };
 
 // shadow={{ radius, bg, soft? }}를 주면 두 겹 그림자 구조(soft:true = 밝은 바탕용 연한 두 겹)(바깥 Animated.View=ambient / 안쪽 View=contact+contentStyle)로 그린다.
 //   이때 style엔 폭·마진만, 패딩은 contentStyle로. shadow 없으면 예전처럼 style 하나.

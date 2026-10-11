@@ -8,7 +8,7 @@ import { useContentWidth } from '../utils/contentWidth';
 import { Icon } from './common/Icon';
 import { CrewAvatar } from './common/CrewAvatar';
 import { LinkText } from './common/LinkText';
-import { SurfaceLight, LIFT_AMBIENT_SOFT, LIFT_CONTACT_SOFT } from './common/Surface'; // 공지 카드 입체감 — 모임 대문과 같은 연한 두 겹(2026-09-22)
+import { SurfaceLight, LIFT_AMBIENT_SOFT, LIFT_CONTACT_SOFT, LIFT_AMBIENT_MID, LIFT_CONTACT_MID } from './common/Surface'; // 공지 카드 입체감 — 모임 대문과 같은 연한 두 겹(2026-09-22)
 import { RoundupMiniCard } from './common/RoundupMiniCard';
 import { loadRoundup, createRoundup } from '../utils/roundup';
 import { useScreenBack } from '../hooks/useScreenBack';
@@ -70,11 +70,12 @@ function MiniAvatar({ n, c, i = 0, size = 30, uri, onPress }) {
 }
 
 // 미디어 타일 — 사진은 uri, 영상은 poster(없으면 uri) + ▶ 오버레이
-function MediaTile({ m, style, radius = 12, playSize = 'lg' }) {
+// position — 정사각 타일에 세로 사진을 cover로 넣으면 위아래가 잘린다. 미리보기는 'top'(얼굴·하늘이 있는 위를 살림, 사용자 2026-10-11).
+function MediaTile({ m, style, radius = 12, playSize = 'lg', position = 'center' }) {
   const uri = m?.type === 'video' ? (m.poster || m.uri) : (m?.thumb || m?.uri); // 리스트=썸네일(있으면), 영상=poster
   return (
     <View style={{ ...style, borderRadius: radius, backgroundColor: 'rgba(26,61,82,0.06)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-      {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={Platform.OS === 'android' ? 0 : 120} />
+      {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" contentPosition={position} transition={Platform.OS === 'android' ? 0 : 120} />
            : <Icon name="image" size={fs(28)} color="rgba(26,61,82,0.35)" strokeWidth={1.4} />}
       {m?.type === 'video' && (playSize === 'lg' ? (
         <View style={{ position: 'absolute', width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
@@ -119,16 +120,16 @@ const PostGridCard = React.memo(function PostGridCard({ p, cell, onOpen, onToggl
   return (
     /* 흰 카드(2026-09-22, 사용자 "게시글 카드도 같이 손보자") — 사진·글·지표가 하늘색 바탕에 맨몸으로 놓여 있던 것을
        공지 카드와 같은 흰 카드(연한 두 겹 그림자+표면 빛)에 담는다. 사진은 카드 위 모서리만 둥글게. */
-    <TouchableOpacity activeOpacity={0.9} style={[{ width: cell, marginBottom: 14, borderRadius: 14, backgroundColor: '#FFFFFF' }, LIFT_AMBIENT_SOFT]}
-      onPress={() => onOpen(p)} onLongPress={() => onAction(p)} delayLongPress={320}>
+    <TouchableOpacity activeOpacity={0.9} style={[{ width: cell, marginBottom: 14, borderRadius: 14, backgroundColor: '#FFFFFF' }, LIFT_AMBIENT_MID]}
+      onPress={() => onOpen(p)} onLongPress={() => onAction(p)} delayLongPress={320}>{/* SOFT→MID(2026-10-11, 사용자 "입체감 좀 줘") */}
       {/* ★안쪽 판 flex:1 — 2열 한 줄의 두 카드는 긴 쪽 높이로 늘어나는데(row stretch) 안쪽 판이 내용만큼만 차지하면
           짧은 카드(글만·미리보기 없음)는 하트 줄 아래에 판 끝선+맨 흰색이 남아 '턱'이 진다(사용자 스샷 2026-09-22).
           판을 끝까지 채우고 하트 줄은 맨 아래(marginTop auto)에 붙여 옆 카드와 줄을 맞춘다. */}
-      <View style={[{ flex: 1, borderRadius: 14, backgroundColor: '#FFFFFF', paddingBottom: 10 }, LIFT_CONTACT_SOFT]}>
+      <View style={[{ flex: 1, borderRadius: 14, backgroundColor: '#FFFFFF', paddingBottom: 10 }, LIFT_CONTACT_MID]}>
       <SurfaceLight radius={14} />
       <View style={{ borderTopLeftRadius: 14, borderTopRightRadius: 14, overflow: 'hidden' }}>
         {cover ? (
-          <MediaTile m={cover} style={{ width: cell, height: cell }} radius={0} playSize="lg" />
+          <MediaTile m={cover} style={{ width: cell, height: cell }} radius={0} playSize="lg" position="top" />
         ) : roundupTile ? (
           <RoundupMiniCard tile={cell} roundupId={p.roundupId} shared={p.roundupShare}
             isHost={p.roundupIsHost} hostIsFriend={p.roundupHostIsFriend}
