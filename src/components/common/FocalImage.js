@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Platform } from 'react-native';
+import { View, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { C } from '../../constants/colors';
 import { Spinner } from './Spinner';

@@ -120,14 +120,15 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
               카드 이미지로 공유돼요. Dear Golf 마크가 들어가요.
             </Text>
 
-            <View style={{ gap: 8, marginTop: 14 }}>
+            {/* 공유하기 · 이미지 저장 — 위아래 긴 버튼 둘 → 좌우 한 줄(사용자 2026-10-11, 결산·라운딩 카드 공통) */}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
               <TouchableOpacity activeOpacity={0.85} disabled={busy} onPress={() => run(r => shareCardImage(r, { dialogTitle: '결산 카드 공유' }))}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: C.charcoal, borderRadius: 11, height: 44, opacity: busy ? 0.5 : 1 }}>
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: C.charcoal, borderRadius: 11, height: 44, opacity: busy ? 0.5 : 1 }}>
                 <Text style={{ fontSize: fs(15) }}>📤</Text>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: '#fff' }}>{busy ? '준비 중...' : '공유하기'}</Text>
               </TouchableOpacity>
               <TouchableOpacity activeOpacity={0.85} disabled={busy} onPress={() => run(saveCardToGallery)}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: C.butter, borderRadius: 11, height: 44, opacity: busy ? 0.5 : 1 }}>
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: C.butter, borderRadius: 11, height: 44, opacity: busy ? 0.5 : 1 }}>
                 <Text style={{ fontSize: fs(15) }}>🖼</Text>
                 <Text style={{ fontFamily: F.sysB, fontSize: fs(13.5), color: C.charcoal }}>이미지 저장</Text>
               </TouchableOpacity>
