@@ -3,6 +3,7 @@ import { shareFeedTemplate } from '@react-native-kakao/share';
 import { buildRoundupUrl } from './links';
 import { getUid } from './firebase';
 import { ensureMyRefCode } from './referral';
+import { REFERRAL_BONUS } from './entitlements';   // 보상 숫자 단일 소스
 
 // 친구/모임 초대 — 골프 모임 단톡방에 통째로 붙여넣기 좋은 공용 초대.
 // 친구 화면 헤더와 라운지 빈 상태가 같은 문구를 쓰도록 한 곳에 둔다 ([[lounge-positioning]] 공존·흡수).
@@ -44,7 +45,7 @@ export async function shareInvite() {
   let message = INVITE_MESSAGE;
   try {
     const code = await ensureMyRefCode(await getUid());
-    if (code) message = INVITE_BODY + `\n💝 추천인 코드를 입력하면 둘 다 사진 +20장, 영상 +1개 보관 공간이 늘어나요: ${code}\n\n` + INVITE_LINK;
+    if (code) message = INVITE_BODY + `\n💝 추천인 코드를 입력하면 둘 다 사진 +${REFERRAL_BONUS.photos}장, 영상 +${REFERRAL_BONUS.videos}개 보관 공간이 늘어나요: ${code}\n\n` + INVITE_LINK;
   } catch (e) { /* 코드 없이 진행 */ }
   try {
     await Share.share({ message });

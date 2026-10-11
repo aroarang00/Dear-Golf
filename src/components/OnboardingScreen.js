@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { NICKNAME_MAX } from '../utils/nickname';   // 닉네임 6자 상한(설정 입력과 동일)
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -158,7 +159,7 @@ export function OnboardingScreen({ seed = {}, consent = null, onComplete }) {
             )}
             <Text style={obS.label}>닉네임</Text>
             <AppTextInput style={obS.input} placeholder="민지 / Jessica" placeholderTextColor={C.warmGrayLight}
-              value={nickname} onChangeText={(t) => setNickname(t.slice(0, 6))} /* 10→6자(2026-10-11) — 명함 한 줄 20px 보장 */
+              value={nickname} onChangeText={(t) => setNickname(t.slice(0, NICKNAME_MAX))} /* 10→6자(2026-10-11) — 명함 한 줄 20px 보장 */
               autoCapitalize="none" autoCorrect={false} keyboardType="default" />{/* maxLength 금지 — 한글 조합 충돌 [[project_textinput_maxlength_hangul_bug]] */}
             <Text style={obS.label}>본명 (선택)</Text>
             <AppTextInput style={obS.input} placeholder="김골프" placeholderTextColor={C.warmGrayLight}

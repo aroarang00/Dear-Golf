@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  StatusBar, View, Text, TouchableOpacity,
-  Share, Modal, LayoutAnimation, Platform, UIManager, AppState, Animated, Easing,
+  StatusBar, View, Text, TouchableOpacity, Share, Modal, Platform, UIManager, AppState, Animated, Easing,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'; // 확대 시 콘텐츠가 탭바 덮는 것 방지(하단 여백)
@@ -9,7 +8,6 @@ import * as Notifications from 'expo-notifications'; // DM 푸시 포그라운�
 import { Image as ExpoImage } from 'expo-image'; // 스토어 광고 카드 상품 사진(storeAds[].img)
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';   // 한줄 메모 '젖빛 유리' — 뒤 사진을 실제로 흐림(2026-09-22). 일정 탭이 이미 쓰는 모듈(OTA 가능) // 최근 기록 히어로 카드 하단 그라데이션(2026-08-26) ※Animated.View 안에 넣지 말 것(런타임 에러, 853줄 참고)
-import { loadStoreAds } from '../utils/storeConfig'; // 홈 캐러셀 광고 원격 로드(config/storeAds)
 import { C, F, fs } from '../constants/colors';
 import { useContentWidth } from '../utils/contentWidth';   // 폴드 펼침·태블릿 — 창 폭 대신 콘텐츠 폭(500 클램프)
 import { ROUTES } from '../constants/routes';
@@ -76,8 +74,8 @@ import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 import { FriendRequestInbox } from './FriendRequestInbox';
 import { RoundupInviteInbox } from './RoundupInviteInbox';
 import { ScoreShareInbox } from './ScoreShareInbox';
-import { RecapBanner } from './RecapBanner';
-import { MyPageModal } from './MyPageModal';   // 홈 인사말 닉네임 탭 → 설정을 홈 위에서 바로(탭 전환 없이, 2026-10-11)             // 월·연 결산 입구 띠 — 최근 기록 위(사용자 2026-10-11, 기록 탭과 공용)
+import { RecapBanner } from './RecapBanner';             // 월·연 결산 입구 띠 — 최근 기록 위(사용자 2026-10-11, 기록 탭과 공용)
+import { MyPageModal } from './MyPageModal';   // 홈 인사말 닉네임 탭 → 설정을 홈 위에서 바로(탭 전환 없이, 2026-10-11)
 import { RecapShareModal } from './RecapShareModal';
 import { suggestRecap } from '../utils/recap';   // 동반자 스코어 공유 수신 — 기록화면에서 홈으로 이동(안 쓰는 유저도 홈에서 바로 인지, 2026-07-23)
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
@@ -253,13 +251,6 @@ export function HomeScreen({ navigation, route }) {
   const [teamScheduleRid, setTeamScheduleRid] = useState(null);     // 단체팀 화면 대상 roundupId(시트→단체팀)
   const [sheetMealSchedule, setSheetMealSchedule] = useState(null); // 일정 시트 '함께 식사' 대상(triggerless) — 세컨 카드 등 next 아닌 일정용
   const [sheetMealAutoOpen, setSheetMealAutoOpen] = useState(false);
-  const [cardSlide, setCardSlide] = useState(0);
-  const [storeAds, setStoreAds] = useState([]); // 홈 캐러셀 스토어 광고 — 원격(config/storeAds), 빈 배열=미노출
-  useEffect(() => {
-    let alive = true;
-    loadStoreAds().then((ads) => { if (alive) setStoreAds(ads); });
-    return () => { alive = false; };
-  }, []);
   const [now, setNow] = useState(Date.now());
   // 다이어리는 DiariesContext에서 받음 (Firestore 단일 소스)
   //   loadFailed·hydrated도 받아 빈 상태 판정에 반영 — 기록 로드 실패를 '기록 없음'으로 위장하지 않게([[read-failure-disguise]]).
@@ -281,9 +272,11 @@ export function HomeScreen({ navigation, route }) {
   }, [route?.params?.openRecap]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!pendingRecap || !diariesHydrated) return;
+    // hydrated는 로드 실패(finally)에도 true가 된다 — 실패면 '라운딩 0회' 카드를 열어 푸시 숫자와 모순되니 열지 않는다(재시도 뒤 성공하면 그때 연다)
+    if (diariesLoadFailed) return;
     setRecapOpen({ year: pendingRecap.year, month: pendingRecap.month ?? null });
     setPendingRecap(null);
-  }, [pendingRecap, diariesHydrated]);
+  }, [pendingRecap, diariesHydrated, diariesLoadFailed]);
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
   const [pendingQuickAlarm, setPendingQuickAlarm] = useState(null); // '이대로 자동' 모드 — 식사시각만 묻는 가벼운 프롬프트
@@ -1086,38 +1079,6 @@ export function HomeScreen({ navigation, route }) {
     storage.save(STORAGE_KEYS.d0Info + next.id, { t: Date.now(), date: next.date, v: d0Info });
   }, [isD0, next?.id, next?.date, d0Info]);
 
-  // 캐러셀 슬라이드 수 — 기본(메모 1 + 골퍼코멘트 1) + 스토어 광고(storeAds 원격, 비면 0).
-  const homeSlideCount = React.useMemo(() => {
-    const course = next?.course;
-    if (!course) return 1;
-    const entries = diaries.filter(d => isRoundDiary(d) && d.course === course); // 일상(모멘트) 제외
-    // ★렌더(아래 IIFE 슬라이드 조립)와 반드시 동일해야 회전/탭 인덱스가 맞음 — 어긋나면
-    //   회전만 돌고 카드는 한 장인 불일치가 난다. 조건을 고칠 땐 두 곳을 같이 고칠 것.
-    //   미기록(첫 방문)=안내메모+골퍼 2장 / 그 외=기본1+(골퍼 있으면 골퍼1) + 스토어광고
-    //   ※골퍼 코멘트는 '내 메모 유무'와 무관(2026-08-05) — 여기도 memo 조건을 뺐다.
-    const isFirstVisit = entries.length === 0;
-    const base = isFirstVisit ? 2 : (1 + (homeTopComment ? 1 : 0));
-    return base + Math.min(storeAds.length, 2);
-  }, [next?.course, diaries, homeTopComment, storeAds]);
-  const carouselActive = homeSlideCount > 1;
-
-  useEffect(() => {
-    if (!carouselActive) {
-      setCardSlide(0);
-      return;
-    }
-    const id = setInterval(() => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setCardSlide(prev => (prev + 1) % homeSlideCount);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [carouselActive, homeSlideCount]);
-
-  const toggleCardSlide = () => {
-    if (!carouselActive) return;
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setCardSlide(prev => (prev + 1) % homeSlideCount);
-  };
 
   // 일정 → 코스 상세에 쓸 id (COURSE_LOG id 우선, 없으면 userCourses id).
   // GuideScreen이 둘 다 처리하므로 어느 쪽이든 OK.
@@ -1921,8 +1882,6 @@ export function HomeScreen({ navigation, route }) {
             // 방문 여부는 실제 라운딩 기록 기준 (COURSE_LOG 목업이 아님)
             const visitCount = diaryEntries.length;
             const isFirstVisit = visitCount === 0;
-            const topComment = homeTopComment;
-            const hasGolfer = !!topComment;
 
             // 캐러셀(슬라이드 2+)이면 카드 높이 완전 고정 — memoCard의 minHeight만으론 내용 많은 카드
             //   (광고·코멘트 2줄)에서 늘어나 위 디데이 카드까지 들썩임(사용자 2026-07-03). 케이스별
@@ -1931,13 +1890,9 @@ export function HomeScreen({ navigation, route }) {
             //   그 구장에 다녀왔는데 메모를 안 쓴 경우 남이 남긴 코멘트가 통째로 안 보였다(2026-08-05 실측:
             //   블랙스톤이천GC, 기록 1건·메모 없음·코멘트 있음 → 슬라이드 누락). 남의 코멘트를 보여줄지가
             //   내가 메모를 썼는지에 걸릴 이유가 없다. 첫 방문일 땐 firstVisitCard가 따로 코멘트를 보여준다.
-            const withGolfer = !isFirstVisit && hasGolfer;
-            const adsCount = Math.min(storeAds.length, 2);
-            const slideCount = (isFirstVisit ? 2 : 1 + (withGolfer ? 1 : 0)) + adsCount;
-            const isAnd = Platform.OS === 'android';
-            const SLIDE_FIX = slideCount > 1
-              ? { height: Math.round(fs(isFirstVisit ? (isAnd ? 84 : 110) : (!myMemo ? (isAnd ? 78 : 94) : (isAnd ? 72 : 92)))), minHeight: 0 }
-              : null;
+            // 메모 카드는 항상 1장(골퍼 코멘트·스토어 광고 슬라이드는 0623899에서 제거) → 회전·고정 높이 없음(2026-10-11 리뷰).
+            //   예전 캐러셀 기계(homeSlideCount·5초 회전·storeAds 원격 로드)는 한 장을 돌리며 Firestore만 읽던 죽은 코드라 함께 정리.
+            const SLIDE_FIX = null;
 
             // 유리 래퍼(2026-09-21) — 사진이 비치는 반투명 유리 + 입체감(표면 빛 glass·얇은 접지 그림자). 크림 쪽지는 사용자 "별로".
             //   카드(memoCard)는 overflow:hidden이라 그림자를 여기서. 큰 ambient 그림자는 유리 너머로 비쳐 탁해져서 contact만.
@@ -2038,30 +1993,7 @@ export function HomeScreen({ navigation, route }) {
               ? [firstVisitMemoCard]
               : [(!myMemo ? noMemoCard : myMemoCard)];
 
-            if (slides.length === 1) return glassWrap(slides[0]);
-
-            const slideIdx = Math.min(cardSlide, slides.length - 1);
-            // 점 색: 기본(버터) · 골퍼코멘트(하늘) · 스토어(골드)
-            const dotColor = (i) => (i === 0 ? '#F5E6A8' : ((withGolfer || isFirstVisit) && i === 1 ? '#C8D9E6' : '#E8C97A'));
-            // ★캐러셀 전체(카드+점)를 고정 높이 컨테이너로 잠금 — 카드별 SLIDE_FIX에 더한 이중 방어.
-            //   내부에서 어떤 높이 변화가 생겨도 위(디데이 카드)로 전파 0, 넘치면 아래로만(사용자 2026-07-03).
-            const DOTS_H = 5 + 8; // 점 높이 + marginTop
-            return (
-              <View style={{ height: SLIDE_FIX.height + DOTS_H }}>
-                <TouchableOpacity activeOpacity={0.9} onPress={toggleCardSlide}>
-                  {glassWrap(slides[slideIdx])}
-                </TouchableOpacity>
-                <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'center', marginTop: 8 }}>
-                  {slides.map((_, i) => (
-                    <View key={i} style={{
-                      width: slideIdx === i ? 14 : 5,
-                      height: 5, borderRadius: 3,
-                      backgroundColor: slideIdx === i ? dotColor(i) : 'rgba(255,255,255,0.15)',
-                    }} />
-                  ))}
-                </View>
-              </View>
-            );
+            return glassWrap(slides[0]);
           })()}
           </>)}
         </>

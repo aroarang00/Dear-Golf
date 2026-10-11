@@ -18,6 +18,10 @@ export function maxCrewsOf(profile) {
   return Number.isFinite(v) ? v : DEFAULT_ENTITLEMENTS.maxCrews;
 }
 
+// 초대 보상 숫자(UI 문구용) — functions/referral.js BONUS_*/CAP_*와 동기 유지. 문구 세 곳(설정 저장공간·초대 메시지)이 여기만 본다.
+export const REFERRAL_BONUS = { photos: 20, videos: 1 };
+export const REFERRAL_CAP = { photos: 500, videos: 30 };
+
 // 다이어리 미디어 한도 — profile.entitlements.maxPhotos/maxVideos > 없으면 기본 200/10. 초대 보상(CF)이 올린 값이 그대로 보인다.
 export function mediaQuotaOf(profile) {
   const e = profile?.entitlements || {};

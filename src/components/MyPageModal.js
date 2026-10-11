@@ -11,8 +11,8 @@ import { calcHandicap } from '../utils/handicap';
 import { countCompletedRounds, displayTotalRounds } from '../utils/roundStats';
 import { STORAGE_KEYS, storage } from '../utils/storage';
 import { getUid } from '../utils/firebase';
-import { saveNotifyPref } from '../utils/pushTokens';
-import { connectKakaoAccount } from '../utils/kakaoAuth';   // 설정 '카카오 로그인 연동' — 친구·라운지 게이트와 같은 공용 흐름   // 알림 토글 서버 동기(CF 게이팅이 읽는 users.settings.notifyPrefs)
+import { saveNotifyPref } from '../utils/pushTokens';   // 알림 토글 서버 동기(CF 게이팅이 읽는 users.settings.notifyPrefs)
+import { connectKakaoAccount } from '../utils/kakaoAuth';   // 설정 '카카오 로그인 연동' — 친구·라운지 게이트와 같은 공용 흐름
 import { savePrivateDeparture, savePrivateWork } from '../utils/privateProfile'; // 출발지·회사 비공개 Firestore 저장(기기 간 유지)
 import { RoundEvaluationModal } from './RoundEvaluationModal';
 import { myS } from '../styles/myS';
@@ -27,8 +27,9 @@ import { BlockManageScreen } from './BlockManageScreen';
 import { FriendGroupManageModal } from './FriendGroupManageModal';
 import { ReportModal } from './ReportModal';
 import { MyRoundupActivityScreen } from './MyRoundupActivityScreen';
-import { nicknameChangeStatus, formatNextDate } from '../utils/nickname';
-import { mediaQuotaOf, countDiaryMedia, DEFAULT_ENTITLEMENTS } from '../utils/entitlements'; // 저장공간 표시(한도=초대 보상 반영, 사용량=클라 합산)
+import { nicknameChangeStatus, formatNextDate, NICKNAME_MAX } from '../utils/nickname';
+import { mediaQuotaOf, countDiaryMedia, DEFAULT_ENTITLEMENTS, REFERRAL_BONUS, REFERRAL_CAP } from '../utils/entitlements';
+import { roundsOnly } from '../utils/diaryKind';   // 라운딩만(일상 제외) — 'moment' 리터럴 흩뿌리지 않기 // 저장공간 표시(한도=초대 보상 반영, 사용량=클라 합산)
 import { shareInvite } from '../utils/invite';   // '친구 초대로 늘리기' — 친구 화면과 같은 초대 문구(추천인 코드 동봉)
 import { clearRecentCourses } from '../utils/recentCourses';
 import { TermsViewerModal } from './TermsViewerModal';
@@ -91,7 +92,7 @@ export function MyPageModal({ visible, onClose }) {
   const effectiveTotalRounds = displayTotalRounds(userProfile, completedRounds);
   // 베스트 폴백 — lifeBest 미입력이면 실제 기록(라운딩·스코어>0)의 최저 타수, 그것도 없으면 '-'.
   //   ★예전엔 개발 샘플(DIARY_DATA) 최솟값 76이 그대로 떠 '가짜 베스트'가 보였다(2026-10-11 감사).
-  const scoredRounds = (diaries || []).filter(d => d && d.kind !== 'moment' && typeof d.score === 'number' && d.score > 0).map(d => d.score);
+  const scoredRounds = roundsOnly(diaries || []).filter(d => typeof d.score === 'number' && d.score > 0).map(d => d.score);   // recap.js avgOf와 같은 규칙
   const bestFromDiaries = scoredRounds.length ? Math.min(...scoredRounds) : null;
   const scrollRef = useRef(null);
   const [calPickerOpen, setCalPickerOpen] = useState(false);
@@ -305,6 +306,10 @@ export function MyPageModal({ visible, onClose }) {
       setEditingNick(false);
       return;
     }
+    if ([...trimmed].length > NICKNAME_MAX) {   // 입력칸 slice를 우회한 값(붙여넣기 조합 등) 방어
+      setAlertData({ title: '닉네임은 6자까지', message: `닉네임은 ${NICKNAME_MAX}자 이하로 정해주세요.` });
+      return;
+    }
     // 변경 제한 — 일반 30일/1회, 카카오 15일/1회
     const status = nicknameChangeStatus(userProfile);
     if (!status.canChange) {
@@ -432,7 +437,7 @@ export function MyPageModal({ visible, onClose }) {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <AppTextInput
                         style={[myS.nickInput, { flex: 1 }]}
-                        value={nickname} onChangeText={(t) => setNickname(t.slice(0, 6))} /* 10→6자(2026-10-11) — 명함 한 줄 20px 보장. 기존 긴 닉네임은 수정 시 잘림 */
+                        value={nickname} onChangeText={(t) => setNickname(t.slice(0, NICKNAME_MAX))} /* 10→6자(2026-10-11) — 명함 한 줄 20px 보장. 기존 긴 닉네임은 수정 시 잘림 */
                         onSubmitEditing={handleSaveNickname}
                         returnKeyType="done"
                         autoFocus
@@ -616,8 +621,8 @@ export function MyPageModal({ visible, onClose }) {
                     })}
                     <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
                       {bonusPhotos > 0 || bonusVideos > 0
-                        ? `친구 초대로 사진 +${bonusPhotos}장 · 영상 +${bonusVideos}개 늘어났어요. 1명당 사진 +20장 · 영상 +1개 (최대 500장 · 30개)`
-                        : '친구 1명 초대마다 사진 +20장 · 영상 +1개 늘어나요 (최대 500장 · 30개)'}
+                        ? `친구 초대로 사진 +${bonusPhotos}장 · 영상 +${bonusVideos}개 늘어났어요. 1명당 사진 +${REFERRAL_BONUS.photos}장 · 영상 +${REFERRAL_BONUS.videos}개 (최대 ${REFERRAL_CAP.photos}장 · ${REFERRAL_CAP.videos}개)`
+                        : `친구 1명 초대마다 사진 +${REFERRAL_BONUS.photos}장 · 영상 +${REFERRAL_BONUS.videos}개 늘어나요 (최대 ${REFERRAL_CAP.photos}장 · ${REFERRAL_CAP.videos}개)`}
                     </Text>
                   </View>
                 );
@@ -964,6 +969,14 @@ export function MyPageModal({ visible, onClose }) {
                           const r = await connectKakaoAccount();
                           if (r?.banned) { setAlertData({ title: '이용이 제한된 계정이에요', message: '이 카카오 계정은 Dear Golf 이용이 제한되었어요.' }); return; }
                           if (!r?.ok) { setAlertData({ title: '카카오 연동 실패', message: '잠시 후 다시 시도해주세요.' }); return; }
+                          // mode 'existing' = 이 카카오 계정이 이미 다른 uid에 묶여 있어 그 계정으로 로그인이 바뀜 → 지금 메모리의
+                          //   익명 프로필을 kakaoLinked만 바꿔 저장하면 App.js write-through가 그 익명 닉네임을 기존 계정 문서에 덮어쓴다.
+                          //   로컬 프로필은 건드리지 않고(App.js가 authUid 바뀌면 Firestore에서 다시 읽음) 안내만.
+                          if (r.mode === 'existing') {
+                            setAlertData({ title: '기존 계정으로 전환됐어요', message: '이 카카오 계정으로 쓰던 Dear Golf 계정이 있어 그 계정으로 로그인했어요.' });
+                            return;
+                          }
+                          // 'linked'(같은 uid에 연결) · 'already'(이미 연동) — kakaoLinked만 로컬 반영(Firestore는 ensureUserDoc이 이미 true)
                           const next = { ...userProfile, kakaoLinked: true };
                           setUserProfile(next);
                           storage.save(STORAGE_KEYS.profile, next);

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { NICKNAME_MAX } from '../utils/nickname';   // 소셜 이름 시드 6자 상한
 import { ScrollView, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -95,7 +96,7 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
       // 3. users/{uid} 문서 보장 — 신규는 생성, 기존은 로드
       const userDoc = await ensureUserDoc(link.uid, {
         kakaoId: result.kakaoId,
-        nickname: result.nickname,
+        nickname: String(result.nickname || '').slice(0, NICKNAME_MAX),   // 소셜 이름이 6자를 넘으면 자름(명함 한 줄 상한)
         profileImageUrl: result.profileImageUrl,
       });
 
@@ -104,7 +105,7 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
       onKakaoSuccess({
         // 재방문자는 라이브 nickname 우선 — displayName은 가입 시점 1회만 기록되는 옛 필드라,
         //   닉 변경 후 재설치/재연동 시 옛 닉으로 롤백되던 버그. nickname 없을 때만 displayName 폴백.
-        nickname: (isReturning ? (userDoc.data.nickname || userDoc.data.displayName) : result.nickname) || '',
+        nickname: (isReturning ? (userDoc.data.nickname || userDoc.data.displayName) : String(result.nickname || '').slice(0, NICKNAME_MAX)) || '',
         avatarUri: (isReturning ? userDoc.data.avatarUrl : result.profileImageUrl) || null,
         // 재방문자(재설치·기기변경) 스탯·본명 prefill — 빈 폼을 그대로 통과하면 기본값(90/99)이 실제 기록을
         //   덮어쓰던 것 차단. 프로필 폼에 실제값이 보이고 완료 시 그대로 다시 저장됨([[course-rating-key-stability]]·재방문자 보호).
@@ -148,14 +149,14 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
 
       // 3. users/{uid} 문서 보장 — 애플 이름은 최초 1회만 옴(재로그인 null), 없으면 온보딩에서 직접 입력
       const userDoc = await ensureUserDoc(link.uid, {
-        nickname: result.nickname,
+        nickname: String(result.nickname || '').slice(0, NICKNAME_MAX),
         profileImageUrl: null,
       });
 
       // 4. 온보딩 다음 단계로 — 카카오와 동일한 재방문자 prefill
       const isReturning = link.mode === 'existing' && !userDoc.created;
       onKakaoSuccess({
-        nickname: (isReturning ? (userDoc.data.nickname || userDoc.data.displayName) : result.nickname) || '',
+        nickname: (isReturning ? (userDoc.data.nickname || userDoc.data.displayName) : String(result.nickname || '').slice(0, NICKNAME_MAX)) || '',
         avatarUri: (isReturning ? userDoc.data.avatarUrl : null) || null,
         realName: (isReturning ? userDoc.data.realName : '') || '',
         avgScore: (isReturning ? userDoc.data.avgScore : null) || null,

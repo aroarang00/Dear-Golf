@@ -18,7 +18,9 @@ const { sendExpoPush } = require('./push');
 const db = getFirestore();
 const pad2 = (n) => String(n).padStart(2, '0');
 
-// 오늘(KST) 기준 이번에 보낼 결산 기간 — 12월이면 올해 시즌(month=null), 아니면 바로 지난달.
+// 오늘(KST) 기준 이번에 보낼 결산 기간 — 12월 1일이면 올해 시즌(month=null), 아니면 바로 지난달.
+//   ※앱 띠(recap.js timelyRecap)는 10~12월에 시즌 결산을 먼저 띄우지만, 푸시는 10/1·11/1에 '9월·10월 결산'을 보낸다 — 의도된 차이:
+//   시즌이 아직 진행 중이라 월 숫자가 더 새롭고, 탭하면 열리는 월 카드에서 '연' 칩으로 시즌도 바로 본다. 1/1은 12월 라운딩 있는 사람만(시즌은 12/1에 이미 감).
 function periodFor(nowUtc = new Date()) {
   const kst = new Date(nowUtc.getTime() + 9 * 3600 * 1000);
   const y = kst.getUTCFullYear(), m = kst.getUTCMonth() + 1;
@@ -62,7 +64,8 @@ function messageFor({ year, month }, { count, avg }) {
 async function runMonthlyRecapPush(nowUtc = new Date()) {
   const period = periodFor(nowUtc);
   const [from, to] = dateRange(period);
-  const snap = await db.collection('rounds').where('date', '>=', from).where('date', '<=', to).get();
+  // select 투영 — 라운드 문서는 사진·홀별 점수 등이 커서 필요한 세 필드만 받는다(읽기 횟수는 같고 바이트·메모리만 줄어듦)
+  const snap = await db.collection('rounds').select('ownerUid', 'kind', 'score').where('date', '>=', from).where('date', '<=', to).get();
   const summary = summarize(snap.docs.map((d) => d.data()));
   logger.info('[recapPush] period', period, 'rounds=', snap.size, 'users=', summary.size);
 
