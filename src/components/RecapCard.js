@@ -61,7 +61,7 @@ export function RecapCard({ recap, playerName = '', width = 320, showWith = true
     withValue ? { label: '함께', value: withValue, sub: withSub } : null,
     recap.specials > 0 ? { label: '특별한 순간', value: recap.specialLabel || `${recap.specials}번` } : null,   // '홀인원 · 이글 2'처럼 뭐였는지
     recap.overseas > 0 ? { label: '해외', value: `${recap.overseas}회` } : null,
-  ].filter(Boolean).slice(0, memo ? 4 : 5);   // 최대 5행(한마디 있으면 4행) — 더 넣으면 다시 빽빽해진다
+  ].filter(Boolean);   // ★행 수 제한 없음(사용자 2026-10-11) — 특별한 순간·해외가 잘리지 않게. 대신 카드가 내용만큼 늘어난다(아래 minHeight)
 
   const maxBar = recap.monthly ? Math.max(1, ...recap.monthly) : 1;
   const photos = (recap.photos || []).map(resolvePhotoUri).filter(Boolean);
@@ -71,7 +71,8 @@ export function RecapCard({ recap, playerName = '', width = 320, showWith = true
   const topLabel = isYear ? `${recap.year} SEASON` : `${MONTHS_EN[recap.month - 1]} ${recap.year}`;
 
   return (
-    <View style={{ width, height, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
+    {/* 높이 — 기본 4:5(minHeight). 행이 많거나 한마디가 있으면 다닥다닥 붙이지 않고 카드가 아래로 늘어난다(사용자 2026-10-11). 캡처는 늘어난 높이 그대로 */}
+    <View style={{ width, minHeight: height, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
       {/* 종이 — 흰 바탕 웜 그라데이션(화이트 카드와 동일) */}
       <LinearGradient colors={['#FFFDF8', '#F2EBDC']} start={{ x: 0.35, y: 0 }} end={{ x: 0.65, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
@@ -112,8 +113,8 @@ export function RecapCard({ recap, playerName = '', width = 320, showWith = true
           {rows.map((r, i) => <Row key={r.label} {...r} last={i === rows.length - 1} />)}
         </View>
 
-        {/* 하단 — (연) 월별 막대 / (월) 사진 띠. 없으면 여백 */}
-        <View>
+        {/* 하단 — (연) 월별 막대 / (월) 사진 띠. 없으면 여백. 카드가 늘어난 경우에도 행 리스트와 최소 18 간격 */}
+        <View style={{ marginTop: 18 }}>
           {isYear && recap.monthly ? (
             <View>
               <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 5, height: 34 }}>
