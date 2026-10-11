@@ -847,10 +847,10 @@ export function DiaryScreen({ route, navigation }) {
               톤은 가계부와 반대(크림 바탕+차콜 글자)로 둬 둘이 구분되게. */}
           <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary, borderWidth: 0.5, borderColor: C.hairline,
-              borderRadius: 15, paddingHorizontal: 10, height: 30 }}>
-            <Icon name="gear" size={fs(14)} color={C.charcoal} strokeWidth={2} />
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.charcoal, includeFontPadding: false }}>설정</Text>
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.bgSecondary, borderWidth: 1.2, borderColor: C.burgundy,
+              borderRadius: 15, paddingHorizontal: 10, height: 30 }}>{/* 흰 알약이 바탕에 묻힘(사용자) → 버건디 테두리·글자 */}
+            <Icon name="gear" size={fs(14)} color={C.burgundy} strokeWidth={2.2} />
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(12), color: C.burgundy, includeFontPadding: false }}>설정</Text>
           </TouchableOpacity>
         </View>
         {/* paddingRight 80→104 — 가계부가 아이콘(36)→텍스트 알약(~60)으로 넓어져 이름과 안 겹치게 */}
