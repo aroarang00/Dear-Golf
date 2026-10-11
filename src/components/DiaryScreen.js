@@ -1085,7 +1085,9 @@ export function DiaryScreen({ route, navigation }) {
               {/* 결산 입구 — 기록 탭에선 상시 띠(10월~1월=시즌 결산, 그 외=바로 지난달, 없으면 최근 달)([[record-share-redesign]]).
                   홈의 같은 띠(RecapBanner 공용)만 매월 1~10일 창. 모달 안에서 월/연 칩·‹ › 로 다른 달·작년 결산도 본다. */}
               {recapSuggest && (
-                <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+                /* 여백 — 위는 '특별한 순간' 줄이 이미 marginBottom 10+padding 4를 주므로 2만(합 16), 아래는 피드 paddingTop 6에 12를 더해 18.
+                   예전 paddingTop 12·아래 0은 '위는 너무 비고 기록 카드와는 붙었다'(사용자 2026-10-11) */
+                <View style={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 12 }}>
                   <RecapBanner diaries={diaries} period={recapSuggest} onPress={() => setRecapOpen(recapSuggest)} onCream />
                 </View>
               )}
