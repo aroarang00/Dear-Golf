@@ -268,9 +268,23 @@ export function HomeScreen({ navigation, route }) {
   //   loadFailed·hydrated도 받아 빈 상태 판정에 반영 — 기록 로드 실패를 '기록 없음'으로 위장하지 않게([[read-failure-disguise]]).
   const { diaries, reloadDiaries, loadFailed: diariesLoadFailed, hydrated: diariesHydrated } = React.useContext(DiariesContext);
   const passport = usePassportCounts(diaries, schedules);   // 우측 레일 '여권' 버튼 — 도장 수 뱃지
-  // 결산 — 12월·1월엔 연, 그 외엔 최근 지난달(기록 있는 달). 홈에선 '최근 기록' 섹션 바로 위 띠로([[record-share-redesign]])
+  // 결산 — 매월 1~10일만 띠. 10월~1월엔 시즌(연), 그 외엔 바로 지난달(기록 있을 때). 홈에선 '최근 기록' 섹션 바로 위([[record-share-redesign]])
   const recapSuggest = React.useMemo(() => suggestRecap(diaries), [diaries]);
   const [recapOpen, setRecapOpen] = useState(null);   // 열 기간 {year, month|null}, 닫힘=null
+  // 결산 푸시 탭 → 결산 모달 자동 오픈(App.js data.type==='recap' → openRecap={year, month|null}).
+  //   콜드스타트엔 diaries가 아직 비어 있어 hydrated 후에 연다(openScheduleSheetId와 같은 pending 패턴).
+  const [pendingRecap, setPendingRecap] = useState(null);
+  useEffect(() => {
+    const p = route?.params?.openRecap;
+    if (!p) return;
+    navigation.setParams({ openRecap: undefined });
+    setPendingRecap(p);
+  }, [route?.params?.openRecap]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!pendingRecap || !diariesHydrated) return;
+    setRecapOpen({ year: pendingRecap.year, month: pendingRecap.month ?? null });
+    setPendingRecap(null);
+  }, [pendingRecap, diariesHydrated]);
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
   const [pendingQuickAlarm, setPendingQuickAlarm] = useState(null); // '이대로 자동' 모드 — 식사시각만 묻는 가벼운 프롬프트

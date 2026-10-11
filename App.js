@@ -622,6 +622,13 @@ function App() {
         if (type === 'scoreShare') { navigationRef.navigate(ROUTES.HOME); return; }
         // 크루 초대 → 모임 탭 크루 세그먼트(2026-08-26 홈 모달→탭 이사) ([[crew-space-design]])
         if (type === 'crewInvite') { navigationRef.navigate(ROUTES.MEET, { view: 'crew' }); return; }
+        // 월·시즌 결산 푸시(CF monthlyRecapPushTick) → 홈 + 결산 카드 모달 바로 열기(HomeScreen openRecap, 기록 로드 후)
+        if (type === 'recap') {
+          const year = Number(data.year);
+          const month = data.month == null || data.month === '' ? null : Number(data.month);
+          navigationRef.navigate(ROUTES.HOME, year ? { openRecap: { year, month: Number.isFinite(month) ? month : null } } : undefined);
+          return;
+        }
         const openPostId = (POST_DETAIL_TYPES.has(type) && data.postId) ? data.postId : null;
         navigationRef.navigate(ROUTES.MEET, openPostId ? { openPostId } : undefined);
       } catch (e) { /* 네비게이션 미준비 */ }

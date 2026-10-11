@@ -27,47 +27,7 @@ const db = getFirestore();
 // 중요 알림(priority='important')은 토글 무시하고 항상 발송.
 // =============================================================
 
-// ownerUid — 이 토큰의 주인. DeviceNotRegistered(앱 삭제·토큰 만료) 티켓이 오면 그 토큰을 정리해
-//   다음부터 헛발송을 막고 '테스터별 안 옴'을 진단 가능하게 한다(주면 정리, 없으면 로깅만).
-async function sendExpoPush(token, title, body, data = {}, ownerUid = null) {
-  if (!token) return;
-  try {
-    const fetch = (await import('node-fetch')).default;
-    const res = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: token,
-        sound: 'default',
-        title,
-        body,
-        data,
-        channelId: 'default',   // Android — 클라가 만든 고중요도 채널로 라우팅(heads-up·소리)
-        priority: 'high',       // 도즈/저전력에서도 지연 없이(FCM high priority)
-      }),
-    });
-    if (!res.ok) {
-      logger.warn('[push] expo api non-ok', res.status);
-      return;
-    }
-    // 티켓 검사 — 200이어도 개별 티켓에 DeviceNotRegistered 등 오류가 담김. 무시하면 조용한 미수신 진단 불가.
-    const json = await res.json().catch(() => null);
-    const ticket = Array.isArray(json?.data) ? json.data[0] : json?.data;
-    if (ticket && ticket.status === 'error') {
-      logger.warn('[push] ticket error', ticket.message || '', ticket.details?.error || '');
-      // 죽은 토큰 정리 — 더는 유효하지 않은 토큰은 users 문서에서 제거(다음 발송부터 스킵)
-      if (ownerUid && ticket.details?.error === 'DeviceNotRegistered') {
-        await db.doc(`users/${ownerUid}`).update({ pushToken: FieldValue.delete() }).catch(() => {});
-      }
-    }
-  } catch (e) {
-    logger.warn('[push] send fail', e?.message);
-  }
-}
+const { sendExpoPush } = require('./push');   // Expo 발송 + DeviceNotRegistered 토큰 정리(2026-10-11 분리, 월 결산 푸시와 공용)
 
 // 팬아웃 상한 — audience(초대·공유) 푸시 대상 수 제한. 악의적으로 audienceUids를 크게 넣어
 //   user read·푸시를 폭증시키는 남용 방어. 정상 사용(소수 동반자·친구 소그룹)은 한참 못 미침.
@@ -569,6 +529,10 @@ exports.bannedExpiryTick = scheduled.bannedExpiryTick;
 exports.monthlyPenaltyCountTick = scheduled.monthlyPenaltyCountTick;
 exports.permanentBanFinalizeTick = scheduled.permanentBanFinalizeTick;
 exports.locationLogExpiryTick = scheduled.locationLogExpiryTick;
+
+// 월 결산 푸시 — 매월 1일 10:00 KST, 지난달 라운딩이 있는 사용자에게 결산 카드 안내(12월 1일엔 시즌 결산). ([[record-share-redesign]])
+const recapPush = require('./recapPush');
+exports.monthlyRecapPushTick = recapPush.monthlyRecapPushTick;
 
 // =============================================================
 // §D 콘텐츠 신고 — ./contentReports.js (CF5)

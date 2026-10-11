@@ -838,6 +838,8 @@ export function MyPageModal({ visible, onClose }) {
                   { key: 'scheduleInvite', iconName: 'calendar', icon: '🗓️', label: '일정 초대', sub: '친구가 일정에 초대하면 알려드려요' },
                   { key: 'mealSuggestion', iconName: 'bowl', icon: '🍲', label: '함께 식사', sub: '동반자가 식사 장소를 정하면 알려드려요' },
                   { key: 'scoreShare', iconName: 'chart', icon: '📊', label: '스코어 공유', sub: '동반자가 스코어를 공유하면 알려드려요' },
+                  // 월간 결산 — CF(monthlyRecapPushTick, 매월 1일 10시)가 notifyPrefs.recap을 읽음. 지난달 라운딩 있는 사람에게만 감.
+                  { key: 'recap', iconName: 'chart', icon: '🗂️', label: '월간 결산', sub: '매월 1일, 지난달 라운딩 결산 카드를 알려드려요' },
                   // 라운딩 평가 요청 토글 제거 — 전체공개 비활성으로 매너 평가 시스템 휴면 ([[project_roundup_public_disabled]])
                 ].map((item, i, arr) => {
                   const prefs = userProfile.notifyPrefs || {};
