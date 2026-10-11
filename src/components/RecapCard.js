@@ -37,16 +37,17 @@ function Row({ label, value, sub, last }) {
   );
 }
 
-export function RecapCard({ recap, playerName = '', width = 320 }) {
+// showWith / showName — 공유 모달 토글(사용자 2026-10-11 "동반자 표시 선택"). 동반자 이름은 남의 정보라 끄고 공유할 수 있어야 한다.
+export function RecapCard({ recap, playerName = '', width = 320, showWith = true, showName = true }) {
   const height = Math.round(width * 1.25);
   const isYear = recap.month == null;
   const PAD = 22;
-  const name = (playerName || '').trim();
+  const name = showName ? (playerName || '').trim() : '';
 
   // 평균 변화 — 좋아진 것만 말한다. 나빠졌거나 같으면 보조 문구 생략(숫자는 그대로).
   const delta = (recap.avg != null && recap.prevAvg != null) ? Math.round((recap.avg - recap.prevAvg) * 10) / 10 : null;
   const avgSub = delta != null && delta < 0 ? `${isYear ? '지난해' : '지난달'}보다 ${Math.abs(delta)}타 ↓` : '';
-  const top = recap.topCompanions || [];
+  const top = showWith ? (recap.topCompanions || []) : [];
   const withValue = top.length ? top.slice(0, 2).map(c => c.name).join(', ') : '';
   const withSub = top.length ? `${top[0].count}회${top.length > 2 ? ` 외 ${top.length - 2}명` : ''}` : '';
 

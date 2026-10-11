@@ -18,7 +18,9 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
   const [alert, setAlert] = useState(null);
   const [busy, setBusy] = useState(false);
   const [period, setPeriod] = useState(initial);   // {year, month|null}
-  useEffect(() => { if (visible) setPeriod(initial); }, [visible, initial]);
+  const [showWith, setShowWith] = useState(true);   // 함께한 사람 표시(동반자 이름 — 남의 정보라 끄고 공유 가능, 사용자 2026-10-11)
+  const [showName, setShowName] = useState(true);   // 내 이름 표시
+  useEffect(() => { if (visible) { setPeriod(initial); setShowWith(true); setShowName(true); } }, [visible, initial]);
 
   const periods = useMemo(() => listRecapPeriods(diaries), [diaries]);
   const isYear = !!period && period.month == null;
@@ -81,10 +83,20 @@ export function RecapShareModal({ visible, onClose, diaries, playerName = '', in
 
             <ViewShot ref={cardRef} options={{ format: 'png', quality: 1 }} style={{ width: CARD_WIDTH, alignSelf: 'center' }}>
               <View style={{ backgroundColor: 'transparent', width: CARD_WIDTH }}>
-                <RecapCard recap={recap} playerName={playerName} width={CARD_WIDTH} />
+                <RecapCard recap={recap} playerName={playerName} width={CARD_WIDTH} showWith={showWith} showName={showName} />
               </View>
             </ViewShot>
 
+            {/* 표시 토글 — 라운딩 카드와 같은 칩. 동반자가 없는 기간이면 '함께한 사람' 칩은 숨김 */}
+            {(recap.topCompanions?.length > 0 || playerName) && (
+              <View style={{ marginTop: 16 }}>
+                <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, marginBottom: 8 }}>카드에 표시</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {recap.topCompanions?.length > 0 ? chip('함께한 사람', showWith, () => setShowWith(v => !v)) : null}
+                  {playerName ? chip('이름', showName, () => setShowName(v => !v)) : null}
+                </View>
+              </View>
+            )}
             <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: 12, lineHeight: fs(17), textAlign: 'center' }}>
               카드 이미지로 공유돼요. Dear Golf 마크가 들어가요.
             </Text>
