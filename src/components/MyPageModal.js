@@ -428,7 +428,7 @@ export function MyPageModal({ visible, onClose }) {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <AppTextInput
                         style={[myS.nickInput, { flex: 1 }]}
-                        value={nickname} onChangeText={(t) => setNickname(t.slice(0, 10))}
+                        value={nickname} onChangeText={(t) => setNickname(t.slice(0, 6))} /* 10→6자(2026-10-11) — 명함 한 줄 20px 보장. 기존 긴 닉네임은 수정 시 잘림 */
                         onSubmitEditing={handleSaveNickname}
                         returnKeyType="done"
                         autoFocus

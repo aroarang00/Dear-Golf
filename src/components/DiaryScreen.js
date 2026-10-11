@@ -138,17 +138,6 @@ export function DiaryScreen({ route, navigation }) {
     setEditingStatus(false);
   };
   const [showMyPage, setShowMyPage] = useState(false); // 설정 (마이페이지)
-  // 명함 이름 글자 크기 — 우측 알약(가계부·설정)이 폭 140을 차지해 좁은 안드(360dp)에선 한글 5자(20px)부터 줄바꿈(사용자 2026-10-11 지적).
-  //   컬럼 폭을 재서 한 줄에 들어가는 크기로 내린다(한글 1em·그 외 0.62em 추정, 13~20px). 안드는 adjustsFontSizeToFit이
-  //   커스텀 폰트에서 안 줄어([[responsive-zoom-backlog]]) 직접 계산. 그래도 넘치면 numberOfLines=1 말줄임.
-  const [nameColW, setNameColW] = useState(0);
-  const nameFont = useMemo(() => {
-    const name = userProfile.nickname || '나';
-    if (!nameColW) return fs(20);
-    const em = [...name].reduce((acc, ch) => acc + (/[ㄱ-ㆎ가-힣]/.test(ch) ? 1 : 0.62), 0);
-    const avail = nameColW - 12;   // marginLeft 12
-    return Math.max(fs(13), Math.min(fs(20), Math.floor(avail / Math.max(1, em))));
-  }, [nameColW, userProfile.nickname]);
   const [dmChat, setDmChat] = useState(null);    // DM 푸시 딥링크(openDmUid)로 연 대화방 { uid, name } — 목록 진입점은 친구 탭으로 이관([[dm-design]])
   const [gradeModalOpen, setGradeModalOpen] = useState(false); // 신뢰 등급 설명
   const [mannerModalOpen, setMannerModalOpen] = useState(false); // 매너 등급 설명
@@ -831,9 +820,10 @@ export function DiaryScreen({ route, navigation }) {
         contentContainerStyle={{ paddingBottom: insets.bottom + 92 }}>{/* 플로팅 탭바(≈insets+66) 가림 방지 */}
       {/* 명함 영역 — 헤더 제거, 아바타 + 닉네임·등급 + 주최/참석, 우상단에 💰·⚙️ */}
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14, backgroundColor: C.bgPrimary }}>
-        {/* 💰·⚙️ — iOS는 이름(marginTop:0)이 위에 붙어 top:14면 아이콘이 이름보다 ~5px 아래로 떨어짐 → iOS만 top 올려 이름과 맞춤.
-            안드는 이름 marginTop:8이라 14가 맞음([[rn-platform-gotchas]] 명함 정렬). */}
-        <View style={{ position: 'absolute', top: Platform.OS === 'android' ? 14 : 8, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
+        {/* 가계부·설정 알약 — 절대좌표(우상단, 이름 줄과 겹침)에서 아바타 줄 '위' 오른쪽 정렬 한 줄로(2026-10-11).
+            이유: 알약 둘이 우측 140을 먹어 좁은 안드(360dp)에선 한글 5자부터 줄바꿈 → 닉네임 6자 제한과 함께 이름 줄 폭을 통째로 확보.
+            글자 축소·말줄임 없이 20px 6자(≈120dp)가 어느 폰에서도 한 줄(사용자 요구). 명함 높이 +38 정도. */}
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginBottom: 8 }}>
           {/* 가계부 — 💰 이모지 → 텍스트 알약(사용자 2026-07-03). 가계부 모달 톤(차콜딥+골드)과 통일. */}
           <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -854,7 +844,7 @@ export function DiaryScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
         {/* paddingRight 80→104 — 가계부가 아이콘(36)→텍스트 알약(~60)으로 넓어져 이름과 안 겹치게 */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 140 }}>{/* 104→140 — 설정도 글자 알약이 되어 우측 폭 ↑ */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>{/* paddingRight 제거 — 알약이 위 줄로 가서 이름 폭 전부 사용 */}
           {/* 아바타 — 탭하면 사진 변경 액션시트 */}
           <View>
             <TouchableOpacity activeOpacity={0.8} onPress={() => setAvatarSheetOpen(true)}
@@ -874,18 +864,18 @@ export function DiaryScreen({ route, navigation }) {
             {/* 💬 메시지(DM) 진입은 친구 탭 헤더로 이관 — 테스터 발견성 피드백(2026-06-13, [[dm-design]]). 푸시 딥링크는 아래 Modal로 유지. */}
           </View>
           {/* 이름+마일스톤 / 라이프베스트 / 멘트 — 친구모집 전환으로 신뢰·매너·주최·참석 제거([[roundup-friend-redesign]]) */}
-          <View style={{ flex: 1 }} onLayout={(e) => setNameColW(e.nativeEvent.layout.width)}>
+          <View style={{ flex: 1 }}>
             {/* 이름 — 옆은 깔끔하게(배지 미부착). 마일스톤은 아래 흐린 줄로. */}
             {/* 이름 탭 → 설정(마이페이지). 톱니만으론 '설정이 숨어 있다'(사용자 2026-10-11) — 프로필을 누르는 습관을 받아준다. */}
             <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.6} style={{ alignSelf: 'flex-start' }} accessibilityLabel="설정 열기">
-              <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: nameFont, color: C.charcoal, marginLeft: 12, marginTop: Platform.OS === 'android' ? 8 : 0 }}>{myName}</Text>
+              <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12 }}>{myName}</Text>
             </TouchableOpacity>
             {/* 멘트(상태 메시지) — 이름 아래 line 2로 올림(마일스톤 칩과 위치 스왑, 2026-06-14). 한 줄·인용·연한 톤.
                 버튼(💰·⚙️)보다 아래라 우측 여백 되찾아(marginRight 음수) 폭 확보 */}
             {/* 한마디 — 탭하면 하단 시트로 넓게 편집(좁은 명함 인라인 대신, 2026-06-24). 평소엔 표시 + pen 힌트. */}
             {/* 안드는 닉네임을 살짝 내려(💰와 세로 분리) 한마디도 함께 내려감 → 한마디 자체 marginTop은 공통 7(2026-06-24). */}
             <TouchableOpacity onPress={() => { setStatusDraft(myStatus); setEditingStatus(true); }} activeOpacity={0.6}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 7, marginLeft: 12, marginRight: -64 }}>
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 7, marginLeft: 12 }}>
               <Text numberOfLines={1} style={{ fontFamily: myStatus ? F.sysM : F.sys, fontSize: fs(13),
                 color: myStatus ? 'rgba(61,57,53,0.7)' : C.warmGray, lineHeight: 22, flexShrink: 1 }}>
                 {myStatus ? `"${myStatus}"` : '한마디 입력하기'}
@@ -894,7 +884,7 @@ export function DiaryScreen({ route, navigation }) {
             </TouchableOpacity>
             {/* 마일스톤 — line 3(버튼 아래)로 내려 칩이 💰와 안 겹치게(스왑). 획득 훈장 느낌 골드 배지, 탭→안내 ([[milestone_badges]]) */}
             <TouchableOpacity onPress={() => setMilestoneInfoOpen(true)} activeOpacity={0.7}
-              style={{ alignSelf: 'stretch', marginTop: 9, marginLeft: 12, marginRight: -60 }}>
+              style={{ alignSelf: 'stretch', marginTop: 9, marginLeft: 12 }}>
               {(medals.rounds != null || medals.courses != null) ? (
                 <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap' }}>
                   {[medals.rounds != null ? `라운딩 ${medals.rounds}` : null,
