@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { C } from '../../constants/colors';
 import { Spinner } from './Spinner';
 import { primePhotoRatio } from './PhotoViewer';
-import { setPhotoRatio } from '../../utils/photoRatio';
+import { setPhotoRatio, getPhotoRatio, ratiosReady } from '../../utils/photoRatio';
 import { useDiag } from '../../utils/diag';   // ★임시 진단 — 화면 오버레이 스위치
 
 // 초점(focus) 지정 커버 이미지 — resizeMode="cover"는 항상 가운데를 자르지만,
@@ -15,6 +15,16 @@ import { useDiag } from '../../utils/diag';   // ★임시 진단 — 화면 오
 //    (기존 Image.getSize 별도 호출=이중 다운로드 제거). 6f5da8f 재적용(ec7a584 dev 되돌림이 미복구였음 [[image-load-speed]]).
 //  - 로딩 중(특히 원격 친구 사진)엔 검은 칸 대신 스피너로 '불러오는 중' 표시.
 const _sizeCache = new Map(); // uri → { w, h }
+// ★첫 프레임부터 올바른 경로(2026-10-11, 사용자 "사진 중간이 살짝 접혔다 펴짐") — 치수(src)를 모르면 cover(가운데)로 그렸다가
+//   onLoad 뒤 '프레임보다 긴 세로'면 focal(위쪽 초점)로 갈아타며 사진이 몇 px 위로 미끄러졌다. _sizeCache는 메모리뿐이라
+//   앱을 켤 때마다 매 사진이 이걸 반복. 영속 비율 캐시(photoRatio: 잰 값·저장된 ar 힌트)로 합성 치수를 만들어 처음부터 같은 경로로.
+//   초점 계산엔 비율만 쓰이므로 절대 px는 의미 없음.
+const _seedSrc = (uri) => {
+  const c = _sizeCache.get(uri);
+  if (c) return c;
+  const r = getPhotoRatio(uri);
+  return (r && Number.isFinite(r) && r > 0) ? { w: Math.round(1000 * r), h: 1000 } : null;
+};
 // ★임시 진단(2026-09-17) — 친구 피드 첫 카드만 흐린 문제 추적. 원인 잡으면 제거. dev 전용.
 const DIAG = __DEV__;
 const _tail = (u) => (typeof u === 'string' ? u.split('?')[0].slice(-22) : String(u));
@@ -37,7 +47,7 @@ function isCenter(focus) {
 //   자동 상단초점·fitWhole(블러+통짜) 분기를 건너뛴다 → 조정 전엔 기존과 동일한 중앙 크롭, 드래그하면 평행이동.
 export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = false, forceFocus = false }) {
   const explicit = forceFocus ? !!focus : !isCenter(focus);   // 사용자가 크롭·초점을 직접 지정한 사진
-  const [src, setSrc] = useState(() => _sizeCache.get(uri) || null);
+  const [src, setSrc] = useState(() => _seedSrc(uri));
   // ★2026-09-21 실험 — 캐시 유무와 무관하게 모든 사진이 같은 상태 흐름(loading true → onLoad → false)을 탄다.
   //   진단 결과 '첫 카드만 흐림'의 유일한 차이가 "치수 캐시가 있어 스피너·로드 후 재렌더 없이 마운트"였다
   //   (경로·틀·원본·로드 횟수 전부 동일). 스피너 깜빡임은 아래 slow(120ms 지연)로 막는다.
@@ -52,12 +62,15 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
   //   안 하면 옛 loading/src가 남아 ①스피너 고착(onLoadEnd 누락 케이스) ②옛 사진 잔상.
   //   + 안전 타임아웃 — 어떤 이유로 로드 이벤트가 다 누락돼도 스피너가 영영 안 도는 일이 없게(무한로딩 근본 차단).
   useEffect(() => {
-    const cached = _sizeCache.get(uri) || null;
+    const cached = _seedSrc(uri);
     if (DIAG) console.log('[FocalImage] mount', _tail(uri), 'frame', Math.round(width), 'x', Math.round(height), 'cachedSrc', cached ? `${cached.w}x${cached.h}` : 'none', 'focus', focus ? `${focus.x},${focus.y}` : '-');
     setSrc(cached);
     setLoading(true);
     const t = setTimeout(() => setLoading(false), 8000);
-    return () => clearTimeout(t);
+    // 콜드 스타트 직후 — 영속 비율 캐시가 아직 안 읽혔으면 로드 완료 때 한 번 더 심는다(사진 로드보다 훨씬 빠름)
+    let alive = true;
+    if (!cached) ratiosReady.then(() => { if (alive) { const s2 = _seedSrc(uri); if (s2) setSrc(prev => prev || s2); } });
+    return () => { alive = false; clearTimeout(t); };
   }, [uri]);
   useEffect(() => {
     if (!loading) { setSlow(false); return undefined; }
@@ -89,7 +102,7 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
       setPhotoRatio(uri, w / h);
       onRatio && onRatio(w / h);
     }
-    if (src) return;   // 초점 없는 사진도 치수를 재둔다 — 세로 자동 초점 판정에 필요
+    if (_sizeCache.has(uri)) return;   // 실측이 이미 있으면 끝. 합성 치수(_seedSrc)였다면 아래서 실측으로 바꿔 둔다(비율 같아 경로·초점 불변)
     if (w && h) { const s = { w, h }; _sizeCache.set(uri, s); setSrc(s); }
   };
   // 진단 — 네이티브가 실제로 화면에 그린 횟수(onDisplay)
