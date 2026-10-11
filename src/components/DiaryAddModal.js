@@ -15,7 +15,7 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { isVideoOverLimit, VIDEO_MAX_MB } from '../utils/mediaLimits';
 import { C, F, fs } from '../constants/colors';
 import { COURSE_TAGS, COURSE_TAG_COLORS, COURSE_TAG_OPPOSITES, WEEKDAYS } from '../constants/data';
-import { searchGolfCourses } from '../utils/golfCourses';
+import { searchGolfCourses, searchGolfCoursesLocal, getGolfCourses } from '../utils/golfCourses';   // 저장 전 구장명 검증(마스터 매칭·후보 제안)
 import { addUserCourse, findUserCourseById } from '../utils/userCourses';
 import { getRecentCourses, addRecentCourse } from '../utils/recentCourses'; // 최근 검색한 골프장(일정 추가와 동일 UX)
 import { getSubCoursesForCourse } from '../utils/golfCourses';   // 세부코스 칩 제안(시드된 구장)
@@ -34,7 +34,7 @@ import { ScorecardPreviewModal } from './ScorecardPreviewModal';   // 읽기 전
 import { createScoreShare } from '../utils/roundScoreShares';   // 동반자 스코어 공유([[companion-design]] §11 Phase C)
 import { normalizeScoreRow } from '../utils/scorecardOcr';   // 공유 전 총타 정규화(오버파 오독 방지)
 import { getUid } from '../utils/firebase';
-import { sameCourseName } from '../utils/courseNameKey';   // 구장명 비교 — 앱 전체가 쓰는 같은 기준(길이 추측 금지)
+import { sameCourseName, findCourseByName } from '../utils/courseNameKey';   // 구장명 비교 — 앱 전체가 쓰는 같은 기준(길이 추측 금지)
 import { showAppAlert } from './AppAlert';   // 모달이 닫힌 뒤 알림용(스코어 공유 실패 등)
 import { uploadRoundMedia, deleteRoundMediaFiles } from '../utils/roundMedia';   // 사진 미리 업로드(저장 즉시화)
 import * as ImageManipulator from 'expo-image-manipulator';   // 스코어카드 사진 회전(옆으로 누운 카드 재인식)
@@ -841,8 +841,15 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
 
   const savingRef = useRef(false); // 저장 중 연타 가드
   const [saving, setSaving] = useState(false); // 저장 중 버튼 표시('저장 중…') — 업로드가 길어도 죽은 버튼으로 안 보이게
-  const handleSave = async () => {
+  // 목록에 없는 구장명 확인(2026-10-12) — 약칭·오타로 저장하면 여권 도장이 같은 구장인데 따로 생긴다(stampKeyOf가 마스터 매칭 실패 시 이름 키).
+  //   저장 직전에 마스터(getGolfCourses)와 대조해 없으면 한 번 묻고, 비슷한 구장 후보(searchGolfCoursesLocal 상위 3)를 버튼으로 준다.
+  //   '이 이름으로 저장'을 누른 이름은 ref에 적어 다시 묻지 않는다. 해외 라운딩은 마스터에 없으니 건너뜀.
+  const courseConfirmedRef = useRef('');
+  // arg: 버튼 onPress 이벤트(무시) | true(이름 확인됨) | { course, courseObj }(후보 구장으로 교체 — setState 반영을 기다리지 않고 바로 저장)
+  const handleSave = async (arg) => {
     if (savingRef.current) return;
+    const courseOverride = (arg && typeof arg === 'object' && typeof arg.course === 'string') ? arg : null;
+    const courseConfirmed = arg === true;
     // 공개범위 해석 — friends/private은 단독, 그룹(복수)이면 group + 선택 그룹들 멤버 합집합 스냅샷 ([[friend_groups]])
     let vis;
     if (privacy.includes('private')) {
@@ -919,7 +926,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
       } finally { savingRef.current = false; setSaving(false); }
       return;
     }
-    const finalCourse = selectedCourse || courseSearch.trim();
+    const finalCourse = courseOverride?.course || selectedCourse || courseSearch.trim();
+    const finalCourseObj = courseOverride?.courseObj || selectedCourseObj;
     if (!finalCourse) {
       setSaveError('골프장을 입력해주세요');
       return;
@@ -927,6 +935,26 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
     if (!score || isNaN(parseInt(score)) || parseInt(score) <= 0) {
       setSaveError('스코어를 입력해주세요');
       return;
+    }
+    if (!overseas && !courseOverride && !courseConfirmed && courseConfirmedRef.current !== finalCourse) {
+      const master = await getGolfCourses().catch(() => []);
+      if (master.length && !findCourseByName(master, finalCourse)) {
+        const cands = (await searchGolfCoursesLocal(finalCourse).catch(() => [])).slice(0, 3);
+        setOverlay({
+          title: `'${finalCourse}'은 구장 목록에 없어요`,
+          message: '같은 구장을 다른 이름으로 적으면 여권 도장이 따로 생겨요.\n정확한 이름인지 확인해 주세요.',
+          buttons: [
+            ...cands.map(c => ({ text: `${c.name}으로 저장`, onPress: async () => {
+              const saved = await addUserCourse({ name: c.name, loc: c.loc, x: c.x, y: c.y, kakaoId: c.kakaoId });
+              setSelectedCourseObj(saved); setSelectedCourse(saved.name); setCourseSearch(saved.name);
+              handleSave({ course: saved.name, courseObj: saved });
+            } })),
+            { text: '이 이름으로 저장', onPress: () => { courseConfirmedRef.current = finalCourse; handleSave(true); } },
+            { text: '다시 입력', style: 'cancel' },
+          ],
+        });
+        return;
+      }
     }
     // 메모는 선택 — 점수+구장만으로 저장 허용(일상글이 사진만으로 저장되는 것과 일관, 사용자 2026-06-29).
     setSaveError('');
@@ -966,8 +994,8 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
           .slice(0, 3)
           .map(c => ({ name: c.name, isMe: false, ...(c.friendUid ? { friendUid: c.friendUid } : {}) })),
       ],
-      courseId: selectedCourseObj?.id || (initial && initial.courseId) || null,
-      courseLoc: selectedCourseObj?.loc || (initial && initial.courseLoc) || null, // 코스 주소 동봉 — 지역탭 분류용([[region-classification]])
+      courseId: finalCourseObj?.id || (initial && initial.courseId) || null,
+      courseLoc: finalCourseObj?.loc || (initial && initial.courseLoc) || null, // 코스 주소 동봉 — 지역탭 분류용([[region-classification]])
       subCourse: (subCourse || '').trim(), // 코스(세부코스 라벨) — 선택 입력, 구장 매칭과 무관 ([[schedule-booker]])
       // 일정 진입 동선이면 initial.scheduleId가 prefill됨. 폼 안 '불러오기'로 고른 경우 pickedScheduleId 우선.
       // 같은 날 일정 N건 + 다이어리 매칭의 비대칭 차단([[home-multi-schedule-same-day]] 룰3).
