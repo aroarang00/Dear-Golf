@@ -76,7 +76,10 @@ import { FriendSelectModal } from './FriendSelectModal';
 import { ScheduleInviteInbox } from './ScheduleInviteInbox';
 import { FriendRequestInbox } from './FriendRequestInbox';
 import { RoundupInviteInbox } from './RoundupInviteInbox';
-import { ScoreShareInbox } from './ScoreShareInbox';   // 동반자 스코어 공유 수신 — 기록화면에서 홈으로 이동(안 쓰는 유저도 홈에서 바로 인지, 2026-07-23)
+import { ScoreShareInbox } from './ScoreShareInbox';
+import { RecapBanner } from './RecapBanner';             // 월·연 결산 입구 띠 — 최근 기록 위(사용자 2026-10-11, 기록 탭과 공용)
+import { RecapShareModal } from './RecapShareModal';
+import { suggestRecap } from '../utils/recap';   // 동반자 스코어 공유 수신 — 기록화면에서 홈으로 이동(안 쓰는 유저도 홈에서 바로 인지, 2026-07-23)
 import { FriendBadgeContext } from '../contexts/FriendBadgeContext';
 import { MealDecisionBar } from './MealDecisionBar';
 import { showAppAlert } from './AppAlert';
@@ -265,6 +268,9 @@ export function HomeScreen({ navigation, route }) {
   //   loadFailed·hydrated도 받아 빈 상태 판정에 반영 — 기록 로드 실패를 '기록 없음'으로 위장하지 않게([[read-failure-disguise]]).
   const { diaries, reloadDiaries, loadFailed: diariesLoadFailed, hydrated: diariesHydrated } = React.useContext(DiariesContext);
   const passport = usePassportCounts(diaries, schedules);   // 우측 레일 '여권' 버튼 — 도장 수 뱃지
+  // 결산 — 12월·1월엔 연, 그 외엔 최근 지난달(기록 있는 달). 홈에선 '최근 기록' 섹션 바로 위 띠로([[record-share-redesign]])
+  const recapSuggest = React.useMemo(() => suggestRecap(diaries), [diaries]);
+  const [recapOpen, setRecapOpen] = useState(null);   // 열 기간 {year, month|null}, 닫힘=null
   const [showTooltip, setShowTooltip] = useState(false);
   const [pendingAlarmSchedule, setPendingAlarmSchedule] = useState(null);
   const [pendingQuickAlarm, setPendingQuickAlarm] = useState(null); // '이대로 자동' 모드 — 식사시각만 묻는 가벼운 프롬프트
@@ -2269,6 +2275,10 @@ export function HomeScreen({ navigation, route }) {
             };
             return (
             <View style={{ marginTop: 60, paddingHorizontal: SIDE_PAD }}>
+              {/* 결산 띠 — 최근 기록 섹션 바로 위(사용자 2026-10-11). 기록 탭 피드 상단과 같은 RecapBanner */}
+              {recapSuggest && (
+                <RecapBanner diaries={diaries} period={recapSuggest} onPress={() => setRecapOpen(recapSuggest)} style={{ marginBottom: 18 }} />
+              )}
               {/* ★섹션 타이틀(2026-08-26) — fs15로는 사진 배경에 묻혀 약함(사용자) → fs21+옅은 그림자로 통일(18도 작다 피드백).
                   섹션 간격도 44→60(사용자 "간격 더"). '전체보기 ›'는 타이틀 줄 우측(카드 밖) — 타이틀=구분자, 카드=내용물로 역할 분리 */}
               <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -2465,6 +2475,8 @@ export function HomeScreen({ navigation, route }) {
 
       {/* ★골프 가계부 — 홈 요약 카드 탭. 기록(다이어리) 헤더 알약과 같은 모달 재사용 */}
       <GolfLedgerModal visible={showLedger} onClose={() => setShowLedger(false)} diaries={diaries} />
+      <RecapShareModal visible={!!recapOpen} onClose={() => setRecapOpen(null)} diaries={diaries}
+        playerName={(userProfile?.realName || userProfile?.nickname || '').trim()} initial={recapOpen} />
 
       <ScheduleSheetModal
         visible={showScheduleModal}

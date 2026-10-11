@@ -22,7 +22,8 @@ import { loadFriendData, DEFAULT_FRIEND_GROUPS } from '../utils/friendGroups';
 import { ShareMomentModal } from './ShareMomentModal';   // 특별한 순간·마일스톤 카드(라운딩 카드는 RoundShareModal로 분리, 2026-10-10)
 import { RoundShareModal } from './RoundShareModal';     // 라운딩 카드 공유 — 한 화면 간소화([[record-share-redesign]])
 import { RecapShareModal } from './RecapShareModal';     // 월·연 결산 카드
-import { suggestRecap, recapTitle } from '../utils/recap';
+import { RecapBanner } from './RecapBanner';             // 결산 입구 띠(홈과 공용)
+import { suggestRecap } from '../utils/recap';
 import { DiaryCard } from './DiaryCard';
 import { DiaryRowCompact } from './DiaryRowCompact';   // 요약보기 — 사진 없는 한 줄 목록
 import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모션(맥동·nudge) 공용 래퍼
@@ -1079,16 +1080,11 @@ export function DiaryScreen({ route, navigation }) {
                 </View>
               ) : null)}
 
-              {/* 결산 입구 — 지난달(12월·1월엔 올해) 결산 카드 한 줄([[record-share-redesign]] 2026-10-10).
-                  건별 카드와 달리 '때'가 있어 공유 동기가 있는 카드. 닫기 없이 상시(기록 있는 동안) — 모달 안에서 ‹ › 로 다른 달·해도 본다. */}
+              {/* 결산 입구 — 지난달(12월·1월엔 올해) 결산 띠([[record-share-redesign]]). 홈 '최근 기록' 위에도 같은 띠(RecapBanner 공용).
+                  닫기 없이 상시(기록 있는 동안, 사용자 10-11 "거슬리지 않음") — 모달 안에서 ‹ › 로 다른 달·해도 본다. */}
               {recapSuggest && (
                 <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-                  <TouchableOpacity onPress={() => setRecapOpen(recapSuggest)} activeOpacity={0.85}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#2A2622', borderRadius: 12, borderWidth: 1, borderColor: '#C9A84C55', paddingVertical: 12, paddingHorizontal: 14 }}>
-                    <Icon name="chart" size={fs(18)} color="#E8D9A0" strokeWidth={1.8} />
-                    <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), color: '#EFE7CC' }}>{recapTitle(recapSuggest)}</Text>
-                    <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: '#C9A84C' }}>카드 보기 ›</Text>
-                  </TouchableOpacity>
+                  <RecapBanner diaries={diaries} period={recapSuggest} onPress={() => setRecapOpen(recapSuggest)} />
                 </View>
               )}
 
