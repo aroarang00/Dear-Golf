@@ -70,8 +70,8 @@ export function RecapCard({ recap, playerName = '', width = 320, showWith = true
   const roundDays = new Set((recap.rounds || []).map(r => parseInt(String(r.date || '').split('.')[2], 10)).filter(Boolean));
   const topLabel = isYear ? `${recap.year} SEASON` : `${MONTHS_EN[recap.month - 1]} ${recap.year}`;
 
+  // 높이 — 기본 4:5(minHeight). 행이 많거나 한마디가 있으면 다닥다닥 붙이지 않고 카드가 아래로 늘어난다(사용자 2026-10-11). 캡처는 늘어난 높이 그대로
   return (
-    {/* 높이 — 기본 4:5(minHeight). 행이 많거나 한마디가 있으면 다닥다닥 붙이지 않고 카드가 아래로 늘어난다(사용자 2026-10-11). 캡처는 늘어난 높이 그대로 */}
     <View style={{ width, minHeight: height, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }}>
       {/* 종이 — 흰 바탕 웜 그라데이션(화이트 카드와 동일) */}
       <LinearGradient colors={['#FFFDF8', '#F2EBDC']} start={{ x: 0.35, y: 0 }} end={{ x: 0.65, y: 1 }}
