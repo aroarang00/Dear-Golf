@@ -89,11 +89,6 @@ function DiaryCardBase({ item, onPress, onShare, avgScore, isFirstSingle, varian
       .then(() => { setDiaries && setDiaries(prev => prev.map(d => (d.id === item.id ? { ...d, photos: patched } : d))); })
       .catch(e => { _arBackfilled.delete(item.id); if (__DEV__) console.warn('[DiaryCard] ar backfill fail', item.id, e?.message); });
   };
-  // ★임시 진단(2026-09-17) — 친구 피드 첫 카드 흐림 추적. 카드 틀(4:3·1:1·4:5)이 언제 정해지는지. 원인 잡으면 제거.
-  useEffect(() => {
-    if (__DEV__) console.log('[DiaryCard] frame', variant, String(firstPhotoUri(item.photos) || '').split('?')[0].slice(-22), 'ar', photoAr ? photoAr.toFixed(3) : 'null', '→', frameAspect.toFixed(3));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photoAr]);
   // ★캐시 하이드레이션 경쟁 보정(2026-08-26) — 카드가 디스크 캐시 로드보다 먼저 마운트되면 초기값이 null이라
   //   기본 4:3으로 그렸다가 사진 로드 후 틀이 바뀌며 '작았다가 확 커지는' 점프가 남는다. 로드 완료 직후
   //   (사진 로드보다 훨씬 빠름) 캐시를 한 번 재조회해 이미지가 뜨기 전에 틀을 확정한다.

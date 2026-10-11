@@ -6,7 +6,7 @@ import { ensureMyRefCode } from './referral';
 
 // 친구/모임 초대 — 골프 모임 단톡방에 통째로 붙여넣기 좋은 공용 초대.
 // 친구 화면 헤더와 라운지 빈 상태가 같은 문구를 쓰도록 한 곳에 둔다 ([[lounge-positioning]] 공존·흡수).
-export const INVITE_LINK = 'https://deargolf.app'; // TODO: 출시 시 실제 스토어/랜딩 링크로 교체
+export const INVITE_LINK = 'https://deargolf.app'; // 실제 랜딩(스토어 안내·약관 호스팅) — links.js WEB_BASE와 같은 도메인
 
 // 평문(텍스트+링크 한 메시지) — 카카오 피드 카드는 받는 쪽에서 링크가 안 열리는 문제로 폐기(2026-07-03).
 //   링크는 마지막 줄에 단독으로 — 카톡이 자동 링크화 + 미리보기를 붙여줘 탭 동선이 확실.

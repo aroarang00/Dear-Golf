@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  StatusBar, View, Text, TouchableOpacity, ScrollView,
+  StatusBar, View, Text, TouchableOpacity,
   Share, Modal, LayoutAnimation, Platform, UIManager, AppState, Animated, Easing,
-  Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'; // 확대 시 콘텐츠가 탭바 덮는 것 방지(하단 여백)
@@ -99,10 +98,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 //   안드는 상태바와 안 붙게, iOS는 공간 여유라 더 내리고 버튼·간격을 크게. 한 곳만 고치면 둘이 같이 움직임.
 const _railAnd = Platform.OS === 'android';
 const RAIL_TOP = _railAnd ? 16 : 26;    // 2026-09-23 12px 위로 — 사용자 "알림 종 위치를 좀 올리고 싶다"(지금은 여권 버튼이 혼자 있을 때 이 좌표를 쓴다 — 종이 뜨면 RAIL_STACK_TOP 묶음)
-const RAIL_STEP = _railAnd ? 80 : 88;
 const RAIL_BTN = _railAnd ? 44 : 50;     // 버튼 원 지름
 const RAIL_ICON = _railAnd ? 26 : 30;    // 크루 라인 아이콘
-const RAIL_SEND = _railAnd ? 28 : 32;    // 메시지 종이비행기(살짝 큼)
 // 알림 종 + 여권이 같이 뜰 때의 세로 묶음(2026-09-30) — 여권은 평소 종 자리(RAIL_TOP)에 혼자 있고, 미확인 알림이 생기면
 //   종이 그 위로 올라와 둘이 붙는다(사용자 선택 2번). 2번 슬롯(RAIL_TOP+RAIL_STEP)은 달력 줄과 겹쳐서 안 쓴다.
 //   둘이 붙을 땐 글자 라벨을 빼고 간격을 좁혀 달력 월 라벨 줄(안드 ≈125 / iOS ≈123) 위에서 끝나게 한다.
@@ -244,7 +241,6 @@ export function HomeScreen({ navigation, route }) {
   const [scheduleJumpTo, setScheduleJumpTo] = useState(null); // 캘린더 열 때 점프할 날짜('YYYY.MM.DD') — '+N개 더' 카드용
   const [editScheduleTarget, setEditScheduleTarget] = useState(null);
   const [pendingScheduleChange, setPendingScheduleChange] = useState(null); // 전파 일정 변경 반영 대기 1건 { schedule, pc } — 홈 상단 맥동 배너
-  const [groupSharedCounts, setGroupSharedCounts] = useState({});
   // 이야기(댓글) 안읽음 — 그룹별 마지막 본 시각(로컬, 친구탭 NEW 점과 동일 패턴) + 홈에 보이는 그룹 댓글 스레드
   const [commentSeen, setCommentSeen] = useState({});     // { groupId: millis }
   const [commentThreads, setCommentThreads] = useState({}); // { groupId: [comments] } — 안읽음 계산용
@@ -350,7 +346,6 @@ export function HomeScreen({ navigation, route }) {
     loop.start();
     return () => { loop.stop(); dmShake.setValue(0); };
   }, [dmUnread]);
-  const dmShift = dmShake.interpolate({ inputRange: [-1, 1], outputRange: [-4, 4] });
   // 안읽음 0(idle)일 때 DM 버튼이 너무 밋밋(그냥 표식)해 은은하게 숨쉬듯 맥동(호흡 스케일)만.
   //   안읽음(>0) 생기면 진동(buzz)에 양보 — 루프 정지 + 값 0(스케일1)이라 두 애니가 겹치지 않음.
   const dmBreathe = useRef(new Animated.Value(0)).current;
@@ -365,7 +360,6 @@ export function HomeScreen({ navigation, route }) {
   }, [dmUnread]);
   // 맥동을 scale→opacity로 — iOS는 얇은 테두리(1.5·1.2px) 원을 scale하면 매 프레임 테두리를 재샘플링해
   //   가장자리가 찌글거림(native driver로도 못 막음, 사용자 2026-06-20). 기하학 변형 없는 opacity 브리드로 대체.
-  const dmIdleOpacity = dmBreathe.interpolate({ inputRange: [0, 1], outputRange: [1, 0.45] });
   // DM 안읽음 재조회 — 세 군데(마운트·홈 복귀·푸시 수신)가 같은 계산을 하므로 하나로 모은다.
   //   ★차단 목록(blockedUsers)이 계산에 들어간다 — 예전엔 세 곳이 각자 userProfile을 클로저로 잡고 있어
   //   누굴 차단해도 뱃지 숫자가 안 줄었다(DM창을 열었다 닫아야 반영). 08-04 ESLint exhaustive-deps로 발견.
@@ -401,8 +395,6 @@ export function HomeScreen({ navigation, route }) {
     loop.start();
     return () => { loop.stop(); crewPulse.setValue(0); };
   }, [crewInvite]);
-  const crewHaloScale = crewPulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.7] });
-  const crewHaloOpacity = crewPulse.interpolate({ inputRange: [0, 0.12, 1], outputRange: [0, 0.5, 0] });
   // 받은 크루 초대 실시간 구독 → 글로우 on/off (수락·거절 시 자동 꺼짐)
   useEffect(() => {
     if (!currentUid) { setCrewInvite(0); return; }
@@ -465,7 +457,6 @@ export function HomeScreen({ navigation, route }) {
     loop.start();
     return () => loop.stop();
   }, [crewHasNew]); // eslint-disable-line react-hooks/exhaustive-deps
-  const crewNewScale = crewNewPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.07] });
   // 홈 탭 복귀(focus) 시 안읽음 카운트 재조회 — 마운트·DM모달 닫힘에만 갱신하면, 푸시로 다른 탭에서 DM을 읽었을 때
   //   홈의 dmUnread가 옛 값(>0)으로 남아 안읽음 없는데도 버튼이 흔들리던 버그 방지(+자리 비운 새 DM도 반영). 2026-06-18.
   useEffect(() => {
@@ -752,22 +743,6 @@ export function HomeScreen({ navigation, route }) {
     return () => sub.remove();
   }, [checkSharedScheduleUpdates]);
 
-  useEffect(() => {
-    const shared = (schedules || []).filter(s => s.groupId);
-    if (!shared.length) { setGroupSharedCounts({}); return; }
-    let cancelled = false;
-    (async () => {
-      const counts = {};
-      for (const s of shared) {
-        try {
-          const g = await getScheduleGroup(s.groupId);
-          if (g?.memberUids) counts[s.groupId] = g.memberUids.length;
-        } catch {}
-      }
-      if (!cancelled) setGroupSharedCounts(counts);
-    })();
-    return () => { cancelled = true; };
-  }, [schedules]);
 
   // userCourses 사전 로드 — 코스명으로 user-added 코스 매칭하기 위함.
   //   Firestore에서 복원·머지(프레시 설치 시 코스 비어 코스이동·">"가 사라지던 문제 회복, [[data-migration]]).
@@ -1979,38 +1954,7 @@ export function HomeScreen({ navigation, route }) {
                 {node}
               </View>
             );
-            const labelCourseTxt = (label) => (
-              <Text style={[homeS.memoCardCourse, { fontSize: fs(11) }]} numberOfLines={1}>
-                {label} · <Text style={{ color: 'rgba(255,255,255,0.55)' }}>{courseLabel}</Text>
-              </Text>
-            );
 
-            // 슬라이드 조립 — 기본 카드(케이스별 1장) + 골퍼코멘트(케이스1 한정) + 스토어 광고(storeAds 원격).
-            //   storeAds가 비어 있으면 슬라이드 구성·동작 모두 종전과 동일.
-            // 케이스 3·4: 첫 방문
-            const firstVisitCard = (
-              <View style={[homeS.memoCard, SLIDE_FIX]}>
-                <View style={homeS.memoCardTop}>
-                  <View style={[homeS.memoBadgeFirst, { backgroundColor: '#C8D9E6' }]}>
-                    <Text style={[homeS.memoBadgeTxt, { color: C.navy }]}>첫 방문</Text>
-                  </View>
-                  {labelCourseTxt('골퍼 코멘트')}
-                </View>
-                <View style={homeS.memoCardBottom}>
-                  {hasGolfer ? (
-                    <>
-                      <Text style={homeS.commentTxt} numberOfLines={2} ellipsizeMode="tail">"{topComment.txt}"</Text>
-                      <Text style={homeS.commentWho}>{topComment.who}</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Text style={[homeS.memoTxt, { color: 'rgba(255,255,255,0.4)', borderLeftColor: 'rgba(255,255,255,0.2)' }]} numberOfLines={1}>아직 골퍼 코멘트가 없어요</Text>
-                      <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: '#F5E6A8', marginTop: 8, alignSelf: 'flex-start' }}>첫 번째 코멘트의 주인공이 되어보세요</Text>
-                    </>
-                  )}
-                </View>
-              </View>
-            );
 
             // 미기록(첫 방문) 안내 메모 카드 — 이동 없이 정보만. 항상 캐러셀 유지 + 기록 유도(사용자 2026-07-20)
             const firstVisitMemoCard = (
@@ -2087,61 +2031,7 @@ export function HomeScreen({ navigation, route }) {
                 </View>
               </View>
             );
-            const golferCard = hasGolfer ? (
-              <View style={[homeS.commentCard, SLIDE_FIX]}>
-                <View style={homeS.memoCardTop}>
-                  <View style={homeS.memoBadgeComment}>
-                    <Text style={[homeS.memoBadgeTxt, { color: '#C8D9E6' }]}>골퍼 코멘트</Text>
-                  </View>
-                  <Text style={[homeS.memoCardCourse, { flex: 1 }]} numberOfLines={1}>{courseLabel}</Text>
-                  {/* 닉네임을 top 우상단으로 — 하단 본문(2줄)이 한줄메모와 같은 minHeight 안에 들어와 캐러셀 높이 안 튐 */}
-                  <Text style={homeS.commentWhoTop} numberOfLines={1}>{topComment.who}</Text>
-                </View>
-                <View style={homeS.memoCardBottom}>
-                  <Text style={homeS.commentTxt} numberOfLines={2} ellipsizeMode="tail">"{topComment.txt}"</Text>
-                </View>
-              </View>
-            ) : null;
 
-            // 스토어 광고 카드 — '광고판' 룩(눈에 띄어야 함, 사용자 2026-07-03).
-            //   ad.img 있으면 카드 전체를 사진이 꽉 채우고(풀블리드) 스크림 위에 텍스트, 없으면 버터골드 채움 폴백.
-            //   memoCard의 overflow:hidden+borderRadius 덕에 풀블리드가 모서리까지 깔끔. 탭 전체는 캐러셀 넘김 — 이동은 '보러 가기 →'.
-            const adCards = storeAds.slice(0, 2).map((ad, i) => {
-              const hasImg = !!ad.img;
-              // 사진 없을 땐 페일스카이 채움 — 홈에 버터가 많아 스카이로 차별화(사용자 2026-07-03)
-              return (
-                <View key={`storead${i}`} style={[homeS.memoCard, { backgroundColor: hasImg ? '#2A2622' : '#C8D9E6', borderColor: 'rgba(26,61,82,0.2)' }, SLIDE_FIX]}>
-                  {hasImg && (
-                    <>
-                      <ExpoImage source={{ uri: ad.img }} contentFit="cover" transition={0}
-                        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-                      {/* 스크림 — 사진 위 텍스트 가독성(하단으로 갈수록 진해짐) */}
-                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(18,14,10,0.30)' }} />
-                    </>
-                  )}
-                  <View style={[homeS.memoCardTop, { borderBottomColor: hasImg ? 'rgba(255,255,255,0.18)' : 'rgba(26,61,82,0.15)' }]}>
-                    <View style={[homeS.memoBadgeVisit, { backgroundColor: '#6B1E2A' }]}>
-                      <Text style={homeS.memoBadgeTxt}>스토어</Text>
-                    </View>
-                    <Text style={[homeS.memoCardCourse, { color: hasImg ? 'rgba(255,255,255,0.85)' : 'rgba(26,61,82,0.65)' }]} numberOfLines={1}>{ad.tag || '라운딩 준비물'}</Text>
-                  </View>
-                  {/* 제목 1줄 + '보러 가기' 같은 줄 — 고정 높이(SLIDE_FIX) 안에서 클립 없이 들어가는 슬림 구성 */}
-                  <View style={[homeS.memoCardBottom, { flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
-                    <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(13.5), lineHeight: fs(19),
-                      color: hasImg ? '#fff' : C.navy,
-                      textShadowColor: hasImg ? 'rgba(0,0,0,0.45)' : 'transparent', textShadowRadius: hasImg ? 4 : 0 }} numberOfLines={1}>{ad.title}</Text>
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-                      onPress={() => { const u = ad.url || STORE_URL; if (u) Linking.openURL(u).catch(() => {}); }}
-                      style={{ marginLeft: 10 }}>
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: hasImg ? '#F5E6A8' : '#6B1E2A',
-                        textShadowColor: hasImg ? 'rgba(0,0,0,0.45)' : 'transparent', textShadowRadius: hasImg ? 4 : 0 }}>보러 가기 →</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            });
 
             // 미기록(첫 방문)도 항상 캐러셀 — 안내 메모 + 골퍼코멘트 2장(고정 시 빈 공간 해소 + 기록 유도, 사용자 2026-07-20)
             const slides = isFirstVisit

@@ -24,7 +24,7 @@ const _seedSrc = (uri) => {
   const r = getPhotoRatio(uri);
   return (r && Number.isFinite(r) && r > 0) ? { w: Math.round(1000 * r), h: 1000 } : null;
 };
-// ★임시 진단(2026-09-17) — 친구 피드 첫 카드만 흐린 문제 추적. 원인 잡으면 제거. dev 전용.
+// 개발 콘솔 로그 스위치(dev 전용) — 2026-09 첫 카드 흐림 추적 때 넣은 것. 원인은 해결(ar 백필)됐고 로그는 dev에서만 찍혀 남겨둠.
 const DIAG = __DEV__;
 const _tail = (u) => (typeof u === 'string' ? u.split('?')[0].slice(-22) : String(u));
 
