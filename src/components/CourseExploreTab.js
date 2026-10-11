@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useImperativeHandle, forwardRef, useContext } from 'react';
 import { DiariesContext } from '../contexts/DiariesContext';   // 지도 '다녀온 구장' 표시(2026-09-23) — 내 라운딩 기록에서 구장별 횟수·베스트
-import { isRoundDiary } from '../utils/diaryKind';
 import { SchedulesContext } from '../contexts/SchedulesContext';   // 골프 여권 — 지난 일정도 '다녀온 구장'으로 도장([[golf-passport]])
 import { GolfPassportScreen } from './GolfPassportScreen';          // 골프 여권 덮개(2026-09-29)
-import { courseKey, findCourseByName } from '../utils/courseNameKey';   // 구장 키 — 홈 '나도 가 본 구장'과 같은 기준(kakaoId 우선, 없으면 이름 정규화)
 import { View, Text, TouchableOpacity, ScrollView, Linking, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import AppTextInput from './common/AppTextInput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -29,7 +27,8 @@ import { getCurrentLocation, hasLocationPermission } from '../utils/location';
 import { getUserCourses } from '../utils/userCourses';
 import { getSavedCourses, saveSavedCoursesOrder } from '../utils/savedCourses'; // 내 저장 골프장(위시리스트)
 import { getRecentCourses, addRecentCourse, clearRecentCourses } from '../utils/recentCourses';
-import { getTop100Courses, normalizeCourseName, top100RankOf } from '../utils/top100';
+import { getTop100Courses, normalizeCourseName, top100RankOf, getManualTop100Checks } from '../utils/top100';
+import { buildPassport, getVisitedChecks } from '../utils/passport';   // 지도 '다녀온 구장' = 여권 도장 기준(2026-10-12)
 import { naverSearchUrl } from '../utils/naverMap';
 
 // 주변 연습장·스크린골프 결과 디스크 캐시 — 위치 fix 간헐 실패·카카오 일시오류(429·순단) 시 직전 성공값 폴백.
@@ -151,27 +150,25 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   //   여권 스크롤이 "살짝 멈췄다가" 움직였다(사용자 2026-09-30). 여권을 닫는 순간 지도를 올린다(그때부턴 평소 첫 진입과 같다).
   const [mapMounted, setMapMounted] = useState(!startInPassport);
   useEffect(() => { if (!passportOpen && !mapMounted) setMapMounted(true); }, [passportOpen, mapMounted]);
+  // 지도 '다녀온 구장' = 여권 도장 기준(2026-10-12, 사용자 "도장만 등록한 건 체크가 안 되네"). 예전엔 라운딩 기록만 봐서
+  //   지난 일정·직접 체크(예전에 간 구장·100대 체크)로 찍힌 도장이 지도엔 안 떴다 — 나중에 가입한 사람은 기록 없는 구장이 더 많다.
+  //   buildPassport의 도장 키(id:kakaoId | 이름 키)가 지도 pinKey와 같은 규칙. count=기록·일정 횟수(직접 체크만이면 0, manual=true).
+  const [manualKeys, setManualKeys] = useState([]);
+  const [top100Checks, setTop100Checks] = useState([]);
+  useEffect(() => {
+    if (passportOpen) return undefined;   // 여권을 닫는 순간(거기서 체크를 바꿨을 수 있음)·첫 마운트에 다시 읽는다
+    let alive = true;
+    Promise.all([getVisitedChecks(), getManualTop100Checks()])
+      .then(([v, t]) => { if (alive) { setManualKeys(v || []); setTop100Checks(t || []); } })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [passportOpen]);
   const visitedStats = useMemo(() => {
+    const pp = buildPassport({ master, top100, diaries: diaries || [], schedules: schedules || [], manualKeys, top100Checks });
     const m = new Map();
-    const cache = new Map();
-    const keyOf = (name) => {
-      if (!name) return '';
-      if (cache.has(name)) return cache.get(name);
-      const c = master.length ? findCourseByName(master, name) : null;
-      const k = c?.kakaoId ? `id:${c.kakaoId}` : courseKey(name);
-      cache.set(name, k);
-      return k;
-    };
-    (diaries || []).filter(isRoundDiary).forEach(d => {
-      const k = keyOf(d.course);
-      if (!k) return;
-      const e = m.get(k) || { count: 0, best: null };
-      e.count += 1;
-      if (typeof d.score === 'number' && d.score > 0 && (e.best == null || d.score < e.best)) e.best = d.score;
-      m.set(k, e);
-    });
+    pp.stamps.forEach((st, k) => { m.set(k, { count: st.count, best: st.best, manual: !!st.manual }); });
     return m;
-  }, [diaries, master]);
+  }, [diaries, schedules, master, top100, manualKeys, top100Checks]);
 
   // ※'주변 연습장'은 카카오 데이터 부정확으로 2026-06-20에 화면에서 뺐다(아래 '내 저장 골프장'으로 대체).
   //   그때 UI만 지우고 수집 코드가 남아, 코스 탭 열 때마다 아무도 안 보는 데이터를 받아오고 있었다.

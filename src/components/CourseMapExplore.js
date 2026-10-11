@@ -112,7 +112,7 @@ const distKm = (a, b) => {
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 };
 
-// visited: Map<구장키, {count, best}> — 내가 다녀온 구장(CourseExploreTab visitedStats). 없으면 표시 없음.
+// visited: Map<구장키, {count, best, manual}> — 내가 다녀온 구장(CourseExploreTab visitedStats = 여권 도장 기준, 2026-10-12). 없으면 표시 없음.
 export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = [], top100 = [], savedFav = [], visited = null, onPressCourse, onOpenCourseLog, onSwitchToList, onOpenPassport }, ref) {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
@@ -518,7 +518,15 @@ export const CourseMapExplore = forwardRef(function CourseMapExplore({ master = 
                 {/* 다녀온 구장 — 내 기록 횟수·베스트(홈 '나도 가 본 구장'과 같은 계산, 2026-09-23) */}
                 {(() => {
                   const v = visited?.get(pinKey(sel));
-                  if (!v || !v.count) return null;
+                  if (!v || (!v.count && !v.manual)) return null;
+                  if (!v.count) {   // 직접 체크(예전에 간 구장·100대 체크)만 있는 도장 — 횟수 대신 '직접 체크'
+                    return (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(26,61,82,0.12)', borderRadius: 9, paddingHorizontal: 8, paddingVertical: 3 }}>
+                        <Icon name="check" size={fs(11)} color={C.navy} strokeWidth={2.4} />
+                        <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.navy }}>다녀옴 · 직접 체크</Text>
+                      </View>
+                    );
+                  }
                   return (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(26,61,82,0.12)', borderRadius: 9, paddingHorizontal: 8, paddingVertical: 3.5 }}>
                       <Icon name="check" size={fs(11)} color={C.navy} strokeWidth={2.4} />
