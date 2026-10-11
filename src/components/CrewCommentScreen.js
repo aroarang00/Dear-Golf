@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, TextInput, useWindowDimensions } from 'react-native';
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 모달서 입력바를 키보드 높이만큼 들어올림(KAS 자동스크롤이 안 먹어 명령형으로)
 import { Image } from 'expo-image';
@@ -119,6 +119,7 @@ function SwipeCarousel({ media, width, onOpen }) {
 //   절대좌표 오버레이(zIndex 100)라 앨범의 액션시트가 밑에 깔려 안 보이므로, 시트는 여기서 띄우고 실행만 위임한다(2026-10-11).
 export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM, onEditPost, onDeletePost }) {
   const winW = useContentWidth();   // 폴드 펼침·태블릿은 500으로 클램프
+  const { height: winH } = useWindowDimensions();   // 고정 원글 최대 높이(45%) 계산용
   const insets = useSafeAreaInsets();
   const currentUid = useCurrentUid();
   const crewId = crew?.id;
@@ -326,10 +327,10 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM, o
         <Text style={{ flex: 1, fontFamily: F.sysB, fontSize: fs(17), color: INK, marginLeft: 6 }}>댓글{count > 0 ? ` ${count}` : ''}</Text>
       </View>
 
-      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 12 }}
-        onLayout={(e) => { scrollHRef.current = e.nativeEvent.layout.height; }}
-        showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
+      {/* 원글 고정(2026-10-11, 사용자 "글은 안 움직여도 될 것 같다") — 댓글 ScrollView 바깥으로. 긴 글·사진 여러 장은 화면 45%까지만 차지하고
+          그 안에서 따로 스크롤(nestedScrollEnabled) — 댓글 공간을 다 먹지 않게. */}
+      <View style={{ maxHeight: Math.round(winH * 0.45) }}>
+        <ScrollView bounces={false} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
         {/* 원글 요약 — 어느 글에 댓글 다는지 상단 고정 카드 */}
         <View style={{ backgroundColor: CARD, paddingHorizontal: 14, paddingTop: 13, paddingBottom: 14, borderBottomWidth: 0.5, borderBottomColor: LINE }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -362,6 +363,12 @@ export function CrewCommentScreen({ crew, post, names = {}, onClose, onOpenDM, o
             </View>
           )}
         </View>
+
+        </ScrollView>
+      </View>
+      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 12 }}
+        onLayout={(e) => { scrollHRef.current = e.nativeEvent.layout.height; }}
+        showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {/* 댓글 목록 */}
         <View style={{ paddingHorizontal: 14, paddingTop: 14 }}
