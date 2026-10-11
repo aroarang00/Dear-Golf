@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { C } from '../../constants/colors';
 import { Spinner } from './Spinner';
 import { primePhotoRatio } from './PhotoViewer';
 import { setPhotoRatio, getPhotoRatio, ratiosReady } from '../../utils/photoRatio';
-import { useDiag } from '../../utils/diag';   // ★임시 진단 — 화면 오버레이 스위치
 
 // 초점(focus) 지정 커버 이미지 — resizeMode="cover"는 항상 가운데를 자르지만,
 // 이건 focus{x,y}(0..1) 지점이 보이도록 채운 이미지를 평행이동해서 잘라낸다 ([[cover-focal-point]]).
@@ -53,10 +52,6 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
   //   (경로·틀·원본·로드 횟수 전부 동일). 스피너 깜빡임은 아래 slow(120ms 지연)로 막는다.
   const [loading, setLoading] = useState(true);
   const [slow, setSlow] = useState(false);   // 로딩이 120ms를 넘길 때만 스피너 — 캐시된 사진은 그 전에 끝나 깜빡임 없음
-  // ★임시 진단 — 마운트 틀·로드 이력을 모아 오버레이로 보여준다(프로덕션 확인용)
-  const diagOn = useDiag();
-  const diagRef = useRef({ mountW: width, mountH: height, mountCached: !!_sizeCache.get(uri), loads: 0, displays: 0, cache: '-', srcTxt: '-', urlMatch: '-' });
-  const [, bumpDiag] = useState(0);
 
   // uri가 바뀌어 이 컴포넌트 인스턴스가 재사용되면(캐러셀 ±1 윈도잉·스크롤) 상태를 새 uri에 맞춰 초기화한다.
   //   안 하면 옛 loading/src가 남아 ①스피너 고착(onLoadEnd 누락 케이스) ②옛 사진 잔상.
@@ -87,13 +82,6 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
     setLoading(false);   // 성공 로드 = 스피너 해제 (onLoadEnd가 누락돼도 여기서 확실히 꺼짐)
     const w = e?.source?.width, h = e?.source?.height;
     if (DIAG) console.log('[FocalImage] load', _tail(uri), 'src', `${w}x${h}`, 'cache', e?.cacheType, 'frame', Math.round(width), 'x', Math.round(height));
-    diagRef.current.loads += 1;
-    diagRef.current.cache = String(e?.cacheType || '?');
-    diagRef.current.srcTxt = `${w}x${h}`;
-    // 진단 — onLoad가 '이 uri'의 것인지(네이티브 뷰 재활용으로 옛 소스 이벤트가 섞이는지) 확인
-    const loadedUrl = String(e?.source?.url || '');
-    diagRef.current.urlMatch = !loadedUrl ? '?' : (loadedUrl === uri ? 'same' : `DIFF ${_tail(loadedUrl).slice(-10)}`);
-    bumpDiag((n) => n + 1);
     // 실비율을 뷰어 캐시에 심어둠 — 탭해서 열 때 첫 프레임부터 정확한 높이로 그려짐(폴백 4:5 → 실측 스냅 = '갑자기 커짐' 제거).
     if (w && h) {
       primePhotoRatio(uri, w / h);
@@ -105,8 +93,6 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
     if (_sizeCache.has(uri)) return;   // 실측이 이미 있으면 끝. 합성 치수(_seedSrc)였다면 아래서 실측으로 바꿔 둔다(비율 같아 경로·초점 불변)
     if (w && h) { const s = { w, h }; _sizeCache.set(uri, s); setSrc(s); }
   };
-  // 진단 — 네이티브가 실제로 화면에 그린 횟수(onDisplay)
-  const onDisplay = () => { diagRef.current.displays += 1; bumpDiag((n) => n + 1); };
 
   // 실제로 적용할 초점 — ①직접 지정한 값이 최우선 ②없으면 '프레임보다 길쭉한 세로'만 자동 상단 기준 ③그 외 가운데
   let eff = null;
@@ -136,16 +122,6 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
   useEffect(() => {
     if (DIAG) console.log('[FocalImage] path', _tail(uri), path, eff ? `eff=${eff.x},${eff.y}` : '');
   }, [uri, path]);
-  // ★임시 진단 오버레이 — 프로덕션에서 첫 카드가 왜 흐린지 눈으로 확인. 숨김 스위치(useDiag) 켜졌을 때만.
-  //   P=렌더경로 F=지금 틀 M=마운트 틀(캐시 여부) S=원본 px L=로드 횟수(캐시종류)
-  const d = diagRef.current;
-  const diagNode = diagOn ? (
-    <View pointerEvents="none" style={{ position: 'absolute', top: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.72)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3 }}>
-      <Text style={{ color: '#9EF59E', fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
-        {`P:${path} F:${Math.round(width)}x${Math.round(height)}\nM:${Math.round(d.mountW)}x${Math.round(d.mountH)}${d.mountCached ? '*' : ''} S:${d.srcTxt}\nL:${d.loads}(${d.cache}) D:${d.displays} U:${d.urlMatch}\n${Platform.OS === 'ios' ? 'i' : 'a'} v2 ${_tail(uri).slice(-10)}`}
-      </Text>
-    </View>
-  ) : null;
 
   // 로딩 오버레이 — 이미지 뜨기 전까지 어두운 칸 위 스피너 (onLoadEnd는 성공·실패 모두 발화해 항상 해제됨)
   const overlay = (loading && slow) ? (
@@ -164,9 +140,8 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
           blurRadius={18} cachePolicy="memory-disk" allowDownscaling={!sharp} recyclingKey={`${uri}#bg`} />
         <Image key={sizeKey} source={uri} style={{ width, height }} contentFit="contain" cachePolicy="memory-disk" allowDownscaling={!sharp}
           transition={0}
-          onLoad={onLoad} onDisplay={onDisplay} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
+          onLoad={onLoad} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
         {overlay}
-        {diagNode}
       </View>
     );
   }
@@ -176,9 +151,8 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
     return (
       <View style={[{ width, height, backgroundColor: '#15171A' }, style]}>
         <Image key={sizeKey} source={uri} style={{ width, height }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={!sharp} transition={Platform.OS === 'android' ? 0 : 150}
-          onLoad={onLoad} onDisplay={onDisplay} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
+          onLoad={onLoad} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
         {overlay}
-        {diagNode}
       </View>
     );
   }
@@ -193,9 +167,8 @@ export function FocalImage({ uri, focus, width, height, style, onRatio, sharp = 
   return (
     <View style={[{ width, height, overflow: 'hidden', backgroundColor: '#15171A' }, style]}>
       <Image key={sizeKey} source={uri} style={{ position: 'absolute', left, top, width: dispW, height: dispH }} contentFit="cover" cachePolicy="memory-disk" allowDownscaling={!sharp}
-        onLoad={onLoad} onDisplay={onDisplay} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
+        onLoad={onLoad} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} recyclingKey={uri} />
       {overlay}
-      {diagNode}
     </View>
   );
 }
