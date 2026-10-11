@@ -17,3 +17,27 @@ export function maxCrewsOf(profile) {
   const v = profile?.entitlements?.maxCrews;
   return Number.isFinite(v) ? v : DEFAULT_ENTITLEMENTS.maxCrews;
 }
+
+// 다이어리 미디어 한도 — profile.entitlements.maxPhotos/maxVideos > 없으면 기본 200/10. 초대 보상(CF)이 올린 값이 그대로 보인다.
+export function mediaQuotaOf(profile) {
+  const e = profile?.entitlements || {};
+  return {
+    maxPhotos: Number.isFinite(e.maxPhotos) ? e.maxPhotos : DEFAULT_ENTITLEMENTS.maxPhotos,
+    maxVideos: Number.isFinite(e.maxVideos) ? e.maxVideos : DEFAULT_ENTITLEMENTS.maxVideos,
+  };
+}
+
+// 내 다이어리 미디어 사용량 — photos 배열 안에 사진(문자열 또는 {uri}), 영상({type:'video'})이 섞여 있다.
+//   라운딩·일상(moment) 모두 센다(한도는 '다이어리 총량'). 서버 카운터 없이 클라 합산 — 앱이 내 기록을 전부 들고 있어 충분.
+//   ★지금은 표시만([[monetization-plan]] 1단계). 차단은 크레딧 팩과 함께 다음 빌드에서.
+export function countDiaryMedia(diaries) {
+  let photos = 0, videos = 0;
+  (diaries || []).forEach((d) => {
+    (Array.isArray(d?.photos) ? d.photos : []).forEach((it) => {
+      if (!it) return;
+      if (typeof it === 'object' && it.type === 'video') videos++; else photos++;
+    });
+  });
+  return { photos, videos };
+}
+

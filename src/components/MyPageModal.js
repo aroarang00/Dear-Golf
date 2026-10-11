@@ -28,6 +28,8 @@ import { FriendGroupManageModal } from './FriendGroupManageModal';
 import { ReportModal } from './ReportModal';
 import { MyRoundupActivityScreen } from './MyRoundupActivityScreen';
 import { nicknameChangeStatus, formatNextDate } from '../utils/nickname';
+import { mediaQuotaOf, countDiaryMedia, DEFAULT_ENTITLEMENTS } from '../utils/entitlements'; // 저장공간 표시(한도=초대 보상 반영, 사용량=클라 합산)
+import { shareInvite } from '../utils/invite';   // '친구 초대로 늘리기' — 친구 화면과 같은 초대 문구(추천인 코드 동봉)
 import { clearRecentCourses } from '../utils/recentCourses';
 import { TermsViewerModal } from './TermsViewerModal';
 import { HomeIntroModal } from './HomeIntroModal'; // 이용 안내 재열람 — 홈 띠는 1회성이라 여기가 상시 진입점
@@ -570,6 +572,52 @@ export function MyPageModal({ visible, onClose }) {
                   </View>
                 )}
               </View>
+              {/* 저장공간 — 사진·영상 총량 사용량([[monetization-plan]] 1단계, 2026-10-11). 지금은 표시만, 차단 없음.
+                  목적 = 초대 보상(+20장/+1개)이 눈에 보이게. 한도는 users.entitlements(CF만 상향), 사용량은 내 기록 photos 합산. */}
+              {(() => {
+                const quota = mediaQuotaOf(userProfile);
+                const used = countDiaryMedia(diaries);
+                const bonusPhotos = quota.maxPhotos - DEFAULT_ENTITLEMENTS.maxPhotos;
+                const bonusVideos = quota.maxVideos - DEFAULT_ENTITLEMENTS.maxVideos;
+                const rows = [
+                  { icon: 'image', label: '사진', used: used.photos, max: quota.maxPhotos, unit: '장' },
+                  { icon: 'video', label: '영상', used: used.videos, max: quota.maxVideos, unit: '개' },
+                ];
+                return (
+                  <View style={[myS.section, { paddingVertical: 12 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={[myS.sectionLabel, { marginTop: 0, marginBottom: 0 }]}>저장공간</Text>
+                      <View style={{ flex: 1 }} />
+                      <TouchableOpacity onPress={() => shareInvite()} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 4 }}>
+                        <Icon name="personAdd" size={fs(12)} color={C.burgundy} strokeWidth={2} />
+                        <Text style={{ fontFamily: F.sys, color: C.burgundy, fontSize: fs(13) }}>친구 초대로 늘리기</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {rows.map((r) => {
+                      const ratio = r.max > 0 ? Math.min(1, r.used / r.max) : 0;
+                      const tight = ratio >= 0.9;   // 90% 넘으면 색으로만 살짝 알림(차단 아님)
+                      return (
+                        <View key={r.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 }}>
+                          <Icon name={r.icon} size={fs(16)} color={C.charcoal} strokeWidth={1.9} />
+                          <Text style={{ fontFamily: F.sys, fontSize: fs(13), color: C.textPrimary, width: 32 }}>{r.label}</Text>
+                          <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: C.hairline, overflow: 'hidden' }}>
+                            <View style={{ width: `${Math.round(ratio * 100)}%`, height: '100%', borderRadius: 3, backgroundColor: tight ? '#C9612A' : C.burgundy }} />
+                          </View>
+                          <Text style={{ fontFamily: F.en, fontSize: fs(12.5), color: C.charcoal, minWidth: 74, textAlign: 'right' }}>
+                            {r.used} / {r.max}{r.unit}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6, lineHeight: 16 }}>
+                      {bonusPhotos > 0 || bonusVideos > 0
+                        ? `친구 초대로 사진 +${bonusPhotos}장 · 영상 +${bonusVideos}개 늘어났어요. 1명당 사진 +20장 · 영상 +1개 (최대 500장 · 30개)`
+                        : '친구 1명 초대마다 사진 +20장 · 영상 +1개 늘어나요 (최대 500장 · 30개)'}
+                    </Text>
+                  </View>
+                );
+              })()}
               <View style={myS.divider} />
               <View style={myS.section}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
