@@ -66,7 +66,7 @@ export const dS = StyleSheet.create({
   specialNoPhoto:  { backgroundColor: '#EDE8DC', padding: 16, alignItems: 'center', borderBottomWidth: 0.5, borderBottomColor: '#C9A84C33' },
   specialNoPhotoTxt: { fontFamily: F.enItalic, fontSize: fs(16), color: C.butter, letterSpacing: 2 },
   specialNoPhotoSub: { fontFamily: F.sys, fontSize: fs(11), color: 'rgba(255,255,255,0.75)', marginTop: 4 },
-  hofSectionLabel: { fontFamily: F.sysB, fontSize: fs(11), color: '#8B6914', letterSpacing: 3 },
+  hofSectionLabel: { fontFamily: F.sysB, fontSize: fs(11), color: '#8B6914', letterSpacing: 3, includeFontPadding: false },   // 안드 폰트 상하 여백 제거 — 줄 간격이 iOS보다 들떠 보이던 것
   hofToggle:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingVertical: 4 },
   hofCard:     { backgroundColor: '#F5F0E4', borderRadius: 14, borderWidth: 1, borderColor: '#C9A84C', overflow: 'hidden', marginBottom: 12 },
   hofHeader:   { flexDirection: 'row', alignItems: 'center', padding: 14, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: '#C9A84C33' },

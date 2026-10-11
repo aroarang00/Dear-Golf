@@ -1032,7 +1032,7 @@ export function DiaryScreen({ route, navigation }) {
           <>
             {/* ★hofHydrated 전엔 렌더 X — 저장값 로드 전 빈 티저가 iOS서 잠깐 새던 깜빡임 방지([[home_empty_state_flash]]) */}
             {hofHydrated && (hallOfFame.length > 0 ? (
-                <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+                <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>{/* 12→4 — 위 보기방식 줄(패딩 ~10)과 합쳐 안드서 '과하게 넓다'(사용자 2026-10-11) */}
                   <TouchableOpacity style={dS.hofToggle} onPress={() => { setHofExpanded(!hofExpanded); if (!hofHintSeen) dismissHofHint(); }}>
                     <Text style={dS.hofSectionLabel}>특별한 순간 · {hallOfFame.length}개</Text>
                     {/* 접혀 있으면 '펼치기'를 콕콕 nudge — 안에 특별한 순간 카드가 있음을 발견 유도 ([[attention-motion]]) */}
@@ -1066,7 +1066,7 @@ export function DiaryScreen({ route, navigation }) {
                 </View>
               ) : !hofTeaserDismissed ? (
                 /* 특별한 기록이 없을 때 — 명예의 전당 잠금 티저 ('다시 보지 않기' 전까지) */
-                <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+                <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
                   <Text style={dS.hofSectionLabel}>명예의 전당</Text>
                   <View style={{ marginTop: 10, marginBottom: 8, backgroundColor: '#2A2622', borderRadius: 14, borderWidth: 1, borderColor: '#C9A84C44', paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center' }}>
                     <Text style={{ fontSize: fs(26) }}>🔒</Text>
