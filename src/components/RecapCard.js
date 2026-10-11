@@ -80,8 +80,9 @@ export function RecapCard({ recap, playerName = '', width = 320, showWith = true
         <View>
           {/* 상단 — 기간 라벨(영문 트래킹) / Dear Golf */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontFamily: F.en, fontSize: 10, letterSpacing: 3, color: GOLD_DEEP }}>{topLabel}</Text>
-            <Text style={{ fontFamily: F.brand, fontSize: fs(14), color: INK }}>Dear Golf</Text>
+            {/* 기간 라벨 — 10px은 너무 작다(사용자 2026-10-11) → 14px 세리프 대문자·트래킹 넓게, 골드 딥. 워드마크도 한 단계 키워 균형 */}
+            <Text style={{ fontFamily: F.en, fontSize: fs(14), letterSpacing: 3.5, color: GOLD_DEEP }}>{topLabel}</Text>
+            <Text style={{ fontFamily: F.brand, fontSize: fs(15), color: INK }}>Dear Golf</Text>
           </View>
 
           {/* 히어로 — 좌: 제목(네이비)+이름 / 우: 라운딩 수(골드 큰 숫자)+단위.
