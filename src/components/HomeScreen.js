@@ -40,7 +40,6 @@ import { WeatherTransportPopup } from './WeatherTransportPopup';
 import { HomeTooltip } from './HomeTooltip';
 import { AlarmSetupModal, QuickMealPrompt } from './AlarmSetupModal';
 import { scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms, computeRoundTimeline } from '../utils/notifications';
-import { getTopComment } from '../utils/courseComments';
 import { isRoundDiary } from '../utils/diaryKind';
 import { courseKey, findCourseByName } from '../utils/courseNameKey';   // 구장 매칭 기준 하나(normalizeCourseName) — 홈 '나도 가 본 구장'·비교 줄(2026-09-21)
 import { firstPhotoUri } from '../utils/photoRatio';
@@ -292,7 +291,6 @@ export function HomeScreen({ navigation, route }) {
       return next;
     });
   };
-  const [homeTopComment, setHomeTopComment] = useState(null);
   const [wxEmoji, setWxEmoji] = useState('☀️'); // 헤더 현재 날씨 이모지
 
   // DM(메시지) — 진입점을 홈 우상단 💬로 일원화(테스터 '친구 탭은 불편' 피드백, 2026-06-17. 옛 친구 탭 💬 제거).
@@ -1105,26 +1103,8 @@ export function HomeScreen({ navigation, route }) {
     return null;
   };
 
-  // 다음 라운딩 코스 id — COURSE_LOG·userCourses 모두 해석.
-  const nextCourseId = resolveCourseLogId(next);
-
   // 코멘트 조회 키 — 상세화면(GuideScreen.commentKeyFor)과 반드시 동일 체계여야 함.
-  // 카카오로 등록된 코스는 'kakao:{kakaoId}'로 키 통일(상세에서 그 키로 저장하므로).
-  // 이게 안 맞으면 코멘트가 있어도 홈에서 못 찾아 '골퍼 코멘트 없어요'로 표시됨.
-  const nextCommentKey = (() => {
-    if (!nextCourseId) return null;
-    const d = COURSE_LOG.find(c => c.id === nextCourseId) || userCoursesList.find(c => c.id === nextCourseId);
-    return d?.kakaoId ? `kakao:${d.kakaoId}` : nextCourseId;
-  })();
-
-  // 홈 골퍼 코멘트 — 다음 라운딩 코스의 좋아요 1위 코멘트 (Firestore 공유)
-  useEffect(() => {
-    if (!nextCommentKey) { setHomeTopComment(null); return; }
-    let cancelled = false;
-    setHomeTopComment(null); // 코스 바뀜 — 이전 코스 코멘트 잔상 방지
-    getTopComment(nextCommentKey).then(c => { if (!cancelled) setHomeTopComment(c); });
-    return () => { cancelled = true; };
-  }, [nextCommentKey]);
+  // (홈 골퍼 코멘트 로더는 2026-10-11 제거 — 8-24 홈 개편에서 골퍼 코멘트가 코스 탭으로 이사한 뒤에도 Firestore 읽기만 남아 있었다)
 
   // 코스 탭으로 이동 — id로 해석되면 그 코스, 아니면 이름/kakaoId로 (GuideScreen이 카카오 검색해 연다).
   //   일정엔 코스 이름이 항상 있으므로 '코스 가기'는 항상 동작 (로컬 userCourses·courseId 유무와 무관, [[course-name-input]]).
