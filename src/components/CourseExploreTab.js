@@ -148,8 +148,23 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   // ★여권으로 바로 들어온 첫 진입(홈 레일·내 스코어·새 도장 '여권 보기')이면 지도를 나중에 올린다(2026-09-30).
   //   코스 탭이 처음 열리는 순간이라 지도 핀 478개가 여권 밑에서 같이 마운트되는데, 그 2~3초 동안 메인 스레드가 잠겨
   //   여권 스크롤이 "살짝 멈췄다가" 움직였다(사용자 2026-09-30). 여권을 닫는 순간 지도를 올린다(그때부턴 평소 첫 진입과 같다).
-  const [mapMounted, setMapMounted] = useState(!startInPassport);
-  useEffect(() => { if (!passportOpen && !mapMounted) setMapMounted(true); }, [passportOpen, mapMounted]);
+  //   ★목록 모드도 같은 이유로 보류(2026-10-13, 사용자 "목록일 때 잠깐 먹통 됐다가 스크롤됨") — 목록 덮개 밑에서 핀 477개가
+  //   만들어지는 동안 메인 스레드가 잠겨 목록 스크롤이 멈췄다. 지도는 '처음 지도 모드가 되는 순간' 한 번 올리고 그 뒤론
+  //   절대 내리지 않는다(언마운트 금지 원칙 유지 — 아래 '한 번 올리면 절대 안 내림' 주석). 디스크의 저장 모드를 읽기 전(콜드 스타트
+  //   초기값 'map')에 올려 버리면 헛수고라, 저장 모드 확인(viewModeReady)까지 기다린다.
+  const [viewMode, setViewModeState] = useState(MAP_OK ? (viewModeCache || 'map') : 'list');
+  const [viewModeReady, setViewModeReady] = useState(!!viewModeCache || !MAP_OK);
+  useEffect(() => {
+    if (viewModeCache || !MAP_OK) return;
+    AsyncStorage.getItem(VIEW_MODE_KEY).then(v => {
+      if (v === 'list' || v === 'map') { viewModeCache = v; setViewModeState(v); }
+    }).catch(() => {}).finally(() => setViewModeReady(true));
+  }, []);
+  const setViewMode = (m) => { showTabBar(); viewModeCache = m; setViewModeState(m); AsyncStorage.setItem(VIEW_MODE_KEY, m).catch(() => {}); };
+  const [mapMounted, setMapMounted] = useState(false);
+  useEffect(() => {
+    if (!mapMounted && !passportOpen && viewModeReady && viewMode === 'map') setMapMounted(true);
+  }, [passportOpen, mapMounted, viewModeReady, viewMode]);
   // 지도 '다녀온 구장' = 여권 도장 기준(2026-10-12, 사용자 "도장만 등록한 건 체크가 안 되네"). 예전엔 라운딩 기록만 봐서
   //   지난 일정·직접 체크(예전에 간 구장·100대 체크)로 찍힌 도장이 지도엔 안 떴다 — 나중에 가입한 사람은 기록 없는 구장이 더 많다.
   //   buildPassport의 도장 키(id:kakaoId | 이름 키)가 지도 pinKey와 같은 규칙. count=기록·일정 횟수(직접 체크만이면 0, manual=true).
@@ -178,15 +193,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const [screenMsg, setScreenMsg] = useState('');
   const [screenExpanded, setScreenExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false); // 당겨서 새로고침 표시 (주변 시설 재시도)
-  // 지도/목록 모드 — 기본 지도. 선택은 디스크에 기억(모듈 캐시로 상세 복귀 시 깜빡임 없음).
-  const [viewMode, setViewModeState] = useState(MAP_OK ? (viewModeCache || 'map') : 'list');
-  useEffect(() => {
-    if (viewModeCache || !MAP_OK) return;
-    AsyncStorage.getItem(VIEW_MODE_KEY).then(v => {
-      if (v === 'list' || v === 'map') { viewModeCache = v; setViewModeState(v); }
-    }).catch(() => {});
-  }, []);
-  const setViewMode = (m) => { showTabBar(); viewModeCache = m; setViewModeState(m); AsyncStorage.setItem(VIEW_MODE_KEY, m).catch(() => {}); };
+  // 지도/목록 모드 — 기본 지도. 선택은 디스크에 기억(모듈 캐시로 상세 복귀 시 깜빡임 없음). 선언은 위(mapMounted 앞).
   const [savedExpanded, setSavedExpanded] = useState(false); // 내 저장 골프장 더보기
   const [savedFav, setSavedFav] = useState([]); // 내 저장 골프장(위시리스트) — 코스 상세 ★ 저장분
   const [favEditMode, setFavEditMode] = useState(false); // 내 저장 골프장 순서 편집(↑/↓)
@@ -371,7 +378,7 @@ export const CourseExploreTab = forwardRef(function CourseExploreTab({ onSelectC
   const visibleScreen = screenExpanded ? screen : screen.slice(0, 5);
   const moreScreen = screen.length - visibleScreen.length;
 
-  // ── 지도는 '항상 마운트'(2026-08-27 ANR 처방) — 목록 모드에선 지도 위에 목록을 불투명하게 덮는다.
+  // ── 지도는 '한 번 올리면 절대 안 내림'(2026-08-27 ANR 처방; 올리는 시점은 첫 지도 모드 — mapMounted 참고) — 목록 모드에선 지도 위에 목록을 불투명하게 덮는다.
   //   전엔 토글마다 지도를 언마운트했는데, 마커 477개 해체(removeViewAt→updateMarkerIcon→setIcon
   //   바인더 호출 연쇄)가 메인 스레드를 수 초 잠가 저사양 기기 백그라운드 ANR(Sentry e16f4966)과
   //   토글 먹통의 원인이었다. 재생성 2~3초(빈 지도+스피너)도 함께 사라진다.
