@@ -20,7 +20,7 @@ import {
   settleKindLabel, settleTitle, PAY_CONFIRMED, PAY_CLAIMED,
   summarize, toggleMemberStatus, buildSettlementText, buildReminderText,
   subscribeMySettlements, updateSettlement, deleteSettlement, setSettlementArchived,
-  computeSettlement, RECEIPT_MAX, newShareToken,
+  computeSettlement, RECEIPT_MAX, MEMO_MAX, newShareToken,
 } from '../utils/settlement';
 
 // 모임 '걷기' — 총무가 참가자에게 돈을 걷는 화면. 목록 ↔ 상세 한 모달 안에서 전환.
@@ -623,12 +623,20 @@ function DetailView({ s, onSave, onDeleted, onArchive }) {
           color: allDone ? '#6B8B5E' : '#6B1E2A' }}>
           {allDone ? '전원 입금 완료' : `${sum.confirmedCount}/${sum.count} 입금 · ${won(sum.remain)}원 남음`}
         </Text>
-        {/* 덧붙인 한 줄(memo) — 정산서 머리 아래에 그대로 나간 문구("입금은 금요일까지"). 수정 중엔 칸으로 */}
+        {/* 덧붙인 메모(memo) — 정산서 머리 아래에 그대로 나간 문구("입금은 금요일까지"). 수정 중엔 칸으로.
+            ★칸은 카드(흰색)와 다른 채움색+테두리(2026-10-13, 사용자 "입력창이 없이 텍스트만 있어서 수정이 되는 건지 헷갈림" —
+            전엔 흰 카드 위 흰 칸이라 글자만 떠 보였다). 여러 줄·링크 붙여넣기 허용, 글자 수 안내(작성 화면과 동일). */}
         {editing ? (
-          <AppTextInput value={dMemo} onChangeText={t => setDMemo(t.slice(0, 120))}
-            placeholder="전달할 말 한 줄 (예: 입금은 금요일까지)" placeholderTextColor={C.warmGray}
-            style={{ marginTop: 12, backgroundColor: '#FFFFFF', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
-              fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal }} />
+          <>
+            <AppTextInput value={dMemo} onChangeText={t => setDMemo(t.slice(0, MEMO_MAX))} multiline
+              placeholder="전달할 말 (예: 입금은 금요일까지 · 식당 지도 링크)" placeholderTextColor={C.warmGray}
+              style={{ marginTop: 12, backgroundColor: C.bgPrimary, borderRadius: 10, borderWidth: 1, borderColor: C.hairline,
+                paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10, minHeight: 64, textAlignVertical: 'top',
+                fontFamily: F.sys, fontSize: fs(13.5), color: C.charcoal, lineHeight: fs(20) }} />
+            <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.textSecondary, marginTop: 5, textAlign: 'right' }}>
+              줄바꿈·링크 붙여넣기 가능 · {dMemo.length}/{MEMO_MAX}자
+            </Text>
+          </>
         ) : !!s.memo && (
           <Text style={{ fontFamily: F.sys, fontSize: fs(13.5), color: C.textSecondary, marginTop: 8 }}>{s.memo}</Text>
         )}

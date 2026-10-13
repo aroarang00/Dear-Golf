@@ -181,7 +181,7 @@ export async function createSettlement(data) {
     account: String(data.account || '').trim().slice(0, 60),   // 계좌 — 한 번 넣으면 다음에도 재사용
     accountName: String(data.accountName || '').trim().slice(0, 20),
     note: String(data.note || '').trim().slice(0, 60),         // 계산 근거 한 줄 — '내역 넣기' 정산서에 붙인다
-    memo: String(data.memo || '').trim().slice(0, 120),        // 총무가 덧붙인 한 줄("입금은 금요일까지") — 정산서 머리 아래·웹에 그대로(2026-10-01)
+    memo: String(data.memo || '').trim().slice(0, MEMO_MAX),   // 총무가 덧붙인 메모("입금은 금요일까지") — 정산서 머리 아래·웹에 그대로(2026-10-01)
     // 건별 내역 [{label:"1차 복돌이식당", amount}] — 카드문자 가맹점명을 그대로. 한 건이면 빈 배열.
     items: (Array.isArray(data.items) ? data.items : [])
       .map(i => ({ label: String(i?.label || '').trim().slice(0, 20), amount: won(i?.amount) }))
@@ -213,7 +213,7 @@ export async function updateSettlement(id, patch) {
   const p = { ...patch, ownerUid: uid, updatedAt: serverTimestamp() };
   if (p.members) p.members = p.members.map(normMember);
   if (p.total !== undefined) p.total = won(p.total);
-  if (p.memo !== undefined) p.memo = String(p.memo || '').trim().slice(0, 120);   // 상세 수정에서 고친 한 줄 메모 — create와 같은 길이 규칙
+  if (p.memo !== undefined) p.memo = String(p.memo || '').trim().slice(0, MEMO_MAX);   // 상세 수정에서 고친 메모 — create와 같은 길이 규칙
   await updateDoc(doc(db, COLLECTION, id), p);
 }
 
@@ -292,6 +292,9 @@ async function callSettlementAI(payload, names) {
 
 // 영수증 여러 장 — 1차·2차처럼 결제가 나뉘는 경우가 흔하다. 3장까지(그 이상은 오합산 위험).
 export const RECEIPT_MAX = 3;
+// 덧붙이는 메모 최대 길이 — 120→300(2026-10-13, 사용자 "링크 붙이기가 안 되네": 지도 링크 하나가 100자 가까워 당부 말과
+//   같이 못 넣었다). 줄바꿈 허용. 작성·수정·저장(create/update)·입력칸 카운터가 전부 이 값을 본다.
+export const MEMO_MAX = 300;
 
 // ★붙여넣은 문자와 영수증 사진을 한 번에 보낸다(사용자 2026-07-22).
 //   전에는 텍스트용·사진용 호출이 따로여서 매번 결제 1건씩만 보였고, 그래서 건별 내역이 안 나왔다.

@@ -21,7 +21,7 @@ import { storage, STORAGE_KEYS } from '../utils/storage';
 import { loadMyLedgers, syncDuesPaidFromSettlement, duesPeriodKey } from '../utils/ledger';   // 회비 걷기 ↔ 회비 장부
 import {
   settleKindLabel, settleTitle, PAY_PENDING, PAY_CONFIRMED,
-  splitEvenly, buildSettlementText, createSettlement, computeSettlement, RECEIPT_MAX, newShareToken,
+  splitEvenly, buildSettlementText, createSettlement, computeSettlement, RECEIPT_MAX, MEMO_MAX, newShareToken,
 } from '../utils/settlement';
 
 // 걷기 만들기 — 한 화면에 질문 하나씩 묻는 위저드(2026-10-01 전면 개편).
@@ -969,9 +969,15 @@ export function SettlementCompose({ onCreated, dirtyRef, backRef, recent, preset
       {/* 덧붙일 한 줄(사용자 제안 2026-10-01 "더 넣을 메모칸") — "입금은 금요일까지", "회비는 5일까지" 같은 당부.
           정산서 머리 아래에 그대로 들어가고 웹 링크에도 보인다. 접힌 채 시작, 적으면 위 미리보기에 바로 반영. */}
       {showMemo || memo ? (
-        <AppTextInput value={memo} onChangeText={t => setMemo(t.slice(0, 120))} autoFocus={!memo}
-          placeholder="예) 입금은 금요일까지 부탁드려요" placeholderTextColor={C.warmGray}
-          style={[input, { marginTop: 12 }]} />
+        <>
+          <AppTextInput value={memo} onChangeText={t => setMemo(t.slice(0, MEMO_MAX))} autoFocus={!memo} multiline
+            placeholder="예) 입금은 금요일까지 부탁드려요 · 식당 지도 링크" placeholderTextColor={C.warmGray}
+            style={[input, { marginTop: 12, minHeight: 72, textAlignVertical: 'top', paddingTop: 13, lineHeight: fs(22) }]} />
+          {/* 어디까지 되는지 몰랐다(사용자 2026-10-13 "줄바꿈이라든지 몇 자까지 되는지 내용이 없어") — 규칙·남은 글자 한 줄 */}
+          <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.textSecondary, marginTop: 5, textAlign: 'right' }}>
+            줄바꿈·링크 붙여넣기 가능 · {memo.length}/{MEMO_MAX}자
+          </Text>
+        </>
       ) : (
         <TouchableOpacity onPress={() => setShowMemo(true)} activeOpacity={0.7} style={{ paddingTop: 14, paddingBottom: 2, paddingHorizontal: 4 }}>
           <Text style={{ fontFamily: F.sysSb, fontSize: fs(13), color: BURGUNDY }}>+ 한 줄 덧붙이기 (입금 기한 등)</Text>

@@ -34,6 +34,10 @@ const won = (n) => Number(n || 0).toLocaleString('ko-KR');
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+// 메모 속 http(s) 링크를 눌리게(2026-10-13, 총무가 식당 지도 링크를 메모에 붙인다). ★esc를 먼저 거친 문자열에만 쓴다 —
+//   따옴표·꺾쇠는 이미 엔티티라 href로 못 빠져나가고, 뒤에 붙은 마침표·괄호는 링크에서 뺀다.
+const linkify = (escaped) => escaped.replace(/https?:\/\/[^\s<]+?(?=[.,)]*(?:\s|$))/g,
+  (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
 
 function tokenFrom(req) {
   // hosting rewrite로 오면 path가 '/s/<token>' 형태. 함수 직접 호출도 대비해 마지막 조각을 쓴다.
@@ -65,6 +69,8 @@ function page({ title, body }) {
   .wrap{max-width:460px;margin:0 auto}
   .head{font-size:20px;font-weight:700;margin:0 0 4px}
   .sub{font-size:14px;color:var(--warm);margin:0 0 22px}
+  .memo{white-space:pre-line;word-break:break-all}
+  .memo a{color:var(--warm);text-decoration:underline}
   .card{background:#fff;border-radius:16px;padding:16px 16px 8px;margin-bottom:16px}
   .row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
   .row:last-child{border-bottom:0}
@@ -128,7 +134,7 @@ function render(d, token) {
   const body = `
     <p class="head">${esc(head || '정산')}</p>
     <p class="sub">${esc(KIND_LABEL[d.kind] || '정산')}</p>
-    ${d.memo ? `<p class="sub">${esc(d.memo)}</p>` : ''}
+    ${d.memo ? `<p class="sub memo">${linkify(esc(d.memo))}</p>` : ''}
     ${accHtml}
     ${itemHtml}
     <div class="card">${rows}<div class="tot"><span>합계</span><span>${won(total)}원</span></div></div>
