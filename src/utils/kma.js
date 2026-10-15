@@ -11,35 +11,31 @@ const pad = (n) => String(n).padStart(2, '0');
 // 발표 시각 계산
 // =============================================================
 // 단기예보 base_time: 02 05 08 11 14 17 20 23 (KST). 발표 후 ~10분 이후 조회 가능.
-function getShortBaseDateTime(now = new Date()) {
+// stepsBack: 최신 회차에서 몇 회차 전 발표를 쓸지(0=최신). data.go.kr에 최신 회차가 늦게 올라와 NO_DATA일 때 폴백용.
+function getShortBaseDateTime(now = new Date(), stepsBack = 0) {
   const baseTimes = [2, 5, 8, 11, 14, 17, 20, 23];
   const h = now.getHours();
   const m = now.getMinutes();
   // 발표 후 10분 안전 마진
   const safeH = m < 10 ? h - 1 : h;
-  let bt = baseTimes.filter(t => t <= safeH).pop();
   const d = new Date(now);
-  if (bt === undefined) {
-    // 02시 이전이면 어제 23시 발표
-    d.setDate(d.getDate() - 1);
-    bt = 23;
-  }
+  let idx = baseTimes.filter(t => t <= safeH).length - 1 - stepsBack; // -1 = 02시 이전(어제 23시 발표)
+  while (idx < 0) { idx += baseTimes.length; d.setDate(d.getDate() - 1); }
   const base_date = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
-  const base_time = `${pad(bt)}00`;
+  const base_time = `${pad(baseTimes[idx])}00`;
   return { base_date, base_time };
 }
 
 // 중기예보 tmFc: 매일 06, 18시 발표. tmFc=YYYYMMDDHHMM
 // 18시 발표는 wf5*부터만 제공(D+4 누락) → 06시 발표를 우선 사용.
 // dayShift: 발표일이 오늘 기준 며칠 전인지 (필드 N 보정에 사용)
-function getMidTmFc(now = new Date()) {
-  const d = new Date(now);
-  const hh = d.getHours();
-  let fcH, dayShift;
-  if (hh >= 6) { fcH = 6; dayShift = 0; }
-  else { d.setDate(d.getDate() - 1); fcH = 18; dayShift = 1; }
-  const tmFc = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(fcH)}00`;
-  return { tmFc, dayShift };
+// 반환: 최신 회차부터 순서대로 [최신, 한 회차 전] — 최신 회차가 data.go.kr에 늦게 올라와 NO_DATA면 다음 것으로 폴백.
+function getMidTmFcCandidates(now = new Date()) {
+  const fmt = (d, fcH) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(fcH)}00`;
+  const today = new Date(now);
+  const yday = new Date(now); yday.setDate(yday.getDate() - 1);
+  if (today.getHours() >= 6) return [{ tmFc: fmt(today, 6), dayShift: 0 }, { tmFc: fmt(yday, 18), dayShift: 1 }];
+  return [{ tmFc: fmt(yday, 18), dayShift: 1 }, { tmFc: fmt(yday, 6), dayShift: 1 }];
 }
 
 // =============================================================
@@ -120,11 +116,26 @@ export async function getShortForecast(lat, lng) {
     recordLocationAccess({ providerName: 'kma', purpose: '단기예보 조회', method: 'send' });
   } catch {}
   const { nx, ny } = dfsXyConv(lat, lng);
-  const { base_date, base_time } = getShortBaseDateTime();
-  const url = `${KMA_SHORT_URL}/getVilageFcst?${keyParam()}&pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=${nx}&ny=${ny}`;
-  const data = await fetchJson(url);
-  const items = data?.response?.body?.items?.item;
   const cacheKey = wxKey('short', lat, lng);
+  // 최신 회차가 NO_DATA(resultCode 03)면 이전 회차로 최대 3회 거슬러 올라간다.
+  //   2026-10-14~15 실사례: data.go.kr에 11시·14시 발표분이 몇 시간 늦게 올라와(08시분까지만 있음) 앱이 종일 날씨 실패.
+  //   한두 회차 전 예보도 현재 시각·D+3을 충분히 덮으므로 빈 화면보다 낫다. 네트워크 오류·한도초과(22)·키오류(30)는
+  //   회차를 바꿔도 같으므로 즉시 중단(캐시 폴백).
+  let items = null;
+  for (let back = 0; back <= 3; back++) {
+    const { base_date, base_time } = getShortBaseDateTime(new Date(), back);
+    const url = `${KMA_SHORT_URL}/getVilageFcst?${keyParam()}&pageNo=1&numOfRows=1000&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=${nx}&ny=${ny}`;
+    const data = await fetchJson(url);
+    if (!data) break;
+    const got = data?.response?.body?.items?.item;
+    if (Array.isArray(got) && got.length) {
+      if (back) console.warn(`[kma] 최신 발표분 NO_DATA → ${back}회차 전(${base_date} ${base_time}) 사용`);
+      items = got;
+      break;
+    }
+    const header = data?.response?.header;
+    if (header?.resultCode !== '03') { console.warn('[kma] getVilageFcst', header?.resultCode, header?.resultMsg); break; }
+  }
   if (!items) return withWxCache(cacheKey, null, isGoodShort); // 실패 → 직전 성공값 폴백
 
   // category별 그룹핑: { fcstDate, fcstTime, category, fcstValue }
@@ -349,14 +360,21 @@ function skyToIcon(sky, pty) {
 // =============================================================
 export async function getMidForecast(loc) {
   const region = locToMidRegion(loc);
-  const { tmFc, dayShift } = getMidTmFc();
 
-  const landUrl = `${KMA_MID_URL}/getMidLandFcst?${keyParam()}&pageNo=1&numOfRows=10&dataType=JSON&regId=${region.land}&tmFc=${tmFc}`;
-  const taUrl   = `${KMA_MID_URL}/getMidTa?${keyParam()}&pageNo=1&numOfRows=10&dataType=JSON&regId=${region.temp}&tmFc=${tmFc}`;
-
-  const [landData, taData] = await Promise.all([fetchJson(landUrl), fetchJson(taUrl)]);
-  const land = landData?.response?.body?.items?.item?.[0];
-  const ta   = taData?.response?.body?.items?.item?.[0];
+  // 최신 회차가 NO_DATA(03)면 한 회차 전 발표로 폴백 (단기예보 getShortForecast와 같은 이유 — data.go.kr 반영 지연)
+  let land = null, ta = null, dayShift = 0;
+  for (const cand of getMidTmFcCandidates()) {
+    const landUrl = `${KMA_MID_URL}/getMidLandFcst?${keyParam()}&pageNo=1&numOfRows=10&dataType=JSON&regId=${region.land}&tmFc=${cand.tmFc}`;
+    const taUrl   = `${KMA_MID_URL}/getMidTa?${keyParam()}&pageNo=1&numOfRows=10&dataType=JSON&regId=${region.temp}&tmFc=${cand.tmFc}`;
+    const [landData, taData] = await Promise.all([fetchJson(landUrl), fetchJson(taUrl)]);
+    land = landData?.response?.body?.items?.item?.[0] || null;
+    ta   = taData?.response?.body?.items?.item?.[0] || null;
+    dayShift = cand.dayShift;
+    if (land && ta) break;
+    const noData = [landData, taData].some(d => d?.response?.header?.resultCode === '03');
+    if (!noData) break; // 네트워크 오류·한도초과 등은 회차를 바꿔도 같음
+    console.warn(`[kma] 중기예보 ${cand.tmFc} NO_DATA → 이전 회차 시도`);
+  }
   if (!land || !ta) return [];
 
   // dayOffset: 오늘 기준 며칠 후인지. KMA 필드명 N = dayOffset + dayShift (발표일 기준).
