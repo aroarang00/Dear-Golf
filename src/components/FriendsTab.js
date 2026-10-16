@@ -112,7 +112,7 @@ function FriendCard({ friend, palette, muted, favorite, grade, isNew, flush, onP
 export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid, onConsumeOpenFriend }) {
   const { userProfile } = React.useContext(UserContext);
   const insets = useSafeAreaInsets();
-  const { setFriendReqCount } = useContext(FriendBadgeContext);
+  const { friendReqCount, setFriendReqCount } = useContext(FriendBadgeContext); // friendReqCount=App 실시간 리스너(onSnapshot) 숫자
   const { block: blockUserFn, remaining: blockRemaining } = useBlockUser(); // 공용 차단 훅(친구·DM 통일)
   const [search, setSearch] = useState('');
   const [friends, setFriends] = useState([]);
@@ -396,7 +396,17 @@ export function FriendsTab({ navigation, onInvite, openFinderRef, openFriendUid,
   const [sentPeople, setSentPeople] = useState([]);        // 보낸 신청 표시용 — [{ id, name, realName }] (FriendFinder '보낸 신청' 탭)
   const [receivedRequests, setReceivedRequests] = useState([]);   // 받은 신청 — 마운트 useEffect가 채움
   // 받은 신청 수를 탭바 뱃지에 반영 — 친구 탭에서 수락/거절하면 즉시 점이 사라지도록 (추가 쿼리 없음)
-  useEffect(() => { setFriendReqCount(receivedRequests.length); }, [receivedRequests.length, setFriendReqCount]);
+  //   ★첫 로드 전엔 건너뜀 — 마운트 직후 빈 목록(0)으로 App 리스너가 세운 숫자를 지워 홈 배너가 잠깐 꺼지던 것 방지(2026-10-16).
+  useEffect(() => { if (friendsLoaded) setFriendReqCount(receivedRequests.length); }, [receivedRequests.length, friendsLoaded, setFriendReqCount]);
+  // 신청이 '도착'하면 목록 재조회 — 이 화면의 받은 신청은 마운트·하단 탭 재탭(tabPress) 때만 다시 받았는데,
+  //   홈 배너 '보기'(navigate)나 화면을 켜둔 사이에 온 신청은 tabPress가 안 나 옛 목록이 그대로였다(2026-10-16 사용자 제보:
+  //   홈엔 1건인데 받은 신청은 비어 있고 앱을 완전히 재시작해야 보임). App의 실시간 숫자가 내 목록보다 크면 = 모르는 신청이 있다.
+  //   '크면'만 보는 이유 — 수락·거절은 내 목록이 먼저 줄고 숫자가 따라오므로(같거나 작음) 재조회 불필요. 차단한 사람의 신청은
+  //   리스너엔 세어지고 목록엔 안 떠 숫자가 더 클 수 있는데, 재조회해도 길이가 안 바뀌어 effect가 다시 돌지 않는다(루프 없음).
+  useEffect(() => {
+    if (friendsLoaded && (friendReqCount || 0) > receivedRequests.length) setReloadKey(k => k + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [friendReqCount, friendsLoaded]); // friendsLoaded도 — 첫 로드가 끝난 시점에 한 번 대조(로드 중 숫자가 먼저 와 있던 경우)
 
   // 차단 시 친구 자동 일방 해지 ([[friend-relationship]] §2).
   // 정책: 일반 차단 = 친구 관계 일방 해지(영구). 차단 해제해도 친구는 복원 X — 재신청 필요.
