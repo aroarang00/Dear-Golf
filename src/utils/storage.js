@@ -41,6 +41,7 @@ export const STORAGE_KEYS = {
   appleTrace: '@dg_apple_trace',  // Apple 연동 흔적(true) — kakaoTrace와 동일 역할(세션 유실 시 유령 문서 방지·'Apple로 다시 로그인' 안내 판단). iOS 전용
   crewFavorites: '@dg_crew_favorites', // 크루 즐겨찾기 {crewId: true} — 기기 로컬, per-user 표시 선호(서버 미저장)
   diaryCompactView: '@dg_diary_compact_view', // 내 기록 요약보기(true) — 사진 없는 한 줄 목록. 기기 로컬 표시 선호
+  diaryPhotoView:   '@dg_diary_photo_view',   // 내 기록 사진 모아보기(true) — 사진만 3열 격자. 켜져 있으면 카드/요약보다 우선(2026-10-16)
   visitedChecks:    '@dg_visited_checks',        // 골프 여권 직접 체크한 구장 키 배열(id:kakaoId) — Firestore users.visitedChecks 백업(top100Checks 패턴)
   updateSuggestSkipped: '@dg_update_suggest_skipped', // 권장 업데이트를 '나중에'로 넘긴 버전 문자열 — 같은 버전으로 매번 조르면 그게 더 싫다. 차단(minVersion)은 이 값과 무관하게 항상 뜬다
   settlementDetail: '@dg_settlement_detail', // 카톡 정산서에 사람별 내역을 넣을지(true) — 모임마다 스타일이 달라 총무가 고른다. 기기 로컬

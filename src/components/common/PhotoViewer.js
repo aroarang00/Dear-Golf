@@ -272,7 +272,7 @@ function PinchableImage({ uri, width, height, active, onZoomChange, onSingleTap,
 // 사진은 항상 화면 가운데에 꽉 차게(contain) 띄운다. 예전엔 친구 피드에서 글(caption)을 사진 아래 붙였는데
 //   사진을 위로 올려붙이고 높이를 절반으로 잡느라, 실비율이 늦게 도착하면 사진이 위로 튀어 '들썩'였다.
 //   글은 카드의 '더보기/기록 보기'로 이미 볼 수 있어 뷰어에서는 걷어냄 (사용자 2026-08-02).
-export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, onGoToPost = null }) {
+export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, onGoToPost = null, goToPostLabel = '게시글 보기' }) {
   const { width: SW, height: SH } = useWindowDimensions();   // 살아있는 창 크기(폴드 접힘↔펼침 반응)
   const [idx, setIdx] = useState(startIndex);
   const [zoomed, setZoomed] = useState(false); // 현재 사진 확대 여부 — 확대 중 가로 페이저 잠금
@@ -405,7 +405,7 @@ export function PhotoViewer({ photos, startIndex, onClose, allowSave = false, on
           <TouchableOpacity onPress={() => onGoToPost(current)} activeOpacity={0.85}
             style={{ position: 'absolute', bottom: 42 + NAV_BOTTOM, alignSelf: 'center', zIndex: 20, flexDirection: 'row', alignItems: 'center', gap: 5,
               backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 22, paddingHorizontal: 18, paddingVertical: 11 }}>
-            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>게시글 보기</Text>
+            <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>{goToPostLabel}</Text>
             <Text style={{ fontSize: fs(15), color: '#fff', marginTop: -1 }}>›</Text>
           </TouchableOpacity>
         ) : null}

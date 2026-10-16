@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image, Modal, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Animated, useWindowDimensions } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';   // 사진 모아보기 격자 썸네일 — 뷰 크기로 다운샘플 디코드·디스크 캐시(FocalImage와 같은 엔진)
 import AppTextInput from './common/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -25,6 +26,7 @@ import { RecapBanner } from './RecapBanner';             // 결산 입구 띠(�
 import { defaultRecap } from '../utils/recap';   // 기록 탭 결산 띠 = 상시(사용자 2026-10-11 '기록 탭에선 항상'). 홈만 suggestRecap(1~10일)
 import { DiaryCard } from './DiaryCard';
 import { DiaryRowCompact } from './DiaryRowCompact';   // 요약보기 — 사진 없는 한 줄 목록
+import { PhotoViewer } from './common/PhotoViewer';     // 사진 모아보기 → 탭하면 전체 사진 뷰어(좌우 넘김, '이 기록 보기')
 import { AttentionMotion } from './common/AttentionMotion'; // 주목 유도 모션(맥동·nudge) 공용 래퍼
 import { DiaryDetail } from './DiaryDetail';
 import { DiaryAddModal } from './DiaryAddModal';
@@ -104,6 +106,7 @@ function buildSingleHofEntry(data, diaryId) {
 //   그린 뒤 요약보기로 바뀌어, 탭 이동 때마다 펼쳐보기가 번쩍였다(사용자 2026-07-22). 한 번 읽은 값을
 //   모듈에 들고 있으면 재진입 시 첫 프레임부터 올바른 모드로 그린다. null = 이 세션에서 아직 안 읽음.
 let compactPref = null;
+let photoPref = null;     // 사진 모아보기 선호값 — compactPref와 같은 세션 캐시(둘 다 읽힌 뒤에야 첫 그림)
 
 export function DiaryScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();   // 안드 내비게이션 바 인셋 — 하단 바텀시트 잘림 방지
@@ -266,19 +269,27 @@ export function DiaryScreen({ route, navigation }) {
   // 요약보기 — 사진을 안 그리는 한 줄 목록. 기록이 쌓이면 사진 카드 피드가 무거워 훑어보기 힘든 문제(테스터).
   //   기기 로컬 선호값이라 서버 저장 안 함. 요약은 행이 가벼워 한 번에 더 많이 그려도 된다(FEED_STEP).
   const [compact, setCompact] = useState(compactPref === null ? false : compactPref);
-  const [compactReady, setCompactReady] = useState(compactPref !== null);   // 앱 세션 첫 진입에만 false
+  // 사진 모아보기(2026-10-16) — 기록의 사진만 월별 3열 격자로. 켜져 있으면 카드/요약보다 우선. 선호값은 compact와 같은 방식(기기 로컬+세션 캐시).
+  const [photoView, setPhotoView] = useState(photoPref === null ? false : photoPref);
+  const [compactReady, setCompactReady] = useState(compactPref !== null && photoPref !== null);   // 앱 세션 첫 진입에만 false
   useEffect(() => {
-    if (compactPref !== null) return;   // 이미 읽어둔 세션 — 비동기 대기 없이 그대로
-    storage.load(STORAGE_KEYS.diaryCompactView, false).then(v => {
-      compactPref = !!v; setCompact(!!v); setCompactReady(true);
-    }).catch(() => { compactPref = false; setCompactReady(true); });
+    if (compactPref !== null && photoPref !== null) return;   // 이미 읽어둔 세션 — 비동기 대기 없이 그대로
+    Promise.all([storage.load(STORAGE_KEYS.diaryCompactView, false), storage.load(STORAGE_KEYS.diaryPhotoView, false)]).then(([v, pv]) => {
+      compactPref = !!v; photoPref = !!pv; setCompact(!!v); setPhotoView(!!pv); setCompactReady(true);
+    }).catch(() => { compactPref = false; photoPref = false; setCompactReady(true); });
   }, []);
-  const toggleCompact = React.useCallback(() => {
-    setCompact(prev => { const next = !prev; compactPref = next; storage.save(STORAGE_KEYS.diaryCompactView, next); return next; });
+  // 보기 방식 'cards' | 'list' | 'photos' — 알약 셋 중 하나. 사진 모드는 compact 값을 건드리지 않아 돌아오면 전 모드(카드/목록) 그대로.
+  const viewMode = photoView ? 'photos' : compact ? 'list' : 'cards';
+  const setViewMode = React.useCallback((mode) => {
+    const nextPhoto = mode === 'photos';
+    photoPref = nextPhoto; setPhotoView(nextPhoto); storage.save(STORAGE_KEYS.diaryPhotoView, nextPhoto);
+    if (!nextPhoto) { const nextCompact = mode === 'list'; compactPref = nextCompact; setCompact(nextCompact); storage.save(STORAGE_KEYS.diaryCompactView, nextCompact); }
     setFeedLimit(f => Math.max(f, 10));
   }, []);
-  const feedStep = compact ? 30 : 10;
-  useEffect(() => { setFeedLimit(compact ? 30 : 10); }, [filterKey, search, compact]);  // 필터·검색·보기전환 시 처음부터
+  const feedStep = photoView ? 60 : compact ? 30 : 10;   // 사진 격자는 셀이 가벼워 한 번에 60장(20줄)
+  useEffect(() => { setFeedLimit(photoView ? 60 : compact ? 30 : 10); }, [filterKey, search, compact, photoView]);  // 필터·검색·보기전환 시 처음부터
+  const { width: winW } = useWindowDimensions();
+  const [gridViewer, setGridViewer] = useState(null);   // 사진 모아보기 뷰어 — 시작 인덱스(전체 사진 기준), 닫힘=null
   const [showSearch, setShowSearch] = useState(false);
   const scrollRef = useRef(null);
 
@@ -683,6 +694,22 @@ export function DiaryScreen({ route, navigation }) {
     if (filterKey === '베스트 스코어') list = roundsOnly(list).filter(d => typeof d.score === 'number' && d.score > 0).sort((a, b) => a.score - b.score);
     return list;
   }, [sortedDiaries, search, filterKey]); // 매 렌더(스크롤 등) 전체 필터/정렬 재실행 방지
+  // 사진 모아보기 — 필터·검색을 통과한 기록의 사진(영상 포함)을 한 줄로 펼친다. 순서=피드 순서(최신 기록 먼저, 기록 안에선 저장 순).
+  //   { p: 원본 사진 객체(뷰어에 그대로 넘김), uri: 썸네일용(영상은 포스터), video, ym, diary } — Firestore 읽기 없음(diaries 재가공).
+  const photoItems = useMemo(() => {
+    const out = [];
+    filtered.forEach(d => {
+      (Array.isArray(d.photos) ? d.photos : []).forEach(p => {
+        const video = !!(p && typeof p === 'object' && p.type === 'video');
+        const raw = video ? (p.poster || null) : (typeof p === 'object' ? p?.uri : p);
+        if (!raw && !video) return;
+        out.push({ p, uri: raw ? resolvePhotoUri(raw) : null, video, ym: (d.date || '').slice(0, 7), diary: d });
+      });
+    });
+    return out;
+  }, [filtered]);
+  const gridPhotos = useMemo(() => photoItems.map(it => it.p), [photoItems]);   // 뷰어용(전체 사진을 좌우로 넘김)
+  const feedTotal = photoView ? photoItems.length : filtered.length;   // 무한스크롤 상한 — 모드별 총량
 
   if (selected) return (
     <>
@@ -811,7 +838,7 @@ export function DiaryScreen({ route, navigation }) {
           // 스크롤 끝 600px 전 자동 로드 — 더보기 버튼 없이 자연 무한스크롤(점진 마운트는 유지해 한 번에 다 안 올림)
           const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
           if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 600) {
-            setFeedLimit(l => (l < filtered.length ? l + feedStep : l));
+            setFeedLimit(l => (l < feedTotal ? l + feedStep : l));
           }
           onTabHideScroll(e);   // 스크롤 방향으로 하단 탭바 숨김/복귀
         }}
@@ -933,19 +960,20 @@ export function DiaryScreen({ route, navigation }) {
           {/* 보기 방식 줄 — 사진 카드 / 요약 목록 / 검색 (사용자 2026-07-21).
               필터 칩(무엇을 볼까)과 보기 방식(어떻게 볼까)을 줄로 분리. sticky 인덱스 2 블록 안이라 함께 고정된다.
               (결산 아이콘 버튼은 2026-10-11 하루 만에 제거 — 아이콘만으론 사용자도 못 찾음. 결산 입구는 위 띠가 상시로 맡는다) */}
-          <View style={dS.viewModeRow}>
-            {/* (9월 사진 흐림 진단 스위치가 있던 자리 — 10-11 원인 해결 확인 후 제거. 안드에선 투명 글자 '진단'이 비쳐 보였다) */}
+          <View style={[dS.viewModeRow, { paddingLeft: 16, paddingTop: 4 }]}>
+            {/* 보기 방식 글자 알약 — 카드 / 목록 / 사진(2026-10-16 사진 모아보기 추가). 아이콘 둘(grid·list)만 있던 때는
+                모드가 있는 줄 몰랐다는 피드백 계열(10-11 설정·결산 교훈) → 글자로. 검색은 그대로 우측 끝 아이콘. */}
+            {[['cards', '카드'], ['list', '목록'], ['photos', '사진']].map(([k, label]) => {
+              const on = viewMode === k;
+              return (
+                <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => { if (!on) setViewMode(k); }}
+                  accessibilityLabel={`${label}로 보기`} hitSlop={{ top: 8, bottom: 8 }}
+                  style={[dS.viewPill, on && dS.viewPillOn]}>
+                  <Text style={[dS.viewPillTxt, on && dS.viewPillTxtOn]}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
             <View style={{ flex: 1 }} />
-            <TouchableOpacity activeOpacity={0.7} onPress={() => { if (compact) toggleCompact(); }}
-              accessibilityLabel="사진 카드로 보기"
-              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={dS.viewModeBtn}>
-              <Icon name="grid" size={fs(17)} color={!compact ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => { if (!compact) toggleCompact(); }}
-              accessibilityLabel="요약 목록으로 보기"
-              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={dS.viewModeBtn}>
-              <Icon name="list" size={fs(17)} color={compact ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
-            </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.7} accessibilityLabel="검색"
               hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={[dS.viewModeBtn, { paddingRight: 0 }]}
               onPress={() => { if (showSearch) { setShowSearch(false); setSearch(''); } else setShowSearch(true); }}>
@@ -1098,9 +1126,70 @@ export function DiaryScreen({ route, navigation }) {
                 </View>
               ) : (
                 <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
-                  {/* 요약보기 — 사진 없는 한 줄 목록. 월이 바뀔 때만 얇은 헤더를 끼워 스코어 이력처럼 훑게 한다
-                      (색점·구분선 없이 여백으로만 구분 — 심플 모던, 사용자 2026-07-21). 탭하면 상세로 가는 건 동일. */}
-                  {compact ? (() => {
+                  {/* 사진 모아보기 — 필터를 통과한 기록의 사진만 월별 3열 정방형 격자(사진앱식). 탭 → 전체 사진 뷰어, 뷰어의
+                      '이 기록 보기'로 그 날 상세. 격자는 이 ScrollView 안에서 feedLimit 점진 마운트(비가상화 피드와 같은 방식). */}
+                  {photoView ? (() => {
+                    if (photoItems.length === 0) {
+                      return (
+                        <View style={{ alignItems: 'center', paddingTop: 36, paddingBottom: 24 }}>
+                          <Icon name="image" size={fs(26)} color={C.warmGrayLight} strokeWidth={1.6} />
+                          <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.warmGray, marginTop: 10 }}>
+                            {search.trim() || filterKey !== '전체' ? '이 조건에 사진이 있는 기록이 없어요' : '아직 사진이 있는 기록이 없어요'}
+                          </Text>
+                        </View>
+                      );
+                    }
+                    const GAP = 3;
+                    const cell = Math.floor((winW - 32 - GAP * 2) / 3);
+                    const slice = photoItems.slice(0, feedLimit);
+                    const groups = [];
+                    slice.forEach((it, i) => {
+                      const last = groups[groups.length - 1];
+                      if (last && last.ym === it.ym) last.items.push({ ...it, gi: i });
+                      else groups.push({ ym: it.ym, items: [{ ...it, gi: i }] });
+                    });
+                    // 월별 총 장수는 slice가 아니라 전체 기준(점진 마운트 중에도 '9월 · 12장'이 흔들리지 않게)
+                    const totalByYm = {};
+                    photoItems.forEach(it => { totalByYm[it.ym] = (totalByYm[it.ym] || 0) + 1; });
+                    return groups.map((g, gidx) => {
+                      const [yy, mm] = (g.ym || '').split('.');
+                      return (
+                        <View key={g.ym || gidx} style={{ marginBottom: 14 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 7, marginTop: gidx === 0 ? 2 : 6 }}>
+                            <Text style={dS.photoMonth}>{yy ? `${yy}. ${parseInt(mm, 10) || ''}` : '날짜 없음'}</Text>
+                            <Text style={dS.photoMonthCount}>{`${totalByYm[g.ym] || g.items.length}장`}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
+                            {g.items.map((it) => (
+                              <TouchableOpacity key={`${it.diary.id}-${it.gi}`} activeOpacity={0.85} onPress={() => setGridViewer(it.gi)}
+                                style={{ width: cell, height: cell, borderRadius: 4, overflow: 'hidden', backgroundColor: '#EDE8DD' }}>
+                                {/* transition 없음 — 리스트 셀에서 검게 뜨는 expo-image 함정([[expo-image-black-thumbnail]]) */}
+                                {it.uri ? (
+                                  <ExpoImage source={{ uri: it.uri }} style={{ width: cell, height: cell }} contentFit="cover" recyclingKey={it.uri} />
+                                ) : (
+                                  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icon name="video" size={fs(18)} color={C.warmGray} strokeWidth={1.8} />
+                                  </View>
+                                )}
+                                {it.video && it.uri && (
+                                  <View style={{ position: 'absolute', right: 5, bottom: 5, width: 20, height: 20, borderRadius: 10,
+                                    backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icon name="video" size={fs(11)} color="#fff" strokeWidth={2} />
+                                  </View>
+                                )}
+                                {it.diary.kind === 'moment' && (
+                                  // 일상 사진은 모서리에 작은 paleSky 점 — 피드 타임라인 점과 같은 기호(라운딩과 섞여도 구분)
+                                  <View style={{ position: 'absolute', left: 5, top: 5, width: 7, height: 7, borderRadius: 4, backgroundColor: C.paleSky }} />
+                                )}
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      );
+                    });
+                  })() : compact ? (() => {
+                    // 요약보기 — 사진 없는 한 줄 목록. 월이 바뀔 때만 얇은 헤더를 끼워 스코어 이력처럼 훑게 한다
+                    //   (색점·구분선 없이 여백으로만 구분 — 심플 모던, 사용자 2026-07-21). 탭하면 상세로 가는 건 동일.
                     // ★월별 카드 — 달마다 하얀 카드로 묶고 헤더에 그 달 요약(라운딩 수·평균·베스트) (사용자 2026-07-27).
                     //   나열식 로그 → 달별 덩어리 + 스코어 색으로 잘 친 날이 한눈에.
                     const slice = filtered.slice(0, feedLimit);
@@ -1187,6 +1276,18 @@ export function DiaryScreen({ route, navigation }) {
         loadableRounds={unrecordedRounds}
         // 같은 날·같은 구장 기록이 이미 있는지 확인용(중복 저장 방지 확인창). 내 기록 전체를 넘긴다.
         existingRounds={diaries} />
+
+      {/* 사진 모아보기 뷰어 — 격자 탭. 전체 사진을 좌우로 넘기고, '이 기록 보기'로 그 사진의 기록 상세(early return)로 간다.
+          ★메인 트리에 둔다 — 상세는 early return이라 거기선 못 띄우고, 뷰어를 닫은 뒤 setSelected로 넘어가는 순서. */}
+      {gridViewer !== null && (
+        <PhotoViewer photos={gridPhotos} startIndex={gridViewer} onClose={() => setGridViewer(null)}
+          goToPostLabel="이 기록 보기"
+          onGoToPost={(cur) => {
+            const hit = photoItems.find(it => it.p === cur) || photoItems.find(it => it.uri && cur && resolvePhotoUri(cur.uri || cur) === it.uri);
+            setGridViewer(null);
+            if (hit) setSelected(hit.diary);
+          }} />
+      )}
 
       {/* 미기록 라운딩 선택 시트 — 기록 추가 시 골라서 일정에 정확히 연결(중복·오연결 방지) */}
       <Modal visible={showPickSheet} transparent animationType="fade" onRequestClose={() => setShowPickSheet(false)}>

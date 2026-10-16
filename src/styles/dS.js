@@ -30,6 +30,14 @@ export const dS = StyleSheet.create({
   //   구분선 없음(사용자 2026-07-21) — 줄이 두 개가 되며 선까지 있으니 답답해 보였음. 아이콘 농도로 존재감을 준다.
   viewModeRow:       { flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 16, paddingBottom: 7, paddingTop: 1 },
   viewModeBtn:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 3, paddingRight: 18 },
+  // 보기 방식 글자 알약(카드·목록·사진) — 아이콘만으론 사용자도 못 찾았다(10-11 결산 버튼·설정 교훈). 모드가 셋이 되며 글자로(2026-10-16)
+  viewPill:          { paddingHorizontal: 11, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: '#E3DCCB', marginRight: 6 },
+  viewPillOn:        { backgroundColor: '#6B1E2A', borderColor: '#6B1E2A' },
+  viewPillTxt:       { fontFamily: F.sysM, fontSize: fs(12), color: C.textSecondary },
+  viewPillTxtOn:     { fontFamily: F.sysB, color: '#fff' },
+  // 사진 모아보기 월 헤더 — 격자 사이 얇게(연.월 + 장수)
+  photoMonth:        { fontFamily: F.en, fontSize: fs(15), color: C.charcoal, letterSpacing: 0.3 },
+  photoMonthCount:   { fontFamily: F.sysM, fontSize: fs(11.5), color: C.warmGray, marginLeft: 6 },
   // 요약보기 월 헤더 — 얇고 조용하게(목록의 주인공은 구장·타수). 월이 바뀔 때만 등장
   compactMonth:      { fontFamily: F.sysB, fontSize: fs(11), color: C.warmGrayLight, letterSpacing: 1.4,
                        marginTop: 22, marginBottom: 2 },
