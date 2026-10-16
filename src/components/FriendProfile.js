@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, View, Text, FlatList, TouchableOpacity, Platform } from 'react-native';
+import { Modal, View, Text, FlatList, TouchableOpacity, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image'; // 아바타 디스크캐시 — 재방문 시 카카오 CDN 재다운로드 방지 ([[image-load-speed]])
 import { SafeAreaView, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F, fs } from '../constants/colors';
@@ -20,6 +20,7 @@ import { getUid } from '../utils/firebase';
 import { createContentReport } from '../utils/contentReports';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { DMChatScreen } from './DMChatScreen';
+import { resolvePhotoUri } from '../utils/photoStorage'; // 사진 모아보기 썸네일 — dgphoto: 로컬 스킴 → 파일 경로
 
 // 친구 풀 프로필 — 프로필 / 라운딩 피드. 헤더 옵션에서 알림/숨기기/삭제 처리.
 // 옵션 액션시트는 자체 오버레이로 표시 (Modal 위 Modal 충돌 회피)
@@ -35,6 +36,10 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
   const [reportItem, setReportItem] = useState(null);      // 피드 게시물 신고 — 사유 선택 시트 ([[content-report-policy]])
   // 요약보기 — 내 기록(DiaryScreen)과 같은 선호값을 공유한다. '요약으로 보는 사람'은 어느 피드든 요약으로 보는 게 자연스러움.
   const [compact, setCompact] = useState(false);
+  // 사진 모아보기(2026-10-16) — 내 기록과 같은 선호값 키(diaryPhotoView) 공유. 이 친구의 보이는 기록 사진만 월별 3열 격자.
+  const [photoView, setPhotoView] = useState(false);
+  const [gridCard, setGridCard] = useState(null);           // 격자 뷰어 '이 기록 보기' → 그 기록 카드 한 장 오버레이(친구 기록엔 상세 화면이 없다)
+  const { width: winW } = useWindowDimensions();
   const [collapseSignal, setCollapseSignal] = useState(0);   // 프로필을 닫을 때 올려 카드 펼침을 원위치
   const [rowOpenId, setRowOpenId] = useState(null);          // 요약보기에서 그 자리에 펼친 행(한 번에 하나)
   // 하단 안전영역 인셋 — SafeAreaView 'bottom' edge 대신 스크롤 콘텐츠 paddingBottom으로 넣어야
@@ -46,7 +51,10 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
   //   ★띠를 상태바까지 키우거나 반투명·블러로 만들지 말 것 — 1차 시도에서 그렇게 했다가 "헤드를 길게 하란 게 아니다"(반려).
   const [hdrH, setHdrH] = useState(0);
   const hdrPad = insets.top + (hdrH || 60);   // 측정 전 첫 프레임 폴백(점프 최소화)
-  useEffect(() => { storage.load(STORAGE_KEYS.diaryCompactView, false).then(v => setCompact(!!v)); }, []);
+  useEffect(() => {
+    storage.load(STORAGE_KEYS.diaryCompactView, false).then(v => setCompact(!!v)).catch(() => {});
+    storage.load(STORAGE_KEYS.diaryPhotoView, false).then(v => setPhotoView(!!v)).catch(() => {});
+  }, []);
 
   // 요약보기 월별 카드용 메타 — FlatList에서 월별 카드 모양을 내려면 행마다 '그 달 첫/끝 행'만 알면 된다.
   //   ★친구 피드엔 라운딩 수·평균·베스트를 표시하지 않는다(사용자 2026-07-27): 공개여부에 따라 내게 보이는
@@ -64,12 +72,48 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
     }
     return m;
   }, [friend?.feed]);
-  const toggleCompact = (next) => { setCompact(next); storage.save(STORAGE_KEYS.diaryCompactView, next); };
+  // 보기 방식 'cards' | 'list' | 'photos' — 내 기록(DiaryScreen)과 같은 알약·같은 저장 키. 사진 모드는 compact를 안 건드려 돌아오면 전 모드 그대로.
+  const viewMode = photoView ? 'photos' : compact ? 'list' : 'cards';
+  const setViewMode = (mode) => {
+    const nextPhoto = mode === 'photos';
+    setPhotoView(nextPhoto); storage.save(STORAGE_KEYS.diaryPhotoView, nextPhoto);
+    if (!nextPhoto) { const nextCompact = mode === 'list'; setCompact(nextCompact); storage.save(STORAGE_KEYS.diaryCompactView, nextCompact); }
+  };
+  // 사진 모아보기 데이터 — 보이는 기록의 사진(영상은 포스터)을 피드 순서대로 펼치고, FlatList 항목(월 머리 1행 + 사진 3장 1행)으로 묶는다.
+  //   가상화 유지를 위해 격자를 '행' 단위 항목으로(내 기록은 비가상화 ScrollView라 통째로 그렸음). 통계(라운딩 수·평균)는 안 넣는다 — 부분 데이터.
+  const photoItems = useMemo(() => {
+    const out = [];
+    (friend?.feed || []).forEach(d => {
+      (Array.isArray(d.photos) ? d.photos : []).forEach(p => {
+        const video = !!(p && typeof p === 'object' && p.type === 'video');
+        const raw = video ? (p.poster || null) : (typeof p === 'object' ? p?.uri : p);
+        if (!raw && !video) return;
+        out.push({ p, uri: raw ? resolvePhotoUri(raw) : null, video, ym: (d.date || '').slice(0, 7), diary: d, gi: out.length });
+      });
+    });
+    return out;
+  }, [friend?.feed]);
+  const gridPhotos = useMemo(() => photoItems.map(it => it.p), [photoItems]);
+  const gridRows = useMemo(() => {
+    if (!photoItems.length) return (friend?.feed || []).length ? [{ key: 'empty', type: 'empty' }] : [];
+    const rows = [];
+    let i = 0;
+    while (i < photoItems.length) {
+      const ym = photoItems[i].ym;
+      let j = i;
+      while (j < photoItems.length && photoItems[j].ym === ym) j += 1;
+      rows.push({ key: `m-${ym || i}`, type: 'month', ym, count: j - i });
+      for (let k = i; k < j; k += 3) rows.push({ key: `r-${photoItems[k].gi}`, type: 'row', items: photoItems.slice(k, Math.min(k + 3, j)) });
+      i = j;
+    }
+    return rows;
+  }, [photoItems, friend?.feed]);
   const [reportMsg, setReportMsg] = useState(null);        // 신고 결과 안내 텍스트
   // (2026-10-05) 그룹·별명 시트는 친구 목록 ⋯/길게누르기 시트로 통일 — 여기선 제거([[friend_groups]])
   useAndroidBack(optionsOpen, () => setOptionsOpen(false)); // 옵션 시트 떠 있을 때 뒤로가기 → 닫기
   useAndroidBack(dmOpen, () => setDmOpen(false)); // 메시지 대화방 뒤로가기 → 닫기
   useAndroidBack(!!viewer, () => setViewer(null));         // 뷰어 떠 있을 때 뒤로가기 → 닫기
+  useAndroidBack(!!gridCard, () => setGridCard(null));     // 격자 '이 기록 보기' 카드 뒤로가기 → 닫기
   useAndroidBack(!!reportItem, () => setReportItem(null)); // 신고 시트 뒤로가기 → 닫기
   useAndroidBack(!!reportMsg, () => setReportMsg(null));   // 신고 결과 뒤로가기 → 닫기
   useEffect(() => { getUid().then(setMyUid).catch(() => {}); }, []);
@@ -77,7 +121,7 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
   //   dmOpen 등이 남아 같은 친구를 다시 열 때 닫았던 DM이 그대로 뜨던 버그 방지([[modal-navigation-pattern]]).
   useEffect(() => {
     if (!visible) {
-      setDmOpen(false); setOptionsOpen(false); setViewer(null);
+      setDmOpen(false); setOptionsOpen(false); setViewer(null); setGridCard(null);
       setReportItem(null); setReportMsg(null);
       setCollapseSignal(n => n + 1);   // 펼쳐둔 카드도 접기 — 같은 친구를 다시 열면 접힌 상태로(사용자 2026-07-22)
       setRowOpenId(null);              // 요약보기에서 펼쳐둔 행도 원위치
@@ -90,6 +134,7 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
   //   (안 그러면 DM 위에서 뒤로가기 시 프로필이 통째로 닫혀 목록으로 가버림). 위→아래 z 순서대로.
   const handleRequestClose = () => {
     if (viewer) { setViewer(null); return; }
+    if (gridCard) { setGridCard(null); return; }
     if (reportMsg) { setReportMsg(null); return; }
     if (reportItem) { setReportItem(null); return; }
     if (optionsOpen) { setOptionsOpen(false); return; }
@@ -169,8 +214,8 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
           {/* 전체 스크롤 — FlatList 가상화(보이는 카드만 렌더). 명함=ListHeaderComponent, 피드=data. 더보기 제거·자연 무한스크롤(perf 2단계, [[project_fullscroll_profile]]) */}
           <FlatList
             style={{ flex: 1 }}
-            data={friend.feed || []}
-            keyExtractor={(item) => item.id}
+            data={photoView ? gridRows : (friend.feed || [])}
+            keyExtractor={(item) => item.key || item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: hdrPad, paddingBottom: 32 + insets.bottom }}
             scrollIndicatorInsets={{ top: hdrPad }}
@@ -232,23 +277,72 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
                     ) : null}
                   </View>
                 </View>
-                {/* 피드 제목 줄 + 보기 방식(미리보기·요약보기) — 내 기록 화면과 같은 아이콘·같은 선호값 */}
+                {/* 피드 제목 줄 + 보기 방식 글자 알약(카드·목록·사진) — 내 기록 화면과 같은 알약·같은 선호값(2026-10-16 사진 추가) */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 14, marginBottom: 10 }}>
                   <Text style={{ fontFamily: F.sysSb, fontSize: fs(11), color: C.warmGray, letterSpacing: 1.5, flex: 1 }}>
                     라운딩 · 일상 피드
                   </Text>
-                  <TouchableOpacity activeOpacity={0.7} onPress={() => toggleCompact(false)} accessibilityLabel="사진 카드로 보기"
-                    hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }} style={{ paddingRight: 18 }}>
-                    <Icon name="grid" size={fs(17)} color={!compact ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
-                  </TouchableOpacity>
-                  <TouchableOpacity activeOpacity={0.7} onPress={() => toggleCompact(true)} accessibilityLabel="요약 목록으로 보기"
-                    hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}>
-                    <Icon name="list" size={fs(17)} color={compact ? '#6B1E2A' : C.charcoal} strokeWidth={2.1} />
-                  </TouchableOpacity>
+                  {[['cards', '카드'], ['list', '목록'], ['photos', '사진']].map(([k, label], i, arr) => {
+                    const on = viewMode === k;
+                    return (
+                      <TouchableOpacity key={k} activeOpacity={0.7} onPress={() => { if (!on) setViewMode(k); }}
+                        accessibilityLabel={`${label}로 보기`} hitSlop={{ top: 8, bottom: 8 }}
+                        style={[dS.viewPill, on && dS.viewPillOn, i === arr.length - 1 && { marginRight: 0 }]}>
+                        <Text style={[dS.viewPillTxt, on && dS.viewPillTxtOn]}>{label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </>
             )}
-            renderItem={({ item, index: idx }) => (compact ? (() => {
+            renderItem={({ item, index: idx }) => (photoView ? (() => {
+              // 사진 모아보기 — 항목 = 월 머리('2026. 9' + 장수) 또는 사진 3장 한 행. 탭 → 전체 사진 뷰어(fromGrid) → '이 기록 보기' 카드 오버레이.
+              if (item.type === 'empty') {
+                return (
+                  <View style={{ alignItems: 'center', paddingTop: 30, paddingBottom: 24 }}>
+                    <Icon name="image" size={fs(26)} color={C.warmGrayLight} strokeWidth={1.6} />
+                    <Text style={{ fontFamily: F.sysSb, fontSize: fs(13.5), color: C.warmGray, marginTop: 10 }}>아직 사진이 있는 기록이 없어요</Text>
+                  </View>
+                );
+              }
+              if (item.type === 'month') {
+                const [yy, mm] = (item.ym || '').split('.');
+                return (
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', marginHorizontal: 16, marginBottom: 7, marginTop: idx === 0 ? 2 : 14 }}>
+                    <Text style={dS.photoMonth}>{yy ? `${yy}. ${parseInt(mm, 10) || ''}` : '날짜 없음'}</Text>
+                    <Text style={dS.photoMonthCount}>{`${item.count}장`}</Text>
+                  </View>
+                );
+              }
+              const GAP = 3;
+              const cell = Math.floor((winW - 32 - GAP * 2) / 3);
+              return (
+                <View style={{ flexDirection: 'row', gap: GAP, marginHorizontal: 16, marginBottom: GAP }}>
+                  {item.items.map((it) => (
+                    <TouchableOpacity key={it.gi} activeOpacity={0.85} onPress={() => setViewer({ photos: gridPhotos, index: it.gi, fromGrid: true })}
+                      style={{ width: cell, height: cell, borderRadius: 4, overflow: 'hidden', backgroundColor: '#EDE8DD' }}>
+                      {/* transition 없음 — 리스트 셀에서 검게 뜨는 expo-image 함정([[expo-image-black-thumbnail]]) */}
+                      {it.uri ? (
+                        <Image source={{ uri: it.uri }} style={{ width: cell, height: cell }} contentFit="cover" recyclingKey={it.uri} />
+                      ) : (
+                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                          <Icon name="video" size={fs(18)} color={C.warmGray} strokeWidth={1.8} />
+                        </View>
+                      )}
+                      {it.video && it.uri && (
+                        <View style={{ position: 'absolute', right: 5, bottom: 5, width: 20, height: 20, borderRadius: 10,
+                          backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Icon name="video" size={fs(11)} color="#fff" strokeWidth={2} />
+                        </View>
+                      )}
+                      {it.diary.kind === 'moment' && (
+                        <View style={{ position: 'absolute', left: 5, top: 5, width: 7, height: 7, borderRadius: 4, backgroundColor: C.paleSky }} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              );
+            })() : compact ? (() => {
               // 요약보기 — 내 기록과 같은 '월별 하얀 카드'. FlatList라 행마다 테두리를 그려 카드처럼 만든다
               //   (첫 행=위 모서리, 끝 행=아래 모서리, 중간=좌우선+구분선). 헤더에 그 달 요약을 얹는다.
               const meta = compactMeta.get(item.id) || { isStart: true, isEnd: true };
@@ -421,9 +515,35 @@ export function FriendProfile({ friend, visible, feedLoading, feedFailed = false
             </TouchableOpacity>
           )}
 
-          {/* 사진·영상 전체화면 뷰어 — 카드 캐러셀에서 탭 시 */}
+          {/* 격자 뷰어 '이 기록 보기' — 친구 기록엔 상세 화면이 없어 그 기록 카드 한 장을 오버레이로(신고 결과 안내와 같은 자체 오버레이, Modal 위 Modal 회피).
+              카드 안 사진 탭은 다시 뷰어(카드의 사진만)로. */}
+          {gridCard && (
+            <TouchableOpacity activeOpacity={1} onPress={() => setGridCard(null)}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 30,
+                backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 16 }}>
+              <View style={{ maxHeight: '82%' }} onStartShouldSetResponder={() => true}>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
+                  <DiaryCard item={gridCard} variant="friend" myUid={myUid} collapseSignal={collapseSignal}
+                    onReport={setReportItem}
+                    onOpenPhoto={(photos, index) => setViewer({ photos, index })} />
+                </ScrollView>
+                <TouchableOpacity activeOpacity={0.8} onPress={() => setGridCard(null)}
+                  style={{ alignSelf: 'center', marginTop: 12, backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 22, paddingHorizontal: 22, paddingVertical: 10 }}>
+                  <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: '#fff' }}>닫기</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* 사진·영상 전체화면 뷰어 — 카드 캐러셀에서 탭 시 / 사진 모아보기 격자에서 탭 시(fromGrid → '이 기록 보기') */}
           {viewer && (
-            <PhotoViewer photos={viewer.photos} startIndex={viewer.index} onClose={() => setViewer(null)} />
+            <PhotoViewer photos={viewer.photos} startIndex={viewer.index} onClose={() => setViewer(null)}
+              goToPostLabel="이 기록 보기"
+              onGoToPost={viewer.fromGrid ? (cur) => {
+                const hit = photoItems.find(it => it.p === cur) || photoItems.find(it => it.uri && cur && resolvePhotoUri(cur.uri || cur) === it.uri);
+                setViewer(null);
+                if (hit) setGridCard(hit.diary);
+              } : null} />
           )}
         </SafeAreaView>
       </SafeAreaProvider>
