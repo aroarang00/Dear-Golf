@@ -2227,6 +2227,9 @@ export function HomeScreen({ navigation, route }) {
               </View>
               {friendsFeed.slice(0, friendsFeedMore ? 8 : 4).map((d) => {
                 const avatar = /^https?:/.test(d._friendAvatar || '') ? d._friendAvatar : null;
+                // 내가 붙인 별명 우선 — _friendName은 상대 닉네임 원본이라 별명 설정이 홈에 안 보였다(사용자 2026-10-16).
+                //   그릴 때 해석하는 이유: friendMeta는 홈 포커스마다 재로드되므로, 친구 탭서 별명을 바꾸고 돌아오면 피드 재조회 없이도 바로 바뀐다.
+                const friendName = friendDisplayName(friendMeta, d._uid, d._friendName);
                 return (
                   <View key={d.id} style={{ marginBottom: 18 }}>
                     {/* 누구 소식인지 — 카드 자체(친구 프로필 안에서 쓰던 것)엔 주인 표시가 없어 홈에선 이 줄이 필요 */}
@@ -2236,10 +2239,10 @@ export function HomeScreen({ navigation, route }) {
                         <ExpoImage source={{ uri: avatar }} style={{ width: 22, height: 22, borderRadius: 11 }} />
                       ) : (
                         <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(245,230,168,0.25)', alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter }}>{(d._friendName || '친').slice(0, 1)}</Text>
+                          <Text style={{ fontFamily: F.sysB, fontSize: fs(11), color: C.butter }}>{(friendName || '친').slice(0, 1)}</Text>
                         </View>
                       )}
-                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }} numberOfLines={1}>{d._friendName}</Text>
+                      <Text style={{ fontFamily: F.sysB, fontSize: fs(14), color: C.butter }} numberOfLines={1}>{friendName}</Text>
                     </TouchableOpacity>
                     {/* onDark — 짙은 홈 배경에선 카드 옆 3px 띠·0.5px 연베이지 테두리·흰 그림자 래퍼가 흰 선으로 보여 홈에서만 뺀다(친구 탭은 그대로) */}
                     <DiaryCard item={d} variant="friend" myUid={currentUid} onDark
