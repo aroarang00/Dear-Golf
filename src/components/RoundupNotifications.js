@@ -57,8 +57,29 @@ const NOTI_COLOR = {
   contentReportConfirmed: '#6B1E2A', contentRecruitBan30d: '#6B1E2A',
   hostCancelledD7: '#6B1E2A',
 };
-// 주최자(내 모집글)에 오는 알림 / 그 외는 내가 참여·대기한 모집의 알림
-const HOST_TYPES = ['apply', 'cancel', 'waitlist'];
+// 행 위 작은 분류 칩 — 유형별 '어디서 온 알림인지'. ★예전엔 주최자 유형이 아니면 전부 '내 참여·대기'로 찍혀
+//   기록 댓글·일정 변경·노쇼 안내까지 그 이름이 붙었다(사용자 제보 2026-10-26 "댓글인데 내 참여대기로 와"). 유형별로 나눈다.
+const NOTI_GROUP = {
+  apply: '내 모집글', cancel: '내 모집글', waitlist: '내 모집글',
+  comment: '모집 댓글', roundupMention: '모집 댓글',
+  invite: '라운딩 초대', confirmed: '내 참여·대기', waitlistPromoted: '내 참여·대기', roundupFull: '내 참여·대기',
+  roundupCancelled: '내 참여·대기', roundupChanged: '내 참여·대기', hostCancelledD7: '내 참여·대기',
+  roundComment: '내 기록 댓글', roundReply: '내 기록 댓글',
+  scheduleChanged: '일정', scheduleCancelled: '일정', scheduleMemo: '일정', scheduleNotice: '일정', scheduleMention: '일정 이야기',
+  friendRequest: '친구',
+  mannerEval: '매너 평가', mannerScoreUp: '매너', mannerScoreDown: '매너',
+  noshowReported: '노쇼 신고', noshowReportSubmitted: '노쇼 신고', noshowExplanationRequired: '노쇼 신고', noshowConfirmed: '노쇼 신고',
+  noshowReporterConfirmed: '노쇼 신고', noshowFalseReport: '노쇼 신고', noshowFalseReportConfirmed: '노쇼 신고',
+  noshowInconclusive: '노쇼 신고', noshowCancelled: '노쇼 신고',
+  permanentBanAppealNotice: '이용 안내', permanentBanFinalized: '이용 안내', recruitBanPermanentFinalized: '이용 안내',
+  restrictionLifted: '이용 안내', contentReportConfirmed: '이용 안내', contentRecruitBan30d: '이용 안내',
+};
+// 칩 색 — 내 모집글(주최자 액션 필요)=버건디, 모집 참여·초대=그린, 기록·일정·친구=네이비, 매너·노쇼·이용안내=웜그레이
+const NOTI_GROUP_COLOR = {
+  '내 모집글': C.burgundy, '모집 댓글': '#3C7D4F', '라운딩 초대': '#3C7D4F', '내 참여·대기': '#3C7D4F',
+  '내 기록 댓글': '#1A3D52', '일정': '#1A3D52', '일정 이야기': '#1A3D52', '친구': '#1A3D52',
+};
+const notiGroup = (type) => NOTI_GROUP[type] || '알림';
 // 신청자 신뢰도가 표시되는 알림 타입 — 주최자가 승인·확인 판단 시 참고
 const ACTOR_GRADE_TYPES = ['apply', 'cancel', 'waitlist'];
 
@@ -317,7 +338,6 @@ export function RoundupNotifications({ visible, notifications = [], friendMeta =
               </Text>
             ) : (
               notifications.map(n => {
-                const isHost = HOST_TYPES.includes(n.type);
                 const pending = n.type === 'apply' && n.status === 'pending';
                 const showActorGrade = ACTOR_GRADE_TYPES.includes(n.type) && n.actorName && n.actorMannerScore != null;
                 const actorGrade = showActorGrade ? getTrustGrade(n.actorHostedCount || 0, n.actorMannerScore) : null;
@@ -331,8 +351,8 @@ export function RoundupNotifications({ visible, notifications = [], friendMeta =
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: F.sysB, fontSize: fs(10), marginBottom: 2,
-                        color: isHost ? C.burgundy : '#3C7D4F' }}>
-                        {n.type === 'friendRequest' ? '친구' : (isHost ? '내 모집글' : '내 참여·대기')}
+                        color: NOTI_GROUP_COLOR[notiGroup(n.type)] || C.warmGray }}>
+                        {notiGroup(n.type)}
                       </Text>
                       <Text style={{ fontFamily: n.read ? F.sys : F.sysSb, fontSize: fs(13), color: C.charcoal, lineHeight: 18 }}>
                         {notiText(n, friendMeta)}
