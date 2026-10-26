@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 RN Modal서 입력바 키보드 가림 방지
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
@@ -119,6 +119,15 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
   const CLOSED_PAD = safeBottom + 14;
   const kbLift = useSharedValue(0);
   const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(kbLift.value, CLOSED_PAD) }));
+  // ★시트 높이도 키보드만큼 키운다(RoundCommentsModal과 동일, 2026-10-26) — 고정 높이면 헤더 + 입력바(키보드 높이 + 입력창)가
+  //   시트를 넘쳐 여러 줄 쓸 때 아랫줄이 키보드 뒤로 밀린다. 키보드가 차지한 만큼 늘리고 화면 상단 여백까지만.
+  const { height: winH } = useWindowDimensions();
+  const SHEET_RATIO = 0.82;
+  const sheetTopGap = (insets.top || 0) + 24;
+  const sheetStyle = useAnimatedStyle(() => {
+    const extra = Math.max(0, kbLift.value - CLOSED_PAD);
+    return { height: Math.min(winH * SHEET_RATIO + extra, winH - sheetTopGap) };
+  });
   useEffect(() => {
     const onShow = (e) => { kbLift.value = withTiming(Math.round(e?.height || 0) + 8, { duration: e?.duration || 220 }); }; // +8 = 키보드와 살짝 여유
     const onHide = (e) => { kbLift.value = withTiming(0, { duration: e?.duration || 220 }); };
@@ -193,7 +202,8 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
       <KeyboardProvider>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '82%' }}>
+          {/* 82% 기본, 키보드가 열리면 그만큼 키움(sheetStyle) — 입력바가 시트 밖으로 밀려 키보드에 가리지 않게 */}
+          <Animated.View style={[{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20 }, sheetStyle]}>
             {/* 헤더 */}
             <View style={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.hairline, alignSelf: 'center', marginBottom: 12 }} />
@@ -287,7 +297,7 @@ export function ScheduleCommentsModal({ visible, groupId, courseLabel, myUid, my
                 </View>
               </View>
             )}
-          </View>
+          </Animated.View>
         </View>
       </KeyboardProvider>
     </Modal>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider, KeyboardEvents } from 'react-native-keyboard-controller'; // 안드 RN Modal서 입력바 키보드 가림 방지
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
@@ -128,6 +128,17 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
   const CLOSED_PAD = safeBottom + 14;   // 네비바 위 확실한 여유(+14) — 딱 붙으면 가린 것처럼 보임
   const kbLift = useSharedValue(0);
   const kbPadStyle = useAnimatedStyle(() => ({ paddingBottom: Math.max(kbLift.value, CLOSED_PAD) }));
+  // ★시트 높이도 키보드만큼 키운다(사용자 2026-10-26 "줄바꿈되면 아랫줄이 키보드에 안 보여").
+  //   시트가 60% 고정이면 헤더 + 입력바(키보드 높이 + 입력창)가 60%를 거의 다 써서, 한 줄일 땐 딱 맞고
+  //   줄이 늘어난 만큼 입력바가 시트 바닥 밖으로 밀려 키보드 뒤로 들어갔다(안드는 자동완성 띠까지 키보드 높이에 포함).
+  //   키보드가 차지한 만큼(입력바 패딩이 늘어난 양) 시트를 늘려 리스트 영역은 그대로 두고, 화면 상단 여백까지만.
+  const { height: winH } = useWindowDimensions();
+  const SHEET_RATIO = 0.6;   // 60% — 82%는 '별도 화면으로 넘어간' 느낌(사용자 2026-09-22)
+  const sheetTopGap = (insets.top || 0) + 24;
+  const sheetStyle = useAnimatedStyle(() => {
+    const extra = Math.max(0, kbLift.value - CLOSED_PAD);
+    return { height: Math.min(winH * SHEET_RATIO + extra, winH - sheetTopGap) };
+  });
   useEffect(() => {
     const onShow = (e) => { kbLift.value = withTiming(Math.round(e?.height || 0) + 8, { duration: e?.duration || 220 }); };
     const onHide = (e) => { kbLift.value = withTiming(0, { duration: e?.duration || 220 }); };
@@ -239,8 +250,9 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
       <KeyboardProvider>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-          {/* 60% — 82%는 화면을 거의 덮어 '별도 화면으로 넘어간' 느낌(사용자 2026-09-22). 댓글은 카드 위에 살짝 얹히는 정도로. */}
-          <View style={{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '60%' }}>
+          {/* 60% — 82%는 화면을 거의 덮어 '별도 화면으로 넘어간' 느낌(사용자 2026-09-22). 댓글은 카드 위에 살짝 얹히는 정도로.
+              키보드가 열리면 그만큼 키운다(sheetStyle) — 입력바가 시트 밖으로 밀려 키보드에 가리지 않게. */}
+          <Animated.View style={[{ backgroundColor: C.bgPrimary, borderTopLeftRadius: 20, borderTopRightRadius: 20 }, sheetStyle]}>
             {/* 헤더 */}
             <View style={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: C.hairline }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.hairline, alignSelf: 'center', marginBottom: 12 }} />
@@ -387,7 +399,7 @@ export function RoundCommentsModal({ visible, roundId, ownerUid, label, myUid, m
                 </View>
               </View>
             )}
-          </View>
+          </Animated.View>
         </View>
       </KeyboardProvider>
     </Modal>
