@@ -42,7 +42,8 @@ import { AlarmSetupModal, QuickMealPrompt } from './AlarmSetupModal';
 import { scheduleRoundAlarms, getAlarmTypes, getAlarmConfig, applyDefaultAlarms, computeRoundTimeline } from '../utils/notifications';
 import { isRoundDiary } from '../utils/diaryKind';
 import { courseKey, findCourseByName } from '../utils/courseNameKey';   // 구장 매칭 기준 하나(normalizeCourseName) — 홈 '나도 가 본 구장'·비교 줄(2026-09-21)
-import { firstPhotoUri } from '../utils/photoRatio';
+import { firstPhotoUri, cardPhotoRatio, feedFrameAspect, setPhotoRatio } from '../utils/photoRatio';   // 최근 기록 히어로 — 피드와 같은 3단계 틀
+import { FocalImage } from './common/FocalImage';   // 최근 기록 히어로 사진(세로 자동 상단 초점)
 import { resolvePhotoUri } from '../utils/photoStorage';
 import { ScoreBanner, ScoreStatsScreen } from './ScoreStatsScreen';
 import { LedgerBanner } from './LedgerBanner';       // 골프 가계부 요약 카드(스코어 추이 아래, 2026-08-26)
@@ -131,6 +132,16 @@ function displayCourseName(name) {
   }
   if (s.length >= 9) s = s.replace(COURSE_TYPE_MID, '$1').replace(/\s+/g, ' ').trim();
   return s.length >= 3 ? s : full;
+}
+
+// 최근 기록 히어로 사진 — 피드 카드(DiaryCard)와 같은 규칙: 저장된 비율(photos[0].ar)·기기 캐시로 틀을 4:3·1:1·4:5 중 하나로 맞추고
+//   FocalImage로 그린다(4:5보다 긴 사진은 위쪽 초점). 전엔 230px 고정 cover라 세로 사진은 절반이 잘렸다(사용자 2026-10-26 "다 보여주는 건 어때").
+//   처음 보는 사진은 로드 뒤 비율을 캐시에 심어 다음부턴 첫 프레임부터 맞는다.
+function HomeHeroPhoto({ photos, uri, width }) {
+  const [ar, setAr] = useState(() => cardPhotoRatio(photos));
+  const frame = feedFrameAspect(ar);
+  const onRatio = (r) => { if (uri && r) setPhotoRatio(uri, r); setAr(r); };
+  return <FocalImage uri={uri} width={width} height={Math.round(width / frame)} onRatio={onRatio} />;
 }
 
 export function HomeScreen({ navigation, route }) {
@@ -2119,7 +2130,7 @@ export function HomeScreen({ navigation, route }) {
                 style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: C.bgPrimary }}>
                 {heroUri ? (
                   <View>
-                    <ExpoImage source={{ uri: heroUri }} contentFit="cover" transition={0} style={{ width: '100%', height: 230 }} />
+                    <HomeHeroPhoto photos={hero.photos} uri={heroUri} width={winW - SIDE_PAD * 2} />
                     <LinearGradient colors={['transparent', 'rgba(0,0,0,0.62)']}
                       style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110 }} />
                     <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12,
