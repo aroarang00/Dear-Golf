@@ -33,7 +33,11 @@ import { CalendarImportModal } from './CalendarImportModal'; // 폰 캘린더에
 import { ScorecardPreviewModal } from './ScorecardPreviewModal';   // 읽기 전 방향 확인·회전(AI 1회)
 import { createScoreShare } from '../utils/roundScoreShares';   // 동반자 스코어 공유([[companion-design]] §11 Phase C)
 import { normalizeScoreRow } from '../utils/scorecardOcr';   // 공유 전 총타 정규화(오버파 오독 방지)
-import { getUid } from '../utils/firebase';
+import { getUid, auth } from '../utils/firebase';
+import { addCourseComment } from '../utils/courseComments';   // 구장 코멘트 — 저장 뒤 코스 페이지 골퍼 코멘트로(2026-10-26)
+import { getCourseRatings, setMyCourseRating } from '../utils/courseRatings';   // 구장 평점 3항목 — 코스 페이지와 같은 컬렉션(1인 1평가 upsert)
+import { containsProfanity, PROFANITY_BLOCK_MESSAGE } from '../utils/profanityFilter';
+import { showToast } from './AppToast';
 import { sameCourseName, findCourseByName } from '../utils/courseNameKey';   // 구장명 비교 — 앱 전체가 쓰는 같은 기준(길이 추측 금지)
 import { showAppAlert } from './AppAlert';   // 모달이 닫힌 뒤 알림용(스코어 공유 실패 등)
 import { uploadRoundMedia, deleteRoundMediaFiles } from '../utils/roundMedia';   // 사진 미리 업로드(저장 즉시화)
@@ -171,6 +175,30 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
   const [privacy, setPrivacy] = useState(['friends']); // 배열: ['friends'](전체) | ['private'](나만) | [그룹id…](복수 그룹 공개) ([[friend_groups]])
   const [friendData, setFriendData] = useState({ friendGroups: DEFAULT_FRIEND_GROUPS, friendMeta: {} });
   const [starRating, setStarRating] = useState(0);
+  // 구장 코멘트 — 라운딩 저장과 같은 폼에서 코스 페이지 골퍼 코멘트까지 남긴다(사용자 2026-10-26
+  //   "피드 쓰고 코스 가서 또 쓰기 번거로워 코멘트가 안 쌓인다"). 한줄 메모(내 기록·비공개)와는 별개 칸 — 메모를
+  //   자동 복사하면 개인 회고가 공개로 새고 후기로도 쓸모없다.
+  //   수정 모드에서도 보인다(사용자 2026-10-26 "기존 기록에선 안 보이네") — 평점은 1인 1건 갱신이라 안전하고,
+  //   코멘트 칸은 매번 빈 채로 열려 다시 쓰지 않으면 중복이 안 생긴다. 남긴 코멘트 수정·삭제는 코스 페이지에서.
+  const [courseComment, setCourseComment] = useState('');
+  // 구장 평점 3항목(코스관리·경기진행·가성비) — '구장 평가' 섹션에서 코멘트와 함께(사용자 2026-10-26 "섹션 하나로, 평점도").
+  //   코스 페이지와 같은 courseRatings(1인 1평가 upsert)라 이미 평가한 구장이면 내 점수를 미리 채운다.
+  const [courseRating, setCourseRating] = useState({ mgmt: 0, pace: 0, value: 0 });
+  const [hadRating, setHadRating] = useState(false);   // 이 구장에 전에 남긴 평가가 있음(1인 1평가) — '바꾸면 갱신' 안내용
+  const anonymize = (name = '') => (name ? name.charAt(0) + '***' : '익***');   // GuideScreen과 같은 마스킹
+  // 코멘트 키 — 코스 상세(GuideScreen.commentKeyFor)와 같은 규칙(카카오 코스=kakao:{kakaoId}). 검색으로 고른 구장만 키가 있다.
+  const courseCommentKey = selectedCourseObj?.kakaoId ? `kakao:${selectedCourseObj.kakaoId}` : null;
+  const canCourseComment = !!courseCommentKey && !auth.currentUser?.isAnonymous;   // 카카오 미연결은 코스 페이지와 같이 제외
+  const ratingFilled = ['mgmt', 'pace', 'value'].filter(k => courseRating[k] >= 1).length;   // 0=안 함, 3=완료, 1~2=미완
+  useEffect(() => {
+    if (!canCourseComment) { setCourseRating({ mgmt: 0, pace: 0, value: 0 }); setHadRating(false); return; }
+    let alive = true;
+    getCourseRatings(courseCommentKey).then(r => {
+      if (!alive) return;
+      setCourseRating(r?.mine || { mgmt: 0, pace: 0, value: 0 }); setHadRating(!!r?.mine);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [courseCommentKey, canCourseComment]);
   const [selectedTags, setSelectedTags] = useState([]);
   const [detailMemo, setDetailMemo] = useState('');
   const [detailSel, setDetailSel] = useState(undefined);
@@ -621,7 +649,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
     setScNotes([]); setScShotUris([]); setScParTarget(0); setScParNineTarget([0, 0]);   // 다른 기록을 열었을 때 지난 카드 사진·경고가 남지 않게
     setShowCost(false); setShowCourseDetail(false); setCosts({ field: '', green: '', cart: '', onsite: '', caddie: '', etc: '', bet: '' }); setBetWon(false);
     setAddPhotos([]);
-    setStarRating(0); setSelectedTags([]);
+    setStarRating(0); setSelectedTags([]); setCourseComment(''); setCourseRating({ mgmt: 0, pace: 0, value: 0 }); setHadRating(false);
     setDetailMemo(''); setDetailSel(undefined);
     setPrivacy(['friends']);
     setCompanions([]); setCompanionInput(''); setShareScores(false); setTeamRoster([]);
@@ -957,6 +985,14 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
       }
     }
     // 메모는 선택 — 점수+구장만으로 저장 허용(일상글이 사진만으로 저장되는 것과 일관, 사용자 2026-06-29).
+    // 구장 코멘트는 공개 글 — 코스 페이지와 같은 비속어 검사. 저장 전에 걸어 고칠 수 있게.
+    if (canCourseComment && courseComment.trim() && containsProfanity(courseComment)) {
+      setSaveError(`구장 코멘트: ${PROFANITY_BLOCK_MESSAGE}`); return;
+    }
+    // 평점은 세 항목이 다 있어야 집계에 들어간다(코스 페이지와 같은 규칙) — 한두 개만 찍혔으면 조용히 버리지 않고 알린다.
+    if (canCourseComment && ratingFilled > 0 && ratingFilled < 3) {
+      setSaveError('구장 평가: 세 항목 모두 별점을 매겨주세요'); return;
+    }
     setSaveError('');
     // OCR 홀별(holeScores)이 있는데 총타수를 손으로 바꿔 합계와 어긋나면, 직접 입력한 총타수를 신뢰하고
     //   더는 맞지 않는 홀별 집계는 저장에서 제외(보기 화면 '총 N타'와 홀별 합 불일치 방지).
@@ -1043,9 +1079,24 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
           }
         }
       }
+      // 구장 코멘트 → 코스 페이지 골퍼 코멘트. 날짜는 '오늘'이 아니라 라운딩 연월(그때 돈 사람의 평으로 읽히게).
+      //   실패해도 기록은 되돌리지 않고 토스트만(스코어 공유와 같은 원칙). 모달 닫힌 뒤 띄운다.
+      let commentToast = null;
+      const ccTxt = courseComment.trim();
+      const doRating = canCourseComment && ratingFilled === 3;
+      if (canCourseComment && (ccTxt || doRating)) {
+        const okRating = doRating ? await setMyCourseRating(courseCommentKey, courseRating) : null;
+        const created = ccTxt ? await addCourseComment(courseCommentKey, ccTxt,
+          anonymize(userProfile?.nickname), `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}`) : null;
+        const failed = (doRating && !okRating) || (ccTxt && !created);
+        commentToast = failed
+          ? '구장 평가는 올리지 못했어요 · 코스 페이지에서 다시 남길 수 있어요'
+          : (ccTxt && doRating ? '구장 평가와 코멘트도 남겼어요' : ccTxt ? '구장 코멘트도 남겼어요' : '구장 평가도 남겼어요');
+      }
       reset(); onClose();
       // 모달이 닫힌 뒤에 띄운다 — 글로벌 알럿은 RN Modal 위에서 터치가 안 먹어 닫힘 애니메이션 후로 미룬다.
       if (shareWarn) setTimeout(() => showAppAlert(shareWarn.title, shareWarn.message), 350);
+      else if (commentToast) setTimeout(() => showToast(commentToast), 350);   // 알럿이 뜨면 토스트는 생략(겹침 방지)
     };
 
     // 저장 실행부 — 신규 저장과 '기존 기록 덮어쓰기'가 뒷정리·공유까지 똑같이 흐르도록 하나로 묶는다.
@@ -1422,6 +1473,45 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
                 onClose={() => setShowTimePicker(false)} />
 
               </View>
+
+              {/* ── 구장 평가 — 구장 바로 아래, 독립 섹션(사용자 2026-10-26). 평점 3항목 + 코멘트가 코스 페이지(골퍼 평점·코멘트)로 올라간다.
+                  검색으로 고른 구장(kakaoId)·카카오 연결 계정일 때(신규·수정 모두). 전부 선택이고 공개가 전제라 공개/비공개 문구는 두지 않는다. */}
+              {canCourseComment && (
+                <View style={cardBox}>
+                  <SectionHead title="구장 평가" sub="· 선택 · 코스 페이지에 올라가요" />
+                  {/* 1인 1평가 — 전에 매긴 별점이 채워져 있으면 '새로 쌓이는 게 아니라 그 1건이 바뀐다'를 알려준다(사용자 2026-10-26) */}
+                  {hadRating && (
+                    <Text style={{ fontFamily: F.sys, fontSize: fs(11.5), color: C.warmGray, marginTop: -6, marginBottom: 10 }}>
+                      전에 남긴 평가예요 · 바꾸면 갱신돼요
+                    </Text>
+                  )}
+                  {[['코스관리', 'mgmt'], ['경기진행', 'pace'], ['가성비(그린피 대비)', 'value']].map(([label, k]) => (
+                    <View key={k} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(13.5), color: C.charcoal }}>{label}</Text>
+                      <View style={{ flexDirection: 'row', gap: 2 }}>
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <TouchableOpacity key={n} onPress={() => setCourseRating(d => ({ ...d, [k]: n }))} hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }} activeOpacity={0.6}>
+                            <Text style={{ fontSize: fs(26), color: n <= courseRating[k] ? '#C9A84C' : '#E8E2D0' }}>★</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+                  {ratingFilled > 0 && (
+                    <TouchableOpacity onPress={() => setCourseRating({ mgmt: 0, pace: 0, value: 0 })} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ alignSelf: 'flex-end', marginBottom: 4 }}>
+                      <Text style={{ fontFamily: F.sysM, fontSize: fs(12), color: C.warmGray }}>별점 지우기</Text>
+                    </TouchableOpacity>
+                  )}
+                  <Text style={[mS.bigLabel, { marginTop: 6 }]}>코멘트</Text>
+                  <AppTextInput style={[mS.input, { minHeight: 72, textAlignVertical: 'top' }]} multiline maxLength={200}
+                    placeholder="코스 상태·진행 속도·가성비 등 다음 골퍼에게 도움될 한마디" placeholderTextColor={C.warmGrayLight}
+                    value={courseComment} onChangeText={setCourseComment} />
+                  <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray, marginTop: 6 }}>
+                    남긴 코멘트는 코스 페이지에서 수정·삭제할 수 있어요
+                  </Text>
+                </View>
+              )}
+
               <View style={cardBox}>
               <SectionHead title="오늘의 기록" />
               <Text style={[mS.bigLabel, { color: '#6B1E2A' }]}>한줄 메모 <Text style={{ fontFamily: F.sys, fontSize: fs(11), color: C.warmGray }}>(선택)</Text></Text>
