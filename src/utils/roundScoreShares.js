@@ -1,5 +1,5 @@
 import {
-  collection, query, where, onSnapshot,
+  collection, query, where, onSnapshot, getDocs,
   addDoc, setDoc, updateDoc, doc, serverTimestamp, arrayUnion, Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -35,12 +35,37 @@ function countBirdies(holes, pars) {
   return n;
 }
 
+// '같은 라운딩' 키 — 보낸 사람·날짜·구장(표기 차이 흡수)·티오프 시간. 보낼 때 중복 차단과 받을 때 중복 제거가 같은 키를 쓴다.
+//   ★시간을 넣는 이유 — 같은 날 같은 구장 36홀(2라운드)은 티오프가 다르다(사용자 2026-10-26). 시간을 안 적은 기록은 ''로 같아져
+//     그때만 한 건으로 묶인다(옛 공유 문서엔 time이 없어 역시 '').
+export function shareRoundKey(s) {
+  return `${s?.authorUid || ''}|${s?.date || ''}|${normalizeCourseName(s?.course || '')}|${s?.time || ''}`;
+}
+
+// 내가 같은 라운딩(날짜·구장)으로 이미 보낸 공유가 있는지 — 있으면 그 id. 읽기 규칙 authorUid==me로 통과.
+//   authorUid 단일 where(인덱스 불요) + 날짜·구장은 클라 비교(내 공유는 TTL 14일 안에 몇 건뿐).
+async function findMyExistingShare(authorUid, round) {
+  const key = shareRoundKey({ authorUid, date: round?.date, course: round?.course, time: round?.time });
+  const snap = await getDocs(query(collection(db, COLLECTION), where('authorUid', '==', authorUid)));
+  let found = null;
+  snap.forEach(d => { if (!found && shareRoundKey({ authorUid, ...d.data() }) === key) found = d.id; });
+  return found;
+}
+
 // 공유 생성 — rows는 OCR 전체 행([{idx,label,holes,total}]) 또는 총타 수동 행.
 //  audienceUids = 그 라운딩 동반자 중 friendUid 있는 사람(실유저)만. 익명/비유저는 수신 대상 아님(마스킹).
+//  ★같은 라운딩(날짜·구장)을 이미 보냈으면 새로 만들지 않고 그 id를 돌려준다(2026-10-26).
+//    매번 addDoc(랜덤 id)이라 카드를 다시 스캔해 저장하거나 '덮어쓰기·따로 추가'를 고르면 새 문서가 생겨
+//    이미 받았거나 거절한 친구에게 배너·푸시가 또 갔다(respondedUids가 새 문서엔 비어 있음).
+//    author는 규칙상 update가 안 되고(수신자 self-toggle만) 지우면 응답 기록이 날아가므로 '건너뛰기'가 가장 쉽고 안전.
 export async function createScoreShare({ authorUid, authorName, round, rows, audienceUids }) {
   if (!authorUid || !Array.isArray(rows) || !rows.length) return null;
   const aud = (audienceUids || []).filter(Boolean);
   if (!aud.length) return null; // 받을 사람 없으면 생성 안 함
+  try {
+    const existing = await findMyExistingShare(authorUid, round);
+    if (existing) return existing;   // 이미 보낸 라운딩 — 중복 발송 안 함(호출부엔 성공과 동일)
+  } catch (e) { if (__DEV__) console.warn('[scoreShare] dup check fail', e?.message); }   // 조회 실패면 종전처럼 생성
   const payload = {
     authorUid,
     authorName: authorName || '',
@@ -49,6 +74,7 @@ export async function createScoreShare({ authorUid, authorName, round, rows, aud
     courseLoc: round?.courseLoc || null,
     date: round?.date || '',
     day: round?.day || '',
+    time: round?.time || null,   // 티오프('HH:MM') — 같은 날 같은 구장 2라운드 구분용(중복 키). 없으면 null
     pars: Array.isArray(round?.holePars) ? round.holePars : null,
     rows: rows.map((r, i) => ({
       idx: i,
@@ -69,6 +95,8 @@ export async function createScoreShare({ authorUid, authorName, round, rows, aud
 
 // 내게 온 스코어 공유 구독 — audienceUids에 내 uid, 아직 응답(respondedUids) 안 한 것만. 최신순(클라 정렬).
 //  반환 = unsubscribe 함수.
+//  ★같은 사람이 같은 라운딩(날짜·구장)을 여러 번 보낸 옛 중복은 최신 1건만 남긴다(안전망, 2026-10-26).
+//    새 중복은 createScoreShare가 보낼 때 막지만, 이 수정 전에 쌓인 문서는 TTL(14일)까지 남아 있다.
 export function subscribeIncomingScoreShares(uid, cb) {
   if (!uid) { cb([]); return () => {}; }
   const q = query(collection(db, COLLECTION), where('audienceUids', 'array-contains', uid));
@@ -81,7 +109,9 @@ export function subscribeIncomingScoreShares(uid, cb) {
       list.push({ id: d.id, ...data });
     });
     list.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-    cb(list);
+    const seen = new Set();
+    const deduped = list.filter(s => { const k = shareRoundKey(s); if (seen.has(k)) return false; seen.add(k); return true; });
+    cb(deduped);
   }, (e) => { if (__DEV__) console.warn('[scoreShare] subscribe fail', e?.message); cb([]); });
 }
 

@@ -83,12 +83,17 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
     setTimeout(() => showAppAlert(title, msg), 350);
   };
 
-  // 처리 중 상태가 영영 안 풀리는 것 방지 — 응답이 안 오면 15초 뒤 풀고 안내한다(무한 '추가 중…' 차단).
+  // 처리 중 상태가 영영 안 풀리는 것 방지 — 응답이 안 오면 15초 뒤 풀고 시트를 닫는다(무한 '추가 중…' 차단).
+  //   ★안내는 토스트로(2026-10-26). 예전엔 AppAlert를 띄웠는데, 이 타이머는 15초 뒤 '아무 때나' 터지므로
+  //   사용자가 그 사이 다른 Modal 화면(기록 상세·DM)에 들어가 있으면 글로벌 알림이 그 뒤에 깔려 먹통이 됐다
+  //   ([[ios-modal-stacking]] 10-12 DM 실사례와 같은 계열). 토스트는 Modal이 아니라 어디서 떠도 안전하고,
+  //   쓰기는 멱등이라 연결되면 알아서 반영되므로 '실패'처럼 겁줄 일도 아니다.
   useEffect(() => {
     if (!busy) return;
     const t = setTimeout(() => {
       setBusy(false);
-      closeThenAlert('응답이 지연되고 있어요', '네트워크 상태를 확인해 주세요.\n이미 처리됐다면 잠시 후 목록에서 사라져요.');
+      close();
+      showToast('처리가 늦어지고 있어요 · 연결되면 자동으로 반영돼요');
     }, 15000);
     return () => clearTimeout(t);
   }, [busy]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -149,15 +154,21 @@ export function ScoreShareInbox({ nickname, onDerived, variant = 'feed', onActiv
       ]), 350);
   };
 
-  const decline = async () => {
+  // 받지 않기 — ★서버 응답을 기다리지 않는다(2026-10-26 '안받기 눌렀더니 먹통' 제보).
+  //   예전엔 updateDoc을 await 하며 busy로 시트를 잠갔는데, 이 앱의 Firestore는 메모리 캐시라 await는
+  //   '서버 ack'가 와야만 풀린다. 푸시로 깨어난 직후엔 소켓 재연결 백오프로 수 초~수십 초 걸리고,
+  //   그 사이 로컬 스냅샷은 즉시 발화해 홈 배너만 사라지고 시트는 버튼이 흐려진 채 남아 "눌렀는데 반응 없음"이 됐다.
+  //   거절은 respondedUids에 내 uid 하나 넣는 멱등 쓰기라 결과를 기다릴 이유가 없다 → 먼저 닫고, 실패했을 때만 알린다.
+  const decline = () => {
     if (!active || busy || !uid) return;
-    setBusy(true);
-    try { const id = active.id; await declineScoreShare(id, uid); doneWith(id); }
-    catch (e) {
+    const id = active.id;
+    const p = declineScoreShare(id, uid);   // 먼저 쓰기 시작(로컬 스냅샷이 즉시 목록에서 뺀다)
+    doneWith(id);   // 남은 게 있으면 목록으로, 없으면 시트 닫기 — 서버 응답 안 기다림
+    p.catch((e) => {
       if (__DEV__) console.warn('[scoreShare] decline fail', e?.message);
-      closeThenAlert('처리 실패', '잠시 후 다시 시도해 주세요.');   // 시트 닫은 뒤 안내(모달 겹침 금지)
-    }
-    finally { setBusy(false); }
+      // 시트는 이미 닫혔으니 슬라이드 닫힘(≈300ms)만 기다려 띄운다(모달 겹침 금지)
+      setTimeout(() => showAppAlert('처리 실패', '잠시 후 다시 시도해 주세요.'), 350);
+    });
   };
 
   // ★예전엔 (!shares.length && !active)이면 통째로 return null 했는데, 응답 직후 이 조건이 참이 되면

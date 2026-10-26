@@ -1027,7 +1027,7 @@ export function DiaryAddModal({ visible, onClose, onSave, initial, isEdit, loada
               authorUid: uid,
               authorName: userProfile.nickname || userProfile.realName || '',
               round: {
-                course: finalCourse, date: formatDate(date), day: formatDay(date),
+                course: finalCourse, date: formatDate(date), day: formatDay(date), time: teeTime || null,   // 티오프 — 같은 날 2라운드 구분(중복 공유 키)
                 courseId: payload.courseId, courseLoc: payload.courseLoc, holePars,
                 ...((pickedScheduleId || initial?.scheduleId) ? { scheduleId: pickedScheduleId || initial?.scheduleId } : {}),
               },
