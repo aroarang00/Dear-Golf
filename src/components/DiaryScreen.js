@@ -849,7 +849,7 @@ export function DiaryScreen({ route, navigation }) {
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14, backgroundColor: C.bgPrimary }}>
         {/* 가계부·설정 알약 — 아바타 줄 우상단 절대좌표(원래 자리). 알약을 윗줄로 뺐더니 '프로필·이름이 내려갔다'(사용자 2026-10-11) → 복귀.
             대신 알약을 줄여(글자 11px·여백 9·설정 톱니 제거) 둘 합쳐 ~97dp → 이름 줄 paddingRight 104면 360dp 안드에서도
-            20px 한글 6자(≈120dp)가 한 줄(가용 ≈122dp). iOS는 이름(marginTop:0)이 위에 붙어 top 8, 안드는 이름 marginTop:8이라 14([[rn-platform-gotchas]]). */}
+            20px 한글 6자(≈120dp)가 한 줄(가용 ≈122dp). 닉네임 상한이 7자로 늘어(2026-10-28) 넘치는 이름은 adjustsFontSizeToFit으로 축소. iOS는 이름(marginTop:0)이 위에 붙어 top 8, 안드는 이름 marginTop:8이라 14([[rn-platform-gotchas]]). */}
         <View style={{ position: 'absolute', top: Platform.OS === 'android' ? 14 : 8, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4, zIndex: 1 }}>
           {/* 가계부 — 💰 이모지 → 텍스트 알약(사용자 2026-07-03). 가계부 모달 톤(차콜딥+골드)과 통일. */}
           <TouchableOpacity onPress={() => setShowLedger(true)} activeOpacity={0.7}
@@ -894,7 +894,7 @@ export function DiaryScreen({ route, navigation }) {
             {/* 이름 — 옆은 깔끔하게(배지 미부착). 마일스톤은 아래 흐린 줄로. */}
             {/* 이름 탭 → 설정(마이페이지). 톱니만으론 '설정이 숨어 있다'(사용자 2026-10-11) — 프로필을 누르는 습관을 받아준다. */}
             <TouchableOpacity onPress={() => setShowMyPage(true)} activeOpacity={0.6} style={{ alignSelf: 'flex-start' }} accessibilityLabel="설정 열기">
-              <Text numberOfLines={1} style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12, marginTop: Platform.OS === 'android' ? 8 : 0 }}>{myName}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={{ fontFamily: F.sysB, fontSize: fs(20), color: C.charcoal, marginLeft: 12, marginTop: Platform.OS === 'android' ? 8 : 0 }}>{myName}</Text>
             </TouchableOpacity>
             {/* 멘트(상태 메시지) — 이름 아래 line 2로 올림(마일스톤 칩과 위치 스왑, 2026-06-14). 한 줄·인용·연한 톤.
                 버튼(💰·⚙️)보다 아래라 우측 여백 되찾아(marginRight 음수) 폭 확보 */}

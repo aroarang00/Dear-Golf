@@ -307,7 +307,7 @@ export function MyPageModal({ visible, onClose }) {
       return;
     }
     if ([...trimmed].length > NICKNAME_MAX) {   // 입력칸 slice를 우회한 값(붙여넣기 조합 등) 방어
-      setAlertData({ title: '닉네임은 6자까지', message: `닉네임은 ${NICKNAME_MAX}자 이하로 정해주세요.` });
+      setAlertData({ title: `닉네임은 ${NICKNAME_MAX}자까지`, message: `닉네임은 ${NICKNAME_MAX}자 이하로 정해주세요.` });
       return;
     }
     // 변경 제한 — 일반 30일/1회, 카카오 15일/1회
@@ -437,7 +437,7 @@ export function MyPageModal({ visible, onClose }) {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <AppTextInput
                         style={[myS.nickInput, { flex: 1 }]}
-                        value={nickname} onChangeText={(t) => setNickname(t.slice(0, NICKNAME_MAX))} /* 10→6자(2026-10-11) — 명함 한 줄 20px 보장. 기존 긴 닉네임은 수정 시 잘림 */
+                        value={nickname} onChangeText={(t) => setNickname(t.slice(0, NICKNAME_MAX))} /* 상한은 NICKNAME_MAX(7자, 2026-10-28) — 명함은 글자 자동 축소로 한 줄 유지 */
                         onSubmitEditing={handleSaveNickname}
                         returnKeyType="done"
                         autoFocus

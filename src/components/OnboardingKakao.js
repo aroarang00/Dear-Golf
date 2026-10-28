@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NICKNAME_MAX } from '../utils/nickname';   // 소셜 이름 시드 6자 상한
+import { NICKNAME_MAX } from '../utils/nickname';   // 소셜 이름 시드 상한(NICKNAME_MAX)
 import { ScrollView, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -96,7 +96,7 @@ export function OnboardingKakao({ onKakaoSuccess, onSkip }) {
       // 3. users/{uid} 문서 보장 — 신규는 생성, 기존은 로드
       const userDoc = await ensureUserDoc(link.uid, {
         kakaoId: result.kakaoId,
-        nickname: String(result.nickname || '').slice(0, NICKNAME_MAX),   // 소셜 이름이 6자를 넘으면 자름(명함 한 줄 상한)
+        nickname: String(result.nickname || '').slice(0, NICKNAME_MAX),   // 소셜 이름이 상한을 넘으면 자름
         profileImageUrl: result.profileImageUrl,
       });
 
