@@ -5,6 +5,7 @@ import {
 import { db } from './firebase';
 import { createNotification } from './roundupNotifications';
 import { findUserCourseById, ensureCourseCoord } from './userCourses';
+import { normalizeCourseName } from './top100';
 
 // =============================================================
 // scheduleGroups/{groupId} — 일정 동반자 전파 (Phase B, docs/companion-design.md §5-1, [[schedule-propagation-spec]])
@@ -127,10 +128,27 @@ function filterPending(snap, uid) {
 //   따로 두면 수락 후 배너는 닫히는데 탭바 뱃지만 계속 흔들리는 어긋남이 난다(2026-08-04).
 //   '이미 멤버'라도 그 일정이 내게 없으면 유령 멤버십 → 다시 보여준다(자가 치유, 2026-08-03).
 //   일정 로딩 전(hydrated=false)엔 판단을 미뤄 멀쩡한 멤버십을 '유령'으로 오인하지 않는다.
+//   ★단, 같은 날·같은 구장 일정을 이미 갖고 있으면 유령이 아니다 — 내 일정에 다른 그룹(내가 먼저 공유한 그룹 등)이
+//    이미 찍혀 있어 이 그룹 id를 못 덮어쓴 경우. 이걸 유령으로 보면 '내 일정에 추가'를 눌러도 배너가 계속 되살아난다(2026-11-03).
 export function visibleScheduleInvites(invites, schedules, hydrated) {
   const list = invites || [];
   if (!hydrated) return list.filter(i => !i._alreadyMember);
-  return list.filter(i => !i._alreadyMember || !(schedules || []).some(s => s.groupId === i.id));
+  return list.filter(i => !i._alreadyMember
+    || !((schedules || []).some(s => s.groupId === i.id) || findSameRoundSchedule(schedules, i)));
+}
+
+// 초대와 '같은 라운딩'(같은 날·같은 구장)인 내 일정 — 수락 시 중복 생성 대신 편입할 대상([[schedule-propagation-spec]] §4).
+//   ★매칭 키는 계정 독립 식별자만 — courseId/courseLogId는 per-user라 발신자↔수신자가 절대 안 맞음(같은 구장도 별도 생성 버그).
+//   kakaoId(둘 다 있으면) 우선, 없으면 정규화 이름 비교([[course-matching-unification]]). 배너 표시 판정도 같은 기준을 쓴다.
+export function findSameRoundSchedule(schedules, inv) {
+  if (!inv) return undefined;
+  return (schedules || []).find(s =>
+    s.date === inv.date && (
+      (s.courseKakaoId && inv.courseKakaoId)
+        ? String(s.courseKakaoId) === String(inv.courseKakaoId)
+        : normalizeCourseName(s.course) === normalizeCourseName(inv.course)
+    ),
+  );
 }
 
 // 그룹 → 내 schedules 파생 payload(프리필). 호출부에서 setDoc/캘린더 동기화에 사용.

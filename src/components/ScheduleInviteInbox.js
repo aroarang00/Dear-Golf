@@ -5,9 +5,8 @@ import { useCurrentUid } from '../contexts/CurrentUidContext';
 import { SchedulesContext } from '../contexts/SchedulesContext';
 import {
   subscribeIncomingScheduleInvites, buildDerivedSchedule, visibleScheduleInvites,
-  derivedScheduleId, joinScheduleGroup, declineScheduleInvite,
+  derivedScheduleId, joinScheduleGroup, declineScheduleInvite, findSameRoundSchedule,
 } from '../utils/scheduleShares';
-import { normalizeCourseName } from '../utils/top100';
 import { showAppAlert } from './AppAlert';
 import { Icon } from './common/Icon';   // 커스텀 SVG 아이콘(유니코드 이모지 금지 — 커스텀 드로잉만)
 
@@ -49,15 +48,9 @@ export function ScheduleInviteInbox({ onActiveChange }) {
   useEffect(() => { onActiveChange && onActiveChange(active); }, [active]);
 
   // 같은 라운딩(course+date) 일정을 이미 보유하면 중복 생성 대신 groupId 스탬프만(중복 방지, [[schedule-propagation-spec]] §4).
-  //   ★매칭 키는 계정 독립 식별자만 — courseId/courseLogId는 per-user라 발신자↔수신자가 절대 안 맞음(같은 구장도 별도 생성 버그).
-  //   kakaoId(둘 다 있으면) 우선, 없으면 정규화 이름 비교([[course-matching-unification]], [[schedule-propagation-spec]] 전파 함정).
-  const findExisting = (inv) => (schedules || []).find(s =>
-    s.date === inv.date && (
-      (s.courseKakaoId && inv.courseKakaoId)
-        ? String(s.courseKakaoId) === String(inv.courseKakaoId)
-        : normalizeCourseName(s.course) === normalizeCourseName(inv.course)
-    ),
-  );
+  //   매칭 규칙은 scheduleShares.findSameRoundSchedule 한 곳에 — 배너 표시 판정(visibleScheduleInvites)과 같은 기준이어야
+  //   '수락했는데 배너가 되살아나는' 어긋남이 안 난다(2026-11-03).
+  const findExisting = (inv) => findSameRoundSchedule(schedules, inv);
 
   // 시간 충돌 = 내 기존 일정과 동반자 초대가 '둘 다 시간이 있고 서로 다른' 경우만(통합안).
   //   같으면(또는 한쪽이 미정이면) 충돌 아님 → 조용히 편입. 다르면 3지선다 프롬프트.
